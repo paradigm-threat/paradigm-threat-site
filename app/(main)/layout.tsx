@@ -3,6 +3,7 @@
 import React, { Suspense, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { DynamicNav, FloatingDiv, DynamicIndex, useFiles } from "@/components";
+import { RemoteFileIndexBanner } from "@/components/RemoteFileIndexBanner";
 import { SuspenseLoader } from "@client";
 
 export default function MainLayout({
@@ -17,8 +18,9 @@ export default function MainLayout({
     const isChatPage = pathname?.startsWith('/chat') ?? false;
 
     return (
-        <div className="flex-grow flex justify-center w-full px-4 py-8 relative">
-            <div className="max-w-[90rem] w-full flex flex-col lg:flex-row gap-8">
+        <div className="flex-grow flex flex-col w-full px-4 py-8 relative">
+            <RemoteFileIndexBanner />
+            <div className="max-w-[90rem] w-full mx-auto flex flex-col lg:flex-row gap-8">
                 <aside className="lg:w-64 flex-shrink-0">
                     <FloatingDiv containerTag='nav' className="hidden lg:block lg:sticky lg:top-24 w-64" hideFloatingButtons={hideFloatingButtons}>
                         <div className="max-h-[calc(100vh-8rem)] overflow-y-auto bg-slate-100 dark:bg-slate-900 rounded-lg p-3">

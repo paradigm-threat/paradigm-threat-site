@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, memo, useRef } from 'react'
 import { useParams, usePathname } from 'next/navigation'
 import { RemoteMDX } from '@/components/RemoteMDX'
 import { PopImage, useFiles, ArticleNav } from '@/components'
+import { ArticleRemote404Notice } from '@/components/ArticleRemote404Notice'
 import Link from 'next/link'
 import matter from 'gray-matter'
 import { ArticleTTSProvider } from '@/components/ArticleTTS/ArticleTTSProvider'
@@ -16,7 +17,7 @@ import { formatIndexDateTiny } from '@/lib/indexUpdated'
 export const CatchAllClient = memo(function CatchAllClient() {
   const params = useParams()
   const pathname = usePathname()
-  const { fileList } = useFiles()
+  const { fileList, loading: indexLoading } = useFiles()
   const [content, setContent] = useState<string | null>(null)
   const [compiledMdx, setCompiledMdx] = useState<{ compiledSource: string; frontmatter?: Record<string, unknown>; scope?: Record<string, unknown> } | null>(null)
   const [basePath, setBasePath] = useState('')
@@ -30,6 +31,8 @@ export const CatchAllClient = memo(function CatchAllClient() {
   const [mds, setMds] = useState<string[]>([])
   const [mdContents, setMdContents] = useState<Record<string, { title: string; content: string }>>({})
   const [error, setError] = useState<string | null>(null)
+  const [remoteArticle404, setRemoteArticle404] = useState(false)
+  const [articleRetryKey, setArticleRetryKey] = useState(0)
   const [isScrolled, setIsScrolled] = useState(false)
 
   const slugArray = useMemo(() => {
@@ -42,11 +45,13 @@ export const CatchAllClient = memo(function CatchAllClient() {
   const articleRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
-    if (!fileList) return
-    setFilesIndex(fileList)
+    if (indexLoading) return
+
+    const tree = fileList
+    setFilesIndex(tree ?? null)
 
     const baseUrl = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://files.paradigmthreat.net'
-    const version = typeof fileList?._version === 'string' ? fileList._version : ''
+    const version = typeof tree?._version === 'string' ? tree._version : ''
     const vParam = version ? `?v=${version}` : ''
 
     const requestPath = path
@@ -58,6 +63,8 @@ export const CatchAllClient = memo(function CatchAllClient() {
       window.scrollTo(0, 0)
       try {
         setLoading(true)
+        setRemoteArticle404(false)
+        setError(null)
 
         const articleUrl = `/api/article?path=${encodeURIComponent(requestPath)}${version ? `&v=${encodeURIComponent(version)}` : ''}`
         const articleRes = await fetch(articleUrl, { signal: abortController.signal })
@@ -72,6 +79,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
           const { compiledSource, frontmatter, scope, content: mdxSource, title: articleTitle, basePath: calcBasePath } = data
 
           if (isMounted && loadingPathRef.current === requestPath) {
+            setRemoteArticle404(false)
             setBasePath(calcBasePath || '')
             setContent(mdxSource)
             setCompiledMdx({ compiledSource, frontmatter, scope })
@@ -85,7 +93,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
             } catch (_) { }
           }
 
-          let current = fileList
+          let current = tree
           for (const s of (calcBasePath || '').split('/').filter(Boolean)) {
             if (current && current[s]) current = current[s]
             else { current = null; break }
@@ -106,10 +114,14 @@ export const CatchAllClient = memo(function CatchAllClient() {
             if (isMounted && loadingPathRef.current === requestPath) setUnusedImages(unused)
           }
         } else {
-          let current = fileList
-          for (const s of slugArray) {
-            if (current && typeof current === 'object' && current[s]) current = current[s]
-            else { current = null; break }
+          let current = tree
+          if (current && typeof current === 'object') {
+            for (const s of slugArray) {
+              if (current && typeof current === 'object' && current[s]) current = current[s]
+              else { current = null; break }
+            }
+          } else {
+            current = null
           }
 
           if (current && typeof current === 'object') {
@@ -128,6 +140,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
             })
 
             if (isMounted && loadingPathRef.current === requestPath) {
+              setRemoteArticle404(false)
               setContent(null)
               setCompiledMdx(null)
               setArticleTitle('')
@@ -165,11 +178,27 @@ export const CatchAllClient = memo(function CatchAllClient() {
               }))
               if (isMounted && loadingPathRef.current === requestPath) setMdContents(contents)
             }
+          } else if (isMounted && loadingPathRef.current === requestPath) {
+            setContent(null)
+            setCompiledMdx(null)
+            setArticleTitle('')
+            setDirectFiles([])
+            setSubDirs([])
+            setImages([])
+            setMds([])
+            setMdContents({})
+            if (articleRes.status === 404) {
+              setRemoteArticle404(true)
+            } else {
+              setRemoteArticle404(false)
+              setError(`Could not load this page (HTTP ${articleRes.status}).`)
+            }
           }
         }
       } catch (e) {
         if ((e as Error).name !== 'AbortError' && isMounted && loadingPathRef.current === requestPath) {
           setError(String(e))
+          setRemoteArticle404(false)
         }
       } finally {
         if (loadingPathRef.current === requestPath) setLoading(false)
@@ -182,7 +211,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
       loadingPathRef.current = null
       abortController.abort()
     }
-  }, [path, pathname, slugArray, fileList])
+  }, [path, pathname, slugArray, fileList, indexLoading, articleRetryKey])
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 50)
@@ -191,7 +220,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  if (loading) {
+  if (indexLoading || loading) {
     return <div className="flex items-center justify-center min-h-screen"><SuspenseLoader /></div>
   }
 
@@ -321,13 +350,17 @@ export const CatchAllClient = memo(function CatchAllClient() {
         </h1>
 
         {directFiles.length === 0 && subDirs.length === 0 ? (
-          <div className="text-center py-20">
-            <p className="text-slate-500 mb-4">No content found for this path</p>
-            {error && <p className="text-xs text-red-500 font-mono">{error}</p>}
-            <Link href="/" className="text-blue-500 hover:underline">
-              Back to Home
-            </Link>
-          </div>
+          remoteArticle404 ? (
+            <ArticleRemote404Notice onRetry={() => setArticleRetryKey((k) => k + 1)} />
+          ) : (
+            <div className="text-center py-20">
+              <p className="text-slate-500 mb-4">No content found for this path</p>
+              {error && <p className="text-xs text-red-500 font-mono">{error}</p>}
+              <Link href="/" className="text-blue-500 hover:underline">
+                Back to Home
+              </Link>
+            </div>
+          )
         ) : (
           <>
             {subDirs.length > 0 && (
