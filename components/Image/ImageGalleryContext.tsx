@@ -185,7 +185,7 @@ export function ImageGalleryOverlay() {
 
         const currentSrc = currentImage.src;
         if (typeof currentSrc === 'string' && !currentImage.children && !currentImage.alt && currentSrc && !currentSrc.startsWith('http')) {
-            const FILES_BASE_URL = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://clevertree.gitlab.io/paradigm-threat-files';
+            const FILES_BASE_URL = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://paradigm-threat-files-69f9dc.gitlab.io';
 
             // Fix double slashes and ensure no leading slash for index check
             const cleanSrc = currentSrc.replace(/\/+/g, '/').replace(/^\/+/, '');

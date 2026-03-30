@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     }
 
     // The image sources are all remote (fetch from FILES_BASE_URL or direct URL)
-    const filesBaseUrl = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://clevertree.gitlab.io/paradigm-threat-files';
+    const filesBaseUrl = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://paradigm-threat-files-69f9dc.gitlab.io';
 
     // Ensure path is treated as an absolute path from the files base URL root if it's not a full URL
     const url = path.startsWith('http')
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
                 'files.paradigmthreat.net',
                 'paradigmthreat.net',
                 'gitlab.com',
-                'clevertree.gitlab.io',
+                'paradigm-threat-files-69f9dc.gitlab.io',
                 'localhost',
                 '127.0.0.1',
             ];

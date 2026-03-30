@@ -45,7 +45,7 @@ Opens on [http://localhost:3000](http://localhost:3000).
 | Variable | Default | Description |
 |---|---|---|
 | `NEXT_PUBLIC_TIMELINE_BASE_URL` | `https://paradigm-threat-timeline-a77fe2.gitlab.io` | Timeline Pages origin (`/data/events.json`, `/index.json`) |
-| `NEXT_PUBLIC_FILES_BASE_URL` | `https://clevertree.gitlab.io/paradigm-threat-files` | Static files (GitLab Pages) |
+| `NEXT_PUBLIC_FILES_BASE_URL` | `https://paradigm-threat-files-69f9dc.gitlab.io` | Static files (GitLab Pages) |
 
 ### Scripts
 

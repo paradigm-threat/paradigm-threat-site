@@ -24,9 +24,9 @@ const withPWA = require('@ducanh2912/next-pwa').default({
   workboxOptions: {
     disableDevLogs: true,
     runtimeCaching: [
-      // Timeline manifest data (GitHub Pages default caching is aggressive; PWA must revalidate often)
+      // Timeline manifest data (GitLab Pages; revalidate often)
       {
-        urlPattern: /^https:\/\/clevertree\.github\.io\/paradigm-threat-timeline\/data\/events\.json(\?.*)?$/i,
+        urlPattern: /^https:\/\/paradigm-threat-timeline-a77fe2\.gitlab\.io\/data\/events\.json(\?.*)?$/i,
         handler: 'NetworkFirst',
         options: {
           cacheName: 'pt-timeline-events',
@@ -36,7 +36,7 @@ const withPWA = require('@ducanh2912/next-pwa').default({
         },
       },
       {
-        urlPattern: /^https:\/\/clevertree\.github\.io\/paradigm-threat-timeline\/index\.json(\?.*)?$/i,
+        urlPattern: /^https:\/\/paradigm-threat-timeline-a77fe2\.gitlab\.io\/index\.json(\?.*)?$/i,
         handler: 'NetworkFirst',
         options: {
           cacheName: 'pt-timeline-index',
@@ -55,10 +55,10 @@ const withPWA = require('@ducanh2912/next-pwa').default({
         },
       },
       {
-        urlPattern: /^https:\/\/clevertree\.github\.io\/paradigm-threat-files\/index\.json(\?.*)?$/i,
+        urlPattern: /^https:\/\/paradigm-threat-files-69f9dc\.gitlab\.io\/index\.json(\?.*)?$/i,
         handler: 'StaleWhileRevalidate',
         options: {
-          cacheName: 'pt-index-gh',
+          cacheName: 'pt-index-gl',
           expiration: { maxEntries: 5, maxAgeSeconds: 3600 },
           cacheableResponse: { statuses: [0, 200] },
         },
@@ -73,10 +73,10 @@ const withPWA = require('@ducanh2912/next-pwa').default({
         },
       },
       {
-        urlPattern: /^https:\/\/clevertree\.github\.io\/paradigm-threat-files\/[^?]+\.(md|mdx)(\?.*)?$/i,
+        urlPattern: /^https:\/\/paradigm-threat-files-69f9dc\.gitlab\.io\/[^?]+\.(md|mdx)(\?.*)?$/i,
         handler: 'StaleWhileRevalidate',
         options: {
-          cacheName: 'pt-articles-gh',
+          cacheName: 'pt-articles-gl',
           expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 7 },
           cacheableResponse: { statuses: [0, 200] },
         },
@@ -99,7 +99,7 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'clevertree.gitlab.io',
+        hostname: 'paradigm-threat-files-69f9dc.gitlab.io',
       },
       {
         protocol: 'https',

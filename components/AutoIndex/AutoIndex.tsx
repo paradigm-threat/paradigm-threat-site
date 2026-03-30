@@ -134,7 +134,7 @@ export default function AutoIndex({
   useEffect(() => {
     if (!path || mdFiles.length === 0) return
     const baseUrl =
-      process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://clevertree.gitlab.io/paradigm-threat-files'
+      process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://paradigm-threat-files-69f9dc.gitlab.io'
     const vParam = fileVersion ? `?v=${fileVersion}` : ''
 
     const initial: Record<string, { title: string }> = {}

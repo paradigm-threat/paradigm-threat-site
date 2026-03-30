@@ -10,7 +10,7 @@ export default function ChangeLog({ target = '_blank' }) {
   useEffect(() => {
     const fetchChangeLog = async () => {
       try {
-        const filesBaseUrl = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://clevertree.gitlab.io/paradigm-threat-files'
+        const filesBaseUrl = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://paradigm-threat-files-69f9dc.gitlab.io'
         const res = await fetch(`${filesBaseUrl}/changelog.json`, { cache: 'no-store' })
         if (res.ok) {
           const data = await res.json()

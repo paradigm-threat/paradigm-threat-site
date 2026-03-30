@@ -50,7 +50,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
     const tree = fileList
     setFilesIndex(tree ?? null)
 
-    const baseUrl = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://clevertree.gitlab.io/paradigm-threat-files'
+    const baseUrl = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://paradigm-threat-files-69f9dc.gitlab.io'
     const version = typeof tree?._version === 'string' ? tree._version : ''
     const vParam = version ? `?v=${version}` : ''
 

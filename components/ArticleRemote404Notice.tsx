@@ -15,7 +15,7 @@ const GITLAB_BLOB_URLS = [
 ] as const
 
 function filesAssetUrl(relativePath: string): string {
-  const base = (process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://clevertree.gitlab.io/paradigm-threat-files').replace(
+  const base = (process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://paradigm-threat-files-69f9dc.gitlab.io').replace(
     /\/$/,
     ''
   )

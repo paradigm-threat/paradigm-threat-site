@@ -6,7 +6,7 @@
 import { isNonArticlePath } from '@/lib/isNonArticlePath'
 
 const FILES_BASE_URL =
-  process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://clevertree.gitlab.io/paradigm-threat-files'
+  process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://paradigm-threat-files-69f9dc.gitlab.io'
 
 export interface ArticleData {
   mdxSource: string
@@ -28,7 +28,7 @@ function extractFirstImageUrl(md: string, basePath: string): string | undefined 
   else if (src.startsWith('./')) src = src.slice(2)
   const prefix = basePath ? (basePath.endsWith('/') ? basePath : basePath + '/') : ''
   const path = (prefix + src).replace(/\/+/g, '/')
-  const base = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://clevertree.gitlab.io/paradigm-threat-files'
+  const base = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://paradigm-threat-files-69f9dc.gitlab.io'
   return `${base.replace(/\/$/, '')}/${path.replace(/^\//, '')}`
 }
 
@@ -90,7 +90,7 @@ export async function fetchArticle(path: string): Promise<ArticleData | null> {
   const mdxSource = rawContent.replace(/<(https?:\/\/[^>]+)>/g, (_, url) => `[${url}](${url})`)
 
   // OG image: frontmatter.image or first image in content
-  const filesBase = (process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://clevertree.gitlab.io/paradigm-threat-files').replace(/\/$/, '')
+  const filesBase = (process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://paradigm-threat-files-69f9dc.gitlab.io').replace(/\/$/, '')
   let ogImageUrl: string | undefined
   if (frontMatter?.image && typeof frontMatter.image === 'string') {
     const img = frontMatter.image as string
