@@ -72,7 +72,7 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   const baseUrl =
     process.env.NEXT_PUBLIC_TIMELINE_BASE_URL ||
-    'https://clevertree.github.io/paradigm-threat-timeline'
+    'https://paradigm-threat-timeline-a77fe2.gitlab.io'
 
   useEffect(() => {
     let isMounted = true

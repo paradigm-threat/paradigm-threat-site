@@ -43,7 +43,7 @@ Opens on [http://localhost:3000](http://localhost:3000).
 
 | Variable | Default | Description |
 |---|---|---|
-| `NEXT_PUBLIC_TIMELINE_BASE_URL` | `https://clevertree.github.io/paradigm-threat-timeline` | Timeline data source |
+| `NEXT_PUBLIC_TIMELINE_BASE_URL` | `https://paradigm-threat-timeline-a77fe2.gitlab.io` | Timeline Pages origin (`/data/events.json`, `/index.json`) |
 | `NEXT_PUBLIC_FILES_BASE_URL` | `https://files.paradigmthreat.net` | Static file server |
 
 ### Scripts

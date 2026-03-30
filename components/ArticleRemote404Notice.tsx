@@ -57,7 +57,11 @@ export function ArticleRemote404Notice({ onRetry }: ArticleRemote404NoticeProps)
         </p>
         <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
           I&apos;m moving toward self-hosted files; leaning on a single cloud edge is fragile when the edge simply stops
-          answering.
+          answering. I&apos;m also pushing mirrors to GitLab: GitHub is owned by Microsoft, and I don&apos;t need my
+          publishing chain to depend on that stack alone. In the past, the GitLab CEO has reportedly said the company
+          intends to &quot;continue to work with clients regardless of their political beliefs&quot;—I&apos;m not
+          treating any host as a friend, but that line is part of why GitLab is in the mix while I sort out my own
+          hosting.
         </p>
         <div className="flex flex-wrap items-center gap-3 pt-2">
           {onRetry ? (

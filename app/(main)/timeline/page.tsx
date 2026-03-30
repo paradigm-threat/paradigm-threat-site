@@ -3,7 +3,8 @@
 import React from 'react'
 import { TimelineProvider, TimelineView, RemoteMarkdown } from '@/components/Timeline'
 
-const TIMELINE_BASE = process.env.NEXT_PUBLIC_TIMELINE_BASE_URL || 'https://clevertree.github.io/paradigm-threat-timeline'
+const TIMELINE_BASE =
+  process.env.NEXT_PUBLIC_TIMELINE_BASE_URL || 'https://paradigm-threat-timeline-a77fe2.gitlab.io'
 
 
 export default function TimelinePage() {

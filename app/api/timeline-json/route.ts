@@ -3,7 +3,7 @@ import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
 
 const TIMELINE_BASE =
   process.env.NEXT_PUBLIC_TIMELINE_BASE_URL ||
-  'https://clevertree.github.io/paradigm-threat-timeline'
+  'https://paradigm-threat-timeline-a77fe2.gitlab.io'
 
 const UNKNOWN_START_YEAR = -50000
 
