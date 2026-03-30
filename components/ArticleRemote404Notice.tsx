@@ -10,8 +10,8 @@ const CENSORSHIP_IMAGES = [
 
 /** Permalinks on GitHub for the same files (evidence / source of truth). */
 const GITHUB_FILE_URLS = [
-  'https://github.com/clevertree/paradigm-threat-files/blob/master/influence/censorship/github-ban.png',
-  'https://github.com/clevertree/paradigm-threat-files/blob/master/influence/censorship/github-ban2.png',
+  'https://github.com/clevertree/paradigm-threat-files/blob/main/influence/censorship/github-ban.png',
+  'https://github.com/clevertree/paradigm-threat-files/blob/main/influence/censorship/github-ban2.png',
 ] as const
 
 function filesAssetUrl(relativePath: string): string {
