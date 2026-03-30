@@ -8,14 +8,14 @@ const CENSORSHIP_IMAGES = [
   'influence/censorship/github-ban2.png',
 ] as const
 
-/** Permalinks on GitHub for the same files (evidence / source of truth). */
-const GITHUB_FILE_URLS = [
-  'https://github.com/clevertree/paradigm-threat-files/blob/main/influence/censorship/github-ban.png',
-  'https://github.com/clevertree/paradigm-threat-files/blob/main/influence/censorship/github-ban2.png',
+/** Permalinks on GitLab (same files in paradigm-threat-files). */
+const GITLAB_BLOB_URLS = [
+  'https://gitlab.com/clevertree/paradigm-threat-files/-/blob/main/influence/censorship/github-ban.png',
+  'https://gitlab.com/clevertree/paradigm-threat-files/-/blob/main/influence/censorship/github-ban2.png',
 ] as const
 
 function filesAssetUrl(relativePath: string): string {
-  const base = (process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://clevertree.github.io/paradigm-threat-files').replace(
+  const base = (process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://clevertree.gitlab.io/paradigm-threat-files').replace(
     /\/$/,
     ''
   )
@@ -57,10 +57,9 @@ export function ArticleRemote404Notice({ onRetry }: ArticleRemote404NoticeProps)
         </p>
         <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
           I&apos;m moving toward self-hosted files; leaning on a single cloud edge is fragile when the edge simply stops
-          answering. I&apos;m also pushing mirrors to GitLab: GitHub is owned by Microsoft, and I don&apos;t need my
-          publishing chain to depend on that stack alone. In the past, the GitLab CEO has reportedly said the company
-          intends to &quot;continue to work with clients regardless of their political beliefs&quot;—I&apos;m not
-          treating any host as a friend, but that line is part of why GitLab is in the mix while I sort out my own
+          answering. Development and publishing now run on GitLab. In the past, the GitLab CEO has reportedly said the
+          company intends to &quot;continue to work with clients regardless of their political beliefs&quot;—I&apos;m
+          not treating any host as a friend, but that line is one reason GitLab is the forge while I sort out my own
           hosting.
         </p>
         <div className="flex flex-wrap items-center gap-3 pt-2">
@@ -86,7 +85,7 @@ export function ArticleRemote404Notice({ onRetry }: ArticleRemote404NoticeProps)
 
       <div className="space-y-4">
         <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          GitHub-side restrictions (examples — same files on GitHub)
+          Restriction screenshots (archived; GitLab file links)
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
           {CENSORSHIP_IMAGES.map((src, i) => (
@@ -95,7 +94,7 @@ export function ArticleRemote404Notice({ onRetry }: ArticleRemote404NoticeProps)
               className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-100 dark:bg-slate-800"
             >
               <a
-                href={GITHUB_FILE_URLS[i]}
+                href={GITLAB_BLOB_URLS[i]}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block hover:opacity-95 transition-opacity"
@@ -103,18 +102,18 @@ export function ArticleRemote404Notice({ onRetry }: ArticleRemote404NoticeProps)
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={filesAssetUrl(src)}
-                  alt={`GitHub restriction screenshot ${i + 1}`}
+                  alt={`Host restriction screenshot ${i + 1}`}
                   className="w-full h-auto object-contain max-h-64 bg-black/5 dark:bg-black/20"
                 />
               </a>
               <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-700">
                 <a
-                  href={GITHUB_FILE_URLS[i]}
+                  href={GITLAB_BLOB_URLS[i]}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs text-blue-600 dark:text-blue-400 hover:underline break-all"
                 >
-                  {GITHUB_FILE_URLS[i]}
+                  {GITLAB_BLOB_URLS[i]}
                 </a>
               </div>
             </div>

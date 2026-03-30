@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     }
 
     // The image sources are all remote (fetch from FILES_BASE_URL or direct URL)
-    const filesBaseUrl = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://files.paradigmthreat.net';
+    const filesBaseUrl = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://clevertree.gitlab.io/paradigm-threat-files';
 
     // Ensure path is treated as an absolute path from the files base URL root if it's not a full URL
     const url = path.startsWith('http')
@@ -25,16 +25,16 @@ export async function GET(request: NextRequest) {
             const whitelistedDomains = [
                 'files.paradigmthreat.net',
                 'paradigmthreat.net',
-                'raw.githubusercontent.com',
-                'githubusercontent.com',
-                'github.com',
+                'gitlab.com',
+                'clevertree.gitlab.io',
                 'localhost',
                 '127.0.0.1',
-                'clevertree.github.io'
             ];
-            const isWhitelisted = whitelistedDomains.some(domain =>
-                parsedUrl.hostname === domain || parsedUrl.hostname.endsWith('.' + domain)
-            );
+            const isWhitelisted =
+                whitelistedDomains.some(
+                    domain =>
+                        parsedUrl.hostname === domain || parsedUrl.hostname.endsWith('.' + domain)
+                ) || parsedUrl.hostname.endsWith('.gitlab.io');
 
             if (!isWhitelisted) {
                 return new NextResponse(`Domain ${parsedUrl.hostname} is not whitelisted`, { status: 403 });

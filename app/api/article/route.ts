@@ -7,7 +7,7 @@ import rehypeUnwrapFigures from '@/lib/rehypeUnwrapFigures'
 import { isNonArticlePath } from '@/lib/isNonArticlePath'
 
 const FILES_BASE_URL =
-  process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://clevertree.github.io/paradigm-threat-files'
+  process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://clevertree.gitlab.io/paradigm-threat-files'
 
 /**
  * Fetch a remote MD/MDX file and return it compiled.

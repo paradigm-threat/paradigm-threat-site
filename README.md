@@ -27,8 +27,9 @@ The Paradigm Threat project poses an intellectual challenge to the reigning para
 
 | Repository | Purpose |
 |---|---|
-| [paradigm-threat-timeline](https://github.com/clevertree/paradigm-threat-timeline) | Timeline data, content markdown, and media |
-| [paradigm-threat-files](https://github.com/clevertree/paradigm-threat-files) | Static file server content (articles, images) |
+| [paradigm-threat-timeline](https://gitlab.com/clevertree/paradigm-threat-timeline) | Timeline data, content markdown, and media |
+| [paradigm-threat-files](https://gitlab.com/clevertree/paradigm-threat-files) | Static file server content (articles, images) |
+| [paradigm-threat-site](https://gitlab.com/clevertree/paradigm-threat-site) | This Next.js app |
 
 ## Development
 
@@ -44,7 +45,7 @@ Opens on [http://localhost:3000](http://localhost:3000).
 | Variable | Default | Description |
 |---|---|---|
 | `NEXT_PUBLIC_TIMELINE_BASE_URL` | `https://paradigm-threat-timeline-a77fe2.gitlab.io` | Timeline Pages origin (`/data/events.json`, `/index.json`) |
-| `NEXT_PUBLIC_FILES_BASE_URL` | `https://files.paradigmthreat.net` | Static file server |
+| `NEXT_PUBLIC_FILES_BASE_URL` | `https://clevertree.gitlab.io/paradigm-threat-files` | Static files (GitLab Pages) |
 
 ### Scripts
 

@@ -10,7 +10,7 @@ export default function ChangeLog({ target = '_blank' }) {
   useEffect(() => {
     const fetchChangeLog = async () => {
       try {
-        const filesBaseUrl = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://clevertree.github.io/paradigm-threat-files'
+        const filesBaseUrl = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://clevertree.gitlab.io/paradigm-threat-files'
         const res = await fetch(`${filesBaseUrl}/changelog.json`, { cache: 'no-store' })
         if (res.ok) {
           const data = await res.json()
@@ -26,7 +26,7 @@ export default function ChangeLog({ target = '_blank' }) {
     fetchChangeLog()
   }, [])
 
-  const hashUrl = process.env.NEXT_PUBLIC_GIT_HASH_URL || 'https://github.com/clevertree/paradigm-threat-files/commit/'
+  const hashUrl = process.env.NEXT_PUBLIC_GIT_HASH_URL || 'https://gitlab.com/clevertree/paradigm-threat-files/-/commit/'
 
   if (loading) {
     return <div className="animate-pulse flex space-x-4 p-4"><div className="flex-1 space-y-4 py-1"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div></div></div>

@@ -24,7 +24,7 @@ export function FilesProvider({ children }: { children: ReactNode }) {
     }, []);
 
     useEffect(() => {
-        const baseUrl = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://clevertree.github.io/paradigm-threat-files';
+        const baseUrl = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://clevertree.gitlab.io/paradigm-threat-files';
         let isMounted = true;
         const abortController = new AbortController();
         const timeoutId = window.setTimeout(() => abortController.abort(), INDEX_FETCH_TIMEOUT_MS);

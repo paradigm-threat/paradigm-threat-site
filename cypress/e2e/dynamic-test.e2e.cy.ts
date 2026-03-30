@@ -49,7 +49,7 @@ describe('Dynamic Site Specification', () => {
     });
 
     it('dynamically visits sample pages from index and detects critical errors', () => {
-        const baseUrl = Cypress.env('NEXT_PUBLIC_FILES_BASE_URL') || 'https://files.paradigmthreat.net';
+        const baseUrl = Cypress.env('NEXT_PUBLIC_FILES_BASE_URL') || 'https://clevertree.gitlab.io/paradigm-threat-files';
 
         cy.request(`${baseUrl}/index.json`).then((response) => {
             const files = response.body as string[];

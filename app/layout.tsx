@@ -72,7 +72,7 @@ function RootLayoutInner({ children }: { children: React.ReactNode }) {
                             Created by <a href="https://clevertree.net/" className="text-blue-500 hover:underline font-semibold">Ari Asulin</a>
                         </div>
                         <div className="flex justify-center gap-4 text-xs text-slate-400">
-                            <a href="https://github.com/clevertree/paradigm-threat-site" className="hover:text-slate-600 dark:hover:text-slate-200 transition-colors">[git repository]</a>
+                            <a href="https://gitlab.com/clevertree/paradigm-threat-site" className="hover:text-slate-600 dark:hover:text-slate-200 transition-colors">[git repository]</a>
                             <a href="https://github.com/sponsors/clevertree" className="text-pink-500 hover:underline font-semibold">♥ Sponsor</a>
                         </div>
                     </div>

@@ -99,7 +99,15 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'clevertree.github.io',
+        hostname: 'clevertree.gitlab.io',
+      },
+      {
+        protocol: 'https',
+        hostname: 'paradigm-threat-timeline-a77fe2.gitlab.io',
+      },
+      {
+        protocol: 'https',
+        hostname: 'gitlab.com',
       }
     ],
     localPatterns: [
