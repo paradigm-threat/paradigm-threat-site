@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { splitSentences, preprocessSpeechText } from '@/components/Timeline/ttsHelpers'
+import { resolveDefaultPiperVoiceId } from '@/lib/tts/piperVoiceDefaults'
 import {
     startSpeechKeepalive,
     stopSpeechKeepalive,
@@ -308,14 +309,21 @@ export function useTTS() {
                 setAvailablePiperVoices(voices)
 
                 const savedVoiceId = localStorage.getItem(LS_PIPER_VOICE)
+                const savedPiperLang = localStorage.getItem(LS_PIPER_LANG)
+                const hasSavedVoiceSelection = Boolean(savedVoiceId?.trim())
                 const defaultVoiceId = data.defaultVoiceId as string | null
-                const firstVoiceId = voices[0]?.id ?? ''
-                const resolvedVoiceId = savedVoiceId || defaultVoiceId || firstVoiceId
+                const { voiceId: resolvedVoiceId, lang: langFromDefaultPick } =
+                    resolveDefaultPiperVoiceId(voices, savedVoiceId, defaultVoiceId)
 
                 setState(prev => ({
                     ...prev,
                     piperVoiceId: resolvedVoiceId || prev.piperVoiceId,
-                    piperLang: prev.piperLang || voices[0]?.lang || 'en',
+                    piperLang:
+                        savedPiperLang ??
+                        (!hasSavedVoiceSelection ? langFromDefaultPick : undefined) ??
+                        prev.piperLang ??
+                        voices[0]?.lang ??
+                        'en',
                     provider: voices.length > 0 ? prev.provider : 'webSpeech',
                 }))
             })

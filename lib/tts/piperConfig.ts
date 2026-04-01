@@ -1,11 +1,21 @@
 /**
- * Piper TTS config — proxies to a remote clevertree-tts-server instance.
- * Set PIPER_API_URL and PIPER_API_SECRET in your environment.
+ * Piper TTS — multi-host upstream (see `piperUpstream.ts`).
+ *
+ * Set **PIPER_API_URLS** (preferred) or **PIPER_API_URL** (single host), plus optional **PIPER_API_SECRET**
+ * in `.env.local` / Vercel (never commit secrets).
  */
 
-export const PIPER_API_URL = process.env.PIPER_API_URL ?? ''
-export const PIPER_API_SECRET = process.env.PIPER_API_SECRET ?? ''
+export {
+    getPiperApiBaseUrls,
+    getPiperApiSecret,
+    isPiperConfigured,
+    fetchPiperTtsUpstream,
+    aggregatePiperVoices,
+} from './piperUpstream'
 
-export function isPiperConfigured(): boolean {
-    return !!PIPER_API_URL
-}
+import { getPiperApiBaseUrls, getPiperApiSecret } from './piperUpstream'
+
+/** First configured base URL (legacy); prefer **getPiperApiBaseUrls()**. */
+export const PIPER_API_URL: string = getPiperApiBaseUrls()[0] ?? ''
+
+export const PIPER_API_SECRET: string = getPiperApiSecret()

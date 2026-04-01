@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PIPER_API_URL, PIPER_API_SECRET, isPiperConfigured } from '@/lib/tts/piperConfig'
+import { fetchPiperTtsUpstream, isPiperConfigured } from '@/lib/tts/piperUpstream'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -28,28 +28,16 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-        if (PIPER_API_SECRET) {
-            headers['Authorization'] = `Bearer ${PIPER_API_SECRET}`
-        }
-
-        // Hard timeout: 28s — Vercel/nginx typically kills at 30s, give ourselves a clean exit
-        const upstreamSignal = AbortSignal.timeout(28_000)
-
         let upstream: Response
         try {
-            upstream = await fetch(`${PIPER_API_URL}/tts`, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({
-                    text,
-                    voiceId: body.voiceId,
-                    rate: body.rate,
-                }),
-                signal: upstreamSignal,
+            upstream = await fetchPiperTtsUpstream({
+                text,
+                voiceId: body.voiceId,
+                rate: body.rate,
             })
         } catch (fetchErr) {
-            const isTimeout = fetchErr instanceof Error && fetchErr.name === 'TimeoutError'
+            const isTimeout =
+                fetchErr instanceof Error && fetchErr.name === 'TimeoutError'
             const msg = isTimeout
                 ? `Piper upstream timed out after 28s (text length: ${text.length})`
                 : `Piper upstream unreachable: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`
@@ -60,7 +48,11 @@ export async function POST(req: NextRequest) {
         if (!upstream.ok) {
             const errBody = await upstream.text()
             let msg = `Piper server error (${upstream.status})`
-            try { msg = JSON.parse(errBody).error ?? msg } catch { }
+            try {
+                msg = JSON.parse(errBody).error ?? msg
+            } catch {
+                /* ignore */
+            }
             console.error('[TTS PROXY] upstream error:', upstream.status, msg)
             return NextResponse.json({ error: msg }, { status: upstream.status })
         }
