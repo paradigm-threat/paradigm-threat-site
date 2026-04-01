@@ -126,6 +126,22 @@ const nextConfig = {
   sassOptions: {
     includePaths: [path.join(__dirname, 'app')]
   },
+  async redirects() {
+    // Full book text was removed from the files repo (copyright). Old links and caches
+    // should land on the in-house summary only.
+    return [
+      {
+        source: '/cosmos/mars/investigations/death-on-mars',
+        destination: '/cosmos/mars/death-on-mars-analysis',
+        permanent: true,
+      },
+      {
+        source: '/cosmos/mars/investigations/death-on-mars.md',
+        destination: '/cosmos/mars/death-on-mars-analysis',
+        permanent: true,
+      },
+    ]
+  },
   async headers() {
     return [
       {
