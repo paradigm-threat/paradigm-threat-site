@@ -1,6 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
 
+/** Detect SVG so we skip sharp (raster/WebP breaks text/fonts in timeline SVGs). */
+function isSvgResponse(pathParam: string, contentType: string | null): boolean {
+    const ct = (contentType || '').toLowerCase();
+    if (ct.includes('image/svg+xml')) return true;
+    const withoutQuery = pathParam.split('?')[0].toLowerCase();
+    if (withoutQuery.endsWith('.svg')) return true;
+    if (pathParam.startsWith('http')) {
+        try {
+            return new URL(pathParam).pathname.toLowerCase().endsWith('.svg');
+        } catch {
+            return false;
+        }
+    }
+    return false;
+}
+
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const path = searchParams.get('path');
@@ -52,6 +68,16 @@ export async function GET(request: NextRequest) {
 
         const arrayBuffer = await response.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
+
+        const upstreamType = response.headers.get('content-type');
+        if (isSvgResponse(path, upstreamType)) {
+            return new NextResponse(new Uint8Array(buffer), {
+                headers: {
+                    'Content-Type': 'image/svg+xml; charset=utf-8',
+                    'Cache-Control': 'public, max-age=31536000, immutable',
+                },
+            });
+        }
 
         let transformer = sharp(buffer);
 

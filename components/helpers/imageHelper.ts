@@ -197,7 +197,27 @@ export function processImageProps(props: any, basePath?: string): ImagePropsForm
             pathForAPI = '/' + pathForAPI;
         }
 
-        if (w) {
+        const pathForSvgCheck = pathForAPI.split('?')[0].toLowerCase();
+        const isSvg =
+            pathForSvgCheck.endsWith('.svg') ||
+            (pathForAPI.startsWith('http') &&
+                (() => {
+                    try {
+                        return new URL(pathForAPI).pathname.toLowerCase().endsWith('.svg');
+                    } catch {
+                        return false;
+                    }
+                })());
+
+        // SVG: proxy only — sharp/WebP destroys fonts/text; do not pass w= to the image API
+        if (isSvg) {
+            finalProps.optimizedSrc = `/api/image?path=${encodeURIComponent(pathForAPI)}`;
+            finalProps.width = w
+                ? typeof w === 'string'
+                    ? parseInt(w, 10)
+                    : w
+                : 800;
+        } else if (w) {
             finalProps.optimizedSrc = `/api/image?path=${encodeURIComponent(pathForAPI)}&w=${w}`;
             finalProps.width = typeof w === 'string' ? parseInt(w) : w;
         } else {
