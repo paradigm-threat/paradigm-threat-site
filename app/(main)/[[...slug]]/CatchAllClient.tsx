@@ -13,6 +13,7 @@ import { ArticleTTSScrollSync } from '@/components/ArticleTTS/ArticleTTSScrollSy
 import { stripMarkdownForTTS, buildParagraphStarts } from '@/components/Timeline/ttsHelpers'
 import { SuspenseLoader } from '@client'
 import { formatIndexDateTiny } from '@/lib/indexUpdated'
+import { shouldPersistVisit } from '@/lib/visitResumeStorage'
 
 export const CatchAllClient = memo(function CatchAllClient() {
   const params = useParams()
@@ -41,6 +42,13 @@ export const CatchAllClient = memo(function CatchAllClient() {
   }, [params.slug])
 
   const path = useMemo(() => slugArray.join('/'), [slugArray])
+  const persistVisitForArticle = useMemo(
+    () =>
+      content && pathname && shouldPersistVisit(pathname)
+        ? { pathname, title: articleTitle }
+        : null,
+    [content, pathname, articleTitle]
+  )
   const loadingPathRef = useRef<string | null>(null)
   const articleRef = useRef<HTMLElement>(null)
 
@@ -88,9 +96,6 @@ export const CatchAllClient = memo(function CatchAllClient() {
             setSubDirs([])
             setImages([])
             setMds([])
-            try {
-              if (pathname) localStorage.setItem('pt-last-read-path', pathname)
-            } catch (_) { }
           }
 
           let current = tree
@@ -230,6 +235,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
         articleTitle={articleTitle}
         articleContent={content}
         basePath={basePath}
+        persistVisit={persistVisitForArticle}
       >
         {({ onPlay, onPause, onStop, onPlayFromSentence, isPlaying, currentSentenceIndex, sentences, onClearError, ttsState, availableVoices, availablePiperVoices, setVoice, setRate, setProvider, setPiperVoiceId, setPiperLang, setQuoteVoiceId, setSpeakerMapInput, setLangFilter, setLocalOnly, setSubtitleMode, switchToSpeechAndResume, retry }) => {
           const scrollToTop = () => window.scroll({ top: 0, left: 0, behavior: 'smooth' })

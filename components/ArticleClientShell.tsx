@@ -1,11 +1,13 @@
 'use client'
 
-import React, { useRef, useState, useEffect } from 'react'
+import React, { useRef, useState, useEffect, useMemo } from 'react'
+import { usePathname } from 'next/navigation'
 import { ArticleTTSProvider } from '@/components/ArticleTTS/ArticleTTSProvider'
 import { ArticleTTSOverlay } from '@/components/ArticleTTS/ArticleTTSOverlay'
 import { ArticleTTSScrollSync } from '@/components/ArticleTTS/ArticleTTSScrollSync'
 import { stripMarkdownForTTS, buildParagraphStarts } from '@/components/Timeline/ttsHelpers'
 import { ArticleNav, ShareLinks } from '@/components'
+import { shouldPersistVisit } from '@/lib/visitResumeStorage'
 
 export interface ArticleClientShellProps {
   articleTitle: string
@@ -24,8 +26,14 @@ export function ArticleClientShell ({
   articleDescription,
   children
 }: ArticleClientShellProps) {
+  const pathname = usePathname() || ''
   const articleRef = useRef<HTMLElement>(null)
   const [isScrolled, setIsScrolled] = useState(false)
+  const persistVisit = useMemo(
+    () =>
+      pathname && shouldPersistVisit(pathname) ? { pathname, title: articleTitle } : null,
+    [pathname, articleTitle]
+  )
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 50)
@@ -47,6 +55,7 @@ export function ArticleClientShell ({
       articleTitle={articleTitle}
       articleContent={articleContent}
       basePath={basePath}
+      persistVisit={persistVisit}
     >
       {({
         onPlayFromSentence,

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { usePathname } from 'next/navigation'
 import { BookOpen, X } from 'lucide-react'
 import { useTimeline } from '@/components/TimelineContext'
 import { ListView } from './ListView'
@@ -20,10 +21,12 @@ import type { TimelineViewMode, ExpansionMode } from './constants'
 import { useTimelineUrlState } from './hooks/useTimelineUrlState'
 import { useLeftPanelResize } from './hooks/useLeftPanelResize'
 import { useTimelineTTS } from './hooks/useTimelineTTS'
+import { writeLastVisit } from '@/lib/visitResumeStorage'
 
 export type { TimelineViewMode, ExpansionMode }
 
 export function TimelineView() {
+  const pathname = usePathname() || ''
   const { entries, events, loading, error, baseUrl } = useTimeline()
   const {
     fullPage,
@@ -58,6 +61,12 @@ export function TimelineView() {
       setSelected(target ?? null)
     }
   }, [events, selected, initialEventIdRef])
+
+  useEffect(() => {
+    if (!pathname.startsWith('/timeline')) return
+    const title = selected?.title ?? 'Timeline'
+    writeLastVisit(pathname, title)
+  }, [pathname, selected])
 
   const initialScrollDoneRef = useRef(false)
 
