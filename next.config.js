@@ -108,7 +108,11 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'gitlab.com',
-      }
+      },
+      {
+        protocol: 'https',
+        hostname: '**.relaygateway.net',
+      },
     ],
     localPatterns: [
       {
