@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, memo, useRef } from 'react'
+import React, { useState, useEffect, useMemo, memo, useRef, useSyncExternalStore } from 'react'
 import { useParams, usePathname } from 'next/navigation'
 import { RemoteMDX } from '@/components/RemoteMDX'
 import { PopImage, useFiles, ArticleNav } from '@/components'
@@ -14,11 +14,17 @@ import { stripMarkdownForTTS, buildParagraphStarts } from '@/components/Timeline
 import { SuspenseLoader } from '@client'
 import { formatIndexDateTiny } from '@/lib/indexUpdated'
 import { shouldPersistVisit } from '@/lib/visitResumeStorage'
+import { remoteRelay } from '@/lib/remoteRelayStore'
 
 export const CatchAllClient = memo(function CatchAllClient() {
   const params = useParams()
   const pathname = usePathname()
   const { fileList, loading: indexLoading } = useFiles()
+  const filesBaseUrl = useSyncExternalStore(
+    (cb) => remoteRelay.subscribe(cb),
+    () => remoteRelay.getSnapshot().filesBaseUrl,
+    () => remoteRelay.getSnapshot().filesBaseUrl,
+  )
   const [content, setContent] = useState<string | null>(null)
   const [compiledMdx, setCompiledMdx] = useState<{ compiledSource: string; frontmatter?: Record<string, unknown>; scope?: Record<string, unknown> } | null>(null)
   const [basePath, setBasePath] = useState('')
@@ -58,7 +64,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
     const tree = fileList
     setFilesIndex(tree ?? null)
 
-    const baseUrl = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://paradigm-threat-files-69f9dc.gitlab.io'
+    const baseUrl = filesBaseUrl
     const version = typeof tree?._version === 'string' ? tree._version : ''
     const vParam = version ? `?v=${version}` : ''
 
@@ -170,14 +176,12 @@ export const CatchAllClient = memo(function CatchAllClient() {
                 if (!isMounted || loadingPathRef.current !== requestPath) return
                 const fullPath = path ? `${path}/${f}` : f
                 try {
-                  const response = await fetch(`${baseUrl}/${fullPath}${vParam}`, { signal: abortController.signal })
-                  if (response.ok) {
-                    const text = await response.text()
-                    const { content: mdxSource, data: frontMatter } = matter(text)
-                    contents[f] = {
-                      title: frontMatter.title || contents[f]?.title || f.replace(/_/g, ' ').replace('.md', ''),
-                      content: mdxSource
-                    }
+                  const response = await remoteRelay.fetchFilesMd(fullPath, vParam, abortController.signal)
+                  const text = await response.text()
+                  const { content: mdxSource, data: frontMatter } = matter(text)
+                  contents[f] = {
+                    title: frontMatter.title || contents[f]?.title || f.replace(/_/g, ' ').replace('.md', ''),
+                    content: mdxSource
                   }
                 } catch (e) { }
               }))
@@ -216,7 +220,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
       loadingPathRef.current = null
       abortController.abort()
     }
-  }, [path, pathname, slugArray, fileList, indexLoading, articleRetryKey])
+  }, [path, pathname, slugArray, fileList, indexLoading, articleRetryKey, filesBaseUrl])
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 50)

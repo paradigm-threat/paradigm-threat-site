@@ -44,8 +44,10 @@ Opens on [http://localhost:3000](http://localhost:3000).
 
 | Variable | Default | Description |
 |---|---|---|
-| `NEXT_PUBLIC_TIMELINE_BASE_URL` | `https://paradigm-threat-timeline-a77fe2.gitlab.io` | Timeline Pages origin (`/data/events.json`, `/index.json`) |
-| `NEXT_PUBLIC_FILES_BASE_URL` | `https://paradigm-threat-files-69f9dc.gitlab.io` | Static files (GitLab Pages) |
+| `NEXT_PUBLIC_TIMELINE_BASE_URL` | `https://paradigm-threat-timeline-a77fe2.gitlab.io` | Timeline Pages origin (`/data/events.json`, `/index.json`). Multiple mirrors: separate with `\|` or newlines (no comma or semicolon). |
+| `TIMELINE_ORIGINS` | (unset) | Optional pipe- or newline-separated timeline static origins, **tried in order**, for proxying `https://paradigmthreat.net/export/...` to `origin/export/...`. If unset, uses `NEXT_PUBLIC_TIMELINE_BASE_URL` (including its multi-URL form). |
+| `NEXT_PUBLIC_FILES_BASE_URL` | `https://paradigm-threat-files-69f9dc.gitlab.io` | Static files (GitLab Pages). Multiple mirrors: `\|` or newlines. In the browser, entries are **zipped by index** with the timeline list into relay **pairs**; the fastest pair is chosen at load, with MD/index failover switching the whole pair. |
+| `PIPER_API_URLS` | (unset) | Piper TTS upstream bases: **pipe or newline** only (e.g. `http://a:5590\|http://b:5590`). See `lib/tts/piperUpstream.ts`. |
 
 ### Scripts
 

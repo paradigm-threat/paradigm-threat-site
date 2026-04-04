@@ -3,7 +3,9 @@ interface ImagePropsFormatted {
     [key: string]: any
 }
 
-const FILES_BASE_URL = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://paradigm-threat-files-69f9dc.gitlab.io';
+import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
+
+const DEFAULT_FILES_BASE_URL = getPrimaryFilesBaseUrl()
 
 let cachedIndex: any = null;
 let indexPromise: Promise<any> | null = null;
@@ -11,7 +13,7 @@ let indexPromise: Promise<any> | null = null;
 export async function checkFileExists(path: string): Promise<boolean> {
     try {
         if (!indexPromise) {
-            indexPromise = fetch(`${FILES_BASE_URL}/index.json`)
+            indexPromise = fetch(`${DEFAULT_FILES_BASE_URL}/index.json`)
                 .then(res => res.ok ? res.json() : null)
                 .then(index => {
                     cachedIndex = index;
@@ -117,16 +119,17 @@ export function resolveImagePath(src: string, basePath?: string): string {
     return '/' + combined + query;
 }
 
-export function processImageProps(props: any, basePath?: string): ImagePropsFormatted {
+export function processImageProps(props: any, basePath?: string, filesRootUrl?: string): ImagePropsFormatted {
+    const FILES_BASE_URL = (filesRootUrl || DEFAULT_FILES_BASE_URL).replace(/\/+$/, '')
     if (typeof props.src === 'object') {
         const { src, ...otherProps } = props
         const newProps = { ...src, ...otherProps }
-        return processImageProps(newProps, basePath)
+        return processImageProps(newProps, basePath, filesRootUrl)
     }
     if (typeof props.default === 'object') {
         const { default: src, ...otherProps } = props
         const newProps = { ...src, ...otherProps }
-        return processImageProps(newProps, basePath)
+        return processImageProps(newProps, basePath, filesRootUrl)
     }
 
     let { src, w, title, alt, className, intrinsicWidth, intrinsicHeight, ...finalProps } = props;

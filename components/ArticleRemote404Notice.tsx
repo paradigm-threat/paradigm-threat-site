@@ -2,6 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
+import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
 
 const CENSORSHIP_IMAGES = [
   'influence/censorship/github-ban.png',
@@ -15,10 +16,7 @@ const GITLAB_BLOB_URLS = [
 ] as const
 
 function filesAssetUrl(relativePath: string): string {
-  const base = (process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://paradigm-threat-files-69f9dc.gitlab.io').replace(
-    /\/$/,
-    ''
-  )
+  const base = getPrimaryFilesBaseUrl()
   return `${base}/${relativePath.replace(/^\//, '')}`
 }
 

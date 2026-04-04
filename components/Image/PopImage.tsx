@@ -1,10 +1,11 @@
 'use client'
 
-import React, { useState, useEffect, memo } from 'react'
+import React, { useState, useEffect, memo, useSyncExternalStore } from 'react'
 import { Maximize2 } from 'lucide-react'
 import { ErrorBoundary } from '@/components/client'
 import { OptimizedImage } from '@/components'
 import { processImageProps } from '@/components/helpers/imageHelper'
+import { remoteRelay } from '@/lib/remoteRelayStore'
 import { onToggle } from '@/components/helpers/inputHelper'
 import { useImageGallery } from './ImageGalleryContext'
 
@@ -22,7 +23,12 @@ function safeImgId(src: unknown): string {
 
 const PopImage = memo(function PopImage({ ...props }: PopImageProps) {
     const { registerImage, images, currentIndex, setCurrentIndex, setIsOpen } = useImageGallery()
-    const srcProps = processImageProps(props, props.basePath)
+    const filesRoot = useSyncExternalStore(
+        (cb) => remoteRelay.subscribe(cb),
+        () => remoteRelay.getSnapshot().filesBaseUrl,
+        () => remoteRelay.getSnapshot().filesBaseUrl,
+    )
+    const srcProps = processImageProps(props, props.basePath, filesRoot)
     const { children, alt, src, highResSrc } = srcProps
 
     useEffect(() => {

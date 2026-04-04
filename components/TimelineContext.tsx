@@ -1,7 +1,16 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react'
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+  useMemo,
+  useSyncExternalStore,
+} from 'react'
 import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
+import { remoteRelay } from '@/lib/remoteRelayStore'
 
 export interface TimelineDate {
   start: number
@@ -70,18 +79,24 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
   const [introArticles, setIntroArticles] = useState<IntroArticle[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const baseUrl =
-    process.env.NEXT_PUBLIC_TIMELINE_BASE_URL ||
-    'https://paradigm-threat-timeline-a77fe2.gitlab.io'
+
+  const baseUrl = useSyncExternalStore(
+    (cb) => remoteRelay.subscribe(cb),
+    () => remoteRelay.getSnapshot().timelineBaseUrl,
+    () => remoteRelay.getSnapshot().timelineBaseUrl,
+  )
 
   useEffect(() => {
     let isMounted = true
 
     const fetchData = async () => {
+      await remoteRelay.bootstrap()
+      if (!isMounted) return
+      const url = `${baseUrl}/data/events.json${timelineManifestCacheQuery()}`
+      setLoading(true)
+      setError(null)
       try {
-        const res = await fetch(`${baseUrl}/data/events.json${timelineManifestCacheQuery()}`, {
-          cache: 'no-store',
-        })
+        const res = await fetch(url, { cache: 'no-store' })
         if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`)
         const data: TimelineData = await res.json()
         if (isMounted) {
@@ -97,7 +112,7 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    fetchData()
+    void fetchData()
     return () => {
       isMounted = false
     }
@@ -107,20 +122,16 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({ entries, events, introArticles, loading, error, baseUrl }),
-    [entries, events, introArticles, loading, error, baseUrl]
+    [entries, events, introArticles, loading, error, baseUrl],
   )
 
-  return (
-    <TimelineContext.Provider value={value}>
-      {children}
-    </TimelineContext.Provider>
-  )
+  return <TimelineContext.Provider value={value}>{children}</TimelineContext.Provider>
 }
 
 export function useTimeline() {
   const ctx = useContext(TimelineContext)
   if (ctx === undefined) {
-    throw new Error('useTimeline must be used within TimelineProvider')
+    throw new Error('useTimeline must be used within a TimelineProvider')
   }
   return ctx
 }

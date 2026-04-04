@@ -37,7 +37,9 @@ export function extractWidthFromSrc(src: string): { cleanSrc: string, width?: nu
     return { cleanSrc: src };
 }
 
-const FILES_BASE_URL = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://paradigm-threat-files-69f9dc.gitlab.io';
+import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
+
+const FILES_BASE_URL = getPrimaryFilesBaseUrl();
 
 export function getAbsoluteImageUrl(path: string): string {
     if (path.startsWith('http') || path.startsWith('/')) return path;

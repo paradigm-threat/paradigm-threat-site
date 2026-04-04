@@ -2,8 +2,8 @@
  * Multi-host Piper / clevertree-tts upstream: failover on synthesis, merge voice lists.
  *
  * Env:
- *   PIPER_API_URLS — semicolon or comma-separated base URLs (no trailing slash), e.g.
- *     http://host:5590;https://other.example.com
+ *   PIPER_API_URLS — whitespace-separated base URLs (no trailing slash), e.g.
+ *     http://host:5590 https://other.example.com
  *   PIPER_API_URL — optional legacy single host (used when PIPER_API_URLS is empty)
  *   PIPER_API_SECRET — optional Bearer token for all hosts (same as .env.local / Vercel)
  */
@@ -15,7 +15,7 @@ function normalizeBaseUrl(raw: string): string {
 export function getPiperApiBaseUrls(): string[] {
     const listRaw = (process.env.PIPER_API_URLS ?? '').trim()
     const fromList = listRaw
-        .split(/[;,]+/)
+        .split(/\s+/)
         .map((s) => normalizeBaseUrl(s))
         .filter(Boolean)
     if (fromList.length > 0) return fromList

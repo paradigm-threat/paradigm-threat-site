@@ -1,4 +1,6 @@
-const FILES_BASE_URL = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://paradigm-threat-files-69f9dc.gitlab.io';
+import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
+
+const FILES_BASE_URL = getPrimaryFilesBaseUrl();
 
 export async function getFilesIndex() {
     const res = await fetch(`${FILES_BASE_URL}/index.json`, { cache: 'no-store' });

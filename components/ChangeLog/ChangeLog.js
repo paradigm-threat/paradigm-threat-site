@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
 import styles from './ChangeLog.module.css'
 
 export default function ChangeLog({ target = '_blank' }) {
@@ -10,7 +11,7 @@ export default function ChangeLog({ target = '_blank' }) {
   useEffect(() => {
     const fetchChangeLog = async () => {
       try {
-        const filesBaseUrl = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://paradigm-threat-files-69f9dc.gitlab.io'
+        const filesBaseUrl = getPrimaryFilesBaseUrl()
         const res = await fetch(`${filesBaseUrl}/changelog.json`, { cache: 'no-store' })
         if (res.ok) {
           const data = await res.json()

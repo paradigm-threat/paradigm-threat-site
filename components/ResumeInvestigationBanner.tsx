@@ -3,10 +3,18 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { readLastVisit, readTtsResume, type TtsResumePayload } from '@/lib/visitResumeStorage'
+import {
+  readLastVisit,
+  readTtsResume,
+  normalizeResumePath,
+  isExcludedResumeInvestigationTarget,
+  type TtsResumePayload,
+} from '@/lib/visitResumeStorage'
 
 function isHomeHub(pathname: string | null): boolean {
-  return pathname === '/' || pathname === '/book'
+  if (!pathname) return false
+  const p = normalizeResumePath(pathname)
+  return p === '/' || p === '/book'
 }
 
 export function ResumeInvestigationBanner() {
@@ -24,8 +32,16 @@ export function ResumeInvestigationBanner() {
 
   if (!isHomeHub(pathname)) return null
 
-  const showResumePage = Boolean(last?.path && last.path !== pathname)
-  const showResumePlayback = Boolean(tts?.path && tts.sentenceIndex >= 0)
+  const showResumePage = Boolean(
+    last?.path &&
+      !isExcludedResumeInvestigationTarget(last.path) &&
+      normalizeResumePath(last.path) !== normalizeResumePath(pathname || ''),
+  )
+  const showResumePlayback = Boolean(
+    tts?.path &&
+      tts.sentenceIndex >= 0 &&
+      !isExcludedResumeInvestigationTarget(tts.path),
+  )
 
   if (!showResumePage && !showResumePlayback) return null
 

@@ -19,10 +19,29 @@ export type TtsResumePayload = {
   updated: number
 }
 
+/** Strip query and trailing slashes for stable comparisons. */
+export function normalizeResumePath(pathname: string): string {
+  const base = pathname.split('?')[0].trim()
+  if (!base) return '/'
+  const trimmed = base.replace(/\/+$/, '') || '/'
+  return trimmed
+}
+
+/**
+ * Landing URLs we never offer as “Resume investigation” / playback targets
+ * (site root and book hub — same entry points excluded from {@link shouldPersistVisit}).
+ */
+export function isExcludedResumeInvestigationTarget(pathname: string): boolean {
+  const p = normalizeResumePath(pathname)
+  return p === '/' || p === '/book'
+}
+
 export function shouldPersistVisit(pathname: string | null | undefined): boolean {
-  if (!pathname || pathname === '/' || pathname === '/book') return false
-  if (pathname.startsWith('/chat')) return false
-  if (pathname === '/search' || pathname.startsWith('/search/')) return false
+  if (!pathname) return false
+  const p = normalizeResumePath(pathname)
+  if (p === '/' || p === '/book') return false
+  if (p.startsWith('/chat')) return false
+  if (p === '/search' || p.startsWith('/search/')) return false
   return true
 }
 

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
 
 export interface GalleryImage {
     src: string
@@ -185,7 +186,7 @@ export function ImageGalleryOverlay() {
 
         const currentSrc = currentImage.src;
         if (typeof currentSrc === 'string' && !currentImage.children && !currentImage.alt && currentSrc && !currentSrc.startsWith('http')) {
-            const FILES_BASE_URL = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://paradigm-threat-files-69f9dc.gitlab.io';
+            const FILES_BASE_URL = getPrimaryFilesBaseUrl();
 
             // Fix double slashes and ensure no leading slash for index check
             const cleanSrc = currentSrc.replace(/\/+/g, '/').replace(/^\/+/, '');

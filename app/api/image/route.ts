@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
+import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv';
 
 /** Detect SVG so we skip sharp (raster/WebP breaks text/fonts in timeline SVGs). */
 function isSvgResponse(pathParam: string, contentType: string | null): boolean {
@@ -26,8 +27,8 @@ export async function GET(request: NextRequest) {
         return new NextResponse('Missing path', { status: 400 });
     }
 
-    // The image sources are all remote (fetch from FILES_BASE_URL or direct URL)
-    const filesBaseUrl = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://paradigm-threat-files-69f9dc.gitlab.io';
+    // The image sources are all remote (fetch from files mirror or direct URL)
+    const filesBaseUrl = getPrimaryFilesBaseUrl();
 
     // Ensure path is treated as an absolute path from the files base URL root if it's not a full URL
     const url = path.startsWith('http')
@@ -41,6 +42,7 @@ export async function GET(request: NextRequest) {
             const whitelistedDomains = [
                 'files.paradigmthreat.net',
                 'paradigmthreat.net',
+                'relaygateway.net',
                 'gitlab.com',
                 'paradigm-threat-files-69f9dc.gitlab.io',
                 'localhost',

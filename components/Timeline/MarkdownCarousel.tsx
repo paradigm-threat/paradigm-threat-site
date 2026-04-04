@@ -10,6 +10,7 @@ import { transformImageCaptions } from './markdownTransform'
 import { formatDateRange, formatElapsedSinceStart } from './utils'
 import { useClientClock } from './useClientClock'
 import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
+import { remoteRelay } from '@/lib/remoteRelayStore'
 
 /** H1 date prefix: only when title begins with formatted range + em dash (avoids duplicating e.g. `1421 CE — Title`). */
 function getHeaderDatePrefixInfo(entry: TimelineEntry): {
@@ -94,12 +95,22 @@ export function MarkdownCarousel({
       return
     }
     queueMicrotask(() => setLoading(true))
-    const url = `${baseUrl}/${currentEntry.md_path}`
-    fetch(url)
-      .then((res) => (res.ok ? res.text() : Promise.resolve(null)))
-      .then((text) => setMdContent(text ?? `*Failed to load content: ${url}*`))
-      .catch(() => setMdContent(`*Failed to load content: ${url}*`))
-      .finally(() => setLoading(false))
+    const ac = new AbortController()
+    const cacheQ = timelineManifestCacheQuery()
+    const pathLabel = `${baseUrl}/${currentEntry.md_path}`
+    ;(async () => {
+      try {
+        await remoteRelay.bootstrap()
+        const res = await remoteRelay.fetchTimelineMd(currentEntry.md_path, cacheQ, ac.signal)
+        const text = await res.text()
+        setMdContent(text)
+      } catch {
+        setMdContent(`*Failed to load content: ${pathLabel}*`)
+      } finally {
+        setLoading(false)
+      }
+    })()
+    return () => ac.abort()
   }, [baseUrl, currentEntry])
 
   return (

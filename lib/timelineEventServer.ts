@@ -5,9 +5,9 @@
 import { firstTimelineOgMediaPath } from '@/lib/timelineMedia'
 import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
 
-const TIMELINE_BASE =
-  process.env.NEXT_PUBLIC_TIMELINE_BASE_URL ||
-  'https://paradigm-threat-timeline-a77fe2.gitlab.io'
+import { getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
+
+const TIMELINE_BASE = getPrimaryTimelineBaseUrl()
 
 interface TimelineEntry {
   id: string

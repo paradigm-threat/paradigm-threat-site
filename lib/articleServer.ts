@@ -4,9 +4,9 @@
  */
 
 import { isNonArticlePath } from '@/lib/isNonArticlePath'
+import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
 
-const FILES_BASE_URL =
-  process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://paradigm-threat-files-69f9dc.gitlab.io'
+const FILES_BASE_URL = getPrimaryFilesBaseUrl()
 
 export interface ArticleData {
   mdxSource: string
@@ -28,7 +28,7 @@ function extractFirstImageUrl(md: string, basePath: string): string | undefined 
   else if (src.startsWith('./')) src = src.slice(2)
   const prefix = basePath ? (basePath.endsWith('/') ? basePath : basePath + '/') : ''
   const path = (prefix + src).replace(/\/+/g, '/')
-  const base = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://paradigm-threat-files-69f9dc.gitlab.io'
+  const base = getPrimaryFilesBaseUrl()
   return `${base.replace(/\/$/, '')}/${path.replace(/^\//, '')}`
 }
 
@@ -90,7 +90,7 @@ export async function fetchArticle(path: string): Promise<ArticleData | null> {
   const mdxSource = rawContent.replace(/<(https?:\/\/[^>]+)>/g, (_, url) => `[${url}](${url})`)
 
   // OG image: frontmatter.image or first image in content
-  const filesBase = (process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://paradigm-threat-files-69f9dc.gitlab.io').replace(/\/$/, '')
+  const filesBase = getPrimaryFilesBaseUrl()
   let ogImageUrl: string | undefined
   if (frontMatter?.image && typeof frontMatter.image === 'string') {
     const img = frontMatter.image as string

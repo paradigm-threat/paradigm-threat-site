@@ -1,99 +1,100 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo } from 'react';
-
-const INDEX_FETCH_TIMEOUT_MS = 5000
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+  useMemo,
+  useSyncExternalStore,
+} from 'react'
+import { remoteRelay } from '@/lib/remoteRelayStore'
 
 interface FilesContextType {
-    fileList: any;
-    loading: boolean;
-    error: string | null;
-    retryLoadIndex: () => void;
+  fileList: any
+  loading: boolean
+  error: string | null
+  retryLoadIndex: () => void
 }
 
-const FilesContext = createContext<FilesContextType | undefined>(undefined);
+const FilesContext = createContext<FilesContextType | undefined>(undefined)
 
 export function FilesProvider({ children }: { children: ReactNode }) {
-    const [fileList, setFileList] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [retryKey, setRetryKey] = useState(0);
+  const [fileList, setFileList] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
 
-    const retryLoadIndex = useCallback(() => {
-        setRetryKey((k) => k + 1);
-    }, []);
+  const filesUrl = useSyncExternalStore(
+    (cb) => remoteRelay.subscribe(cb),
+    () => remoteRelay.getSnapshot().filesBaseUrl,
+    () => remoteRelay.getSnapshot().filesBaseUrl,
+  )
 
-    useEffect(() => {
-        const baseUrl = process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://paradigm-threat-files-69f9dc.gitlab.io';
-        let isMounted = true;
-        const abortController = new AbortController();
-        const timeoutId = window.setTimeout(() => abortController.abort(), INDEX_FETCH_TIMEOUT_MS);
+  const retryLoadIndex = useCallback(() => {
+    setRetryKey((k) => k + 1)
+  }, [])
 
-        const fetchFiles = async () => {
-            if (!isMounted) return;
-            setLoading(true);
-            setError(null);
-            try {
-                const cacheBuster = Math.floor(Date.now() / 60000);
-                const response = await fetch(`${baseUrl}/index.json?v=${cacheBuster}`, {
-                    signal: abortController.signal,
-                });
-                window.clearTimeout(timeoutId);
-                if (!isMounted) return;
-                if (!response.ok) {
-                    setFileList(null);
-                    setError(`Failed to fetch file index (HTTP ${response.status}).`);
-                    setLoading(false);
-                    return;
-                }
-                const data = await response.json();
-                if (isMounted) {
-                    setFileList(data);
-                    setError(null);
-                    setLoading(false);
-                }
-            } catch (err: unknown) {
-                window.clearTimeout(timeoutId);
-                if (!isMounted) return;
-                const name = err instanceof Error ? err.name : '';
-                if (name === 'AbortError') {
-                    setFileList(null);
-                    setError(
-                        'Timed out loading the file index after 5 seconds. The CDN or host may be blocking or throttling requests, or returning errors without a clear message.'
-                    );
-                } else {
-                    setFileList(null);
-                    setError(err instanceof Error ? err.message : 'Failed to load file index');
-                }
-                setLoading(false);
-            }
-        };
+  useEffect(() => {
+    let isMounted = true
+    const abortController = new AbortController()
 
-        fetchFiles();
+    const run = async () => {
+      if (!isMounted) return
+      setLoading(true)
+      setError(null)
+      try {
+        await remoteRelay.bootstrap()
+        if (!isMounted) return
+        const data = await remoteRelay.fetchIndexJson(abortController.signal)
+        if (!isMounted) return
+        if (data == null) {
+          setFileList(null)
+          setError(
+            'Could not load the file index from any relay mirror (timeout or network error). Use Retry or check your connection.',
+          )
+          setLoading(false)
+          return
+        }
+        setFileList(data)
+        setError(null)
+        setLoading(false)
+      } catch (err: unknown) {
+        if (!isMounted) return
+        const name = err instanceof Error ? err.name : ''
+        if (name === 'AbortError') {
+          setFileList(null)
+          setError('File index load was cancelled.')
+        } else {
+          setFileList(null)
+          setError(err instanceof Error ? err.message : 'Failed to load file index')
+        }
+        setLoading(false)
+      }
+    }
 
-        return () => {
-            isMounted = false;
-            window.clearTimeout(timeoutId);
-            abortController.abort();
-        };
-    }, [retryKey]);
+    void run()
 
-    const contextValue = useMemo(
-        () => ({ fileList, loading, error, retryLoadIndex }),
-        [fileList, loading, error, retryLoadIndex]
-    );
+    return () => {
+      isMounted = false
+      abortController.abort()
+    }
+  }, [retryKey, filesUrl])
 
-    return (
-        <FilesContext.Provider value={contextValue}>
-            {children}
-        </FilesContext.Provider>
-    );
+  const contextValue = useMemo(
+    () => ({ fileList, loading, error, retryLoadIndex }),
+    [fileList, loading, error, retryLoadIndex],
+  )
+
+  return <FilesContext.Provider value={contextValue}>{children}</FilesContext.Provider>
 }
 
 export function useFiles() {
-    const context = useContext(FilesContext);
-    if (context === undefined) {
-        throw new Error('useFiles must be used within a FilesProvider');
-    }
-    return context;
+  const context = useContext(FilesContext)
+  if (context === undefined) {
+    throw new Error('useFiles must be used within a FilesProvider')
+  }
+  return context
 }

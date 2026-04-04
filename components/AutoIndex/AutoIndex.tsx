@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useFiles } from '@/components/FilesContext'
+import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
 import PopImage from '@/components/Image/PopImage'
 import {
   formatIndexDateBlogParts,
@@ -133,8 +134,7 @@ export default function AutoIndex({
   const fileVersion = typeof fileList?._version === 'string' ? fileList._version : ''
   useEffect(() => {
     if (!path || mdFiles.length === 0) return
-    const baseUrl =
-      process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://paradigm-threat-files-69f9dc.gitlab.io'
+    const baseUrl = getPrimaryFilesBaseUrl()
     const vParam = fileVersion ? `?v=${fileVersion}` : ''
 
     const initial: Record<string, { title: string }> = {}

@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server'
 import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
+import { getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
 
-const TIMELINE_BASE =
-  process.env.NEXT_PUBLIC_TIMELINE_BASE_URL ||
-  'https://paradigm-threat-timeline-a77fe2.gitlab.io'
+const TIMELINE_BASE = getPrimaryTimelineBaseUrl()
 
 const UNKNOWN_START_YEAR = -50000
 

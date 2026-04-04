@@ -4,6 +4,8 @@ import React, { Suspense, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { DynamicNav, FloatingDiv, ThemeToggle, Navbar, ImageGalleryProvider, DynamicIndex, FilesProvider, useFiles } from "@/components";
+import { RelayServerToast } from "@/components/RelayServerToast";
+import { RelayFooterAttribution } from "@/components/RelayFooterAttribution";
 import PwaRedirect from "@/components/PwaRedirect";
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from "@vercel/speed-insights/next"
@@ -71,8 +73,8 @@ function RootLayoutInner({ children }: { children: React.ReactNode }) {
                         <div className="text-slate-500 text-sm">
                             Created by <a href="https://clevertree.net/" className="text-blue-500 hover:underline font-semibold">Ari Asulin</a>
                         </div>
-                        <div className="flex justify-center gap-4 text-xs text-slate-400">
-                            <a href="https://gitlab.com/clevertree/paradigm-threat-site" className="hover:text-slate-600 dark:hover:text-slate-200 transition-colors">[git repository]</a>
+                        <div className="flex flex-col items-center gap-3 text-xs text-slate-400">
+                            <RelayFooterAttribution />
                             <a href="https://github.com/sponsors/clevertree" className="text-pink-500 hover:underline font-semibold">♥ Sponsor</a>
                         </div>
                     </div>
@@ -80,6 +82,7 @@ function RootLayoutInner({ children }: { children: React.ReactNode }) {
 
                 <Analytics />
                 <SpeedInsights />
+                <RelayServerToast />
             </body>
         </html>
     )

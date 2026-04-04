@@ -5,9 +5,7 @@ import rehypeUnwrapImages from 'rehype-unwrap-images'
 import remarkGfm from 'remark-gfm'
 import rehypeUnwrapFigures from '@/lib/rehypeUnwrapFigures'
 import { isNonArticlePath } from '@/lib/isNonArticlePath'
-
-const FILES_BASE_URL =
-  process.env.NEXT_PUBLIC_FILES_BASE_URL || 'https://paradigm-threat-files-69f9dc.gitlab.io'
+import { fetchFilesTextFromMirrors } from '@/lib/serverFilesMirror'
 
 /**
  * Fetch a remote MD/MDX file and return it compiled.
@@ -28,24 +26,16 @@ export async function GET(req: NextRequest) {
 
     // 1. Try direct .md/.mdx
     if (path.endsWith('.md') || path.endsWith('.mdx')) {
-      const res = await fetch(`${FILES_BASE_URL}/${path}${vParam}`, {
-        cache: 'no-store',
-      })
-      if (res.ok) {
-        fileContent = await res.text()
-        targetPath = path
-      }
+      fileContent = await fetchFilesTextFromMirrors(path, vParam)
+      if (fileContent) targetPath = path
     }
 
     // 2. Try path.md then path.mdx (extension omitted in URL)
     if (!fileContent && path && !path.endsWith('.md') && !path.endsWith('.mdx')) {
       for (const ext of ['.md', '.mdx']) {
         const p = `${path}${ext}`
-        const res = await fetch(`${FILES_BASE_URL}/${p}${vParam}`, {
-          cache: 'no-store',
-        })
-        if (res.ok) {
-          fileContent = await res.text()
+        fileContent = await fetchFilesTextFromMirrors(p, vParam)
+        if (fileContent) {
           targetPath = p
           break
         }
@@ -57,11 +47,8 @@ export async function GET(req: NextRequest) {
       const base = path ? `${path}/` : ''
       for (const name of ['page.md', 'page.mdx']) {
         const p = `${base}${name}`
-        const res = await fetch(`${FILES_BASE_URL}/${p}${vParam}`, {
-          cache: 'no-store',
-        })
-        if (res.ok) {
-          fileContent = await res.text()
+        fileContent = await fetchFilesTextFromMirrors(p, vParam)
+        if (fileContent) {
           targetPath = p
           break
         }
@@ -102,7 +89,7 @@ export async function GET(req: NextRequest) {
     console.error('[api/article]', err)
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Failed to load article' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }
