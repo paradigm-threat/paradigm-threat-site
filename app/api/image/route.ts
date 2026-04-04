@@ -50,7 +50,10 @@ export async function GET(request: NextRequest) {
                 whitelistedDomains.some(
                     domain =>
                         parsedUrl.hostname === domain || parsedUrl.hostname.endsWith('.' + domain)
-                ) || parsedUrl.hostname.endsWith('.gitlab.io');
+                ) ||
+                parsedUrl.hostname.endsWith('.gitlab.io') ||
+                parsedUrl.hostname === 'relaygateway.net' ||
+                parsedUrl.hostname.endsWith('.relaygateway.net');
 
             if (!isWhitelisted) {
                 return new NextResponse(`Domain ${parsedUrl.hostname} is not whitelisted`, { status: 403 });
