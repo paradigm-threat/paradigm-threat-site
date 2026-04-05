@@ -6,6 +6,15 @@ import type { TTSState, SubtitleMode, PiperVoice, TTSProvider } from '@/lib/hook
 
 const RATES = [0.75, 1.0, 1.25, 1.5, 2.0]
 
+function getPiperVoiceOptionLabel(voice: PiperVoice): string {
+  if (voice.name?.trim()) return voice.name.trim()
+  if (voice.voice && (voice.lang || voice.language)) {
+    const lang = voice.lang ?? voice.language ?? ''
+    return `${voice.voice} (${lang})`
+  }
+  return voice.id
+}
+
 export interface ArticleTTSOverlayProps {
   ttsState: TTSState
   availableVoices: SpeechSynthesisVoice[]
@@ -215,9 +224,13 @@ export function ArticleTTSOverlay({
                     onChange={e => onSetPiperVoiceId(e.target.value)}
                     className="bg-transparent text-slate-100 text-xs outline-none cursor-pointer max-w-[140px] truncate"
                   >
-                    {filteredPiperVoices.map(v => (
-                      <option key={v.id} value={v.id} className="bg-slate-900">{v.name}</option>
-                    ))}
+                    {filteredPiperVoices.length === 0 ? (
+                      <option value="" disabled className="bg-slate-900 text-slate-100">No Piper voices available</option>
+                    ) : (
+                      filteredPiperVoices.map(v => (
+                        <option key={v.id} value={v.id} className="bg-slate-900 text-slate-100">{getPiperVoiceOptionLabel(v)}</option>
+                      ))
+                    )}
                   </select>
                 </div>
                 <div className="flex items-center gap-1.5 bg-black/30 rounded-lg px-3 py-2">
@@ -227,9 +240,9 @@ export function ArticleTTSOverlay({
                     onChange={e => onSetQuoteVoiceId(e.target.value)}
                     className="bg-transparent text-slate-100 text-xs outline-none cursor-pointer max-w-[120px] truncate"
                   >
-                    <option value="" className="bg-slate-900">Narrator</option>
+                    <option value="" className="bg-slate-900 text-slate-100">Narrator</option>
                     {filteredPiperVoices.map(v => (
-                      <option key={v.id} value={v.id} className="bg-slate-900">{v.name}</option>
+                      <option key={v.id} value={v.id} className="bg-slate-900 text-slate-100">{getPiperVoiceOptionLabel(v)}</option>
                     ))}
                   </select>
                 </div>

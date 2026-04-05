@@ -1,4 +1,6 @@
-import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
+import { getPrimaryFilesBaseUrl, getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
+import { flattenFilesIndex, flattenTimelineEntriesForSearch, type IndexedPathEntry } from '@/components/helpers/indexHelper'
+import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
 
 const FILES_BASE_URL = getPrimaryFilesBaseUrl();
 
@@ -6,6 +8,33 @@ export async function getFilesIndex() {
     const res = await fetch(`${FILES_BASE_URL}/index.json`, { cache: 'no-store' });
     if (!res.ok) return {};
     return res.json() as Promise<any>;
+}
+
+/** Files index + timeline events.json merged for search (keywords on both). Returns null if files index.json fails. */
+export async function getMergedSearchIndex(): Promise<IndexedPathEntry[] | null> {
+    const filesUrl = getPrimaryFilesBaseUrl()
+    const timelineUrl = getPrimaryTimelineBaseUrl()
+    const q = timelineManifestCacheQuery()
+    const [filesRes, eventsRes] = await Promise.all([
+        fetch(`${filesUrl}/index.json`, { cache: 'no-store' }),
+        fetch(`${timelineUrl}/data/events.json${q}`, { cache: 'no-store' }),
+    ])
+    if (!filesRes.ok) return null
+    let fromFiles: IndexedPathEntry[] = []
+    try {
+        fromFiles = flattenFilesIndex(await filesRes.json())
+    } catch {
+        return null
+    }
+    let fromTimeline: IndexedPathEntry[] = []
+    if (eventsRes.ok) {
+        try {
+            fromTimeline = flattenTimelineEntriesForSearch(await eventsRes.json())
+        } catch {
+            fromTimeline = []
+        }
+    }
+    return [...fromFiles, ...fromTimeline]
 }
 
 export async function getRemoteFile(path: string) {

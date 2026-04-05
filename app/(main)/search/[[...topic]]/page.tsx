@@ -1,12 +1,12 @@
 'use client'
 
-import React, { useEffect, useState, useMemo, Suspense, useRef, useCallback, startTransition } from 'react'
-import { getFilesIndex, getRemoteFile } from '@/server/remoteFiles'
+import React, { useEffect, useState, useMemo, Suspense, useRef, useCallback } from 'react'
+import { getMergedSearchIndex, getRemoteFile } from '@/server/remoteFiles'
 import { SearchHeader, FolderGrid, ArticleStack, ImageGallery } from '@/components/search'
 import matter from 'gray-matter'
 import { Loader2, Search } from 'lucide-react'
 import { useRouter, useSearchParams, useParams } from 'next/navigation'
-import { flattenFilesIndex } from '@/components/helpers/indexHelper'
+import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
 
 const DEBOUNCE_MS = 350
 
@@ -23,8 +23,9 @@ function SearchContent() {
     const [inputValue, setInputValue] = useState(urlQuery)
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const lastUrlUpdateRef = useRef<string>(urlQuery)
+    const isDebounsingRef = useRef<boolean>(false)
 
-    const [filesIndex, setFilesIndex] = useState<string[]>([])
+    const [filesIndex, setFilesIndex] = useState<IndexedPathEntry[]>([])
     const [renderedMds, setRenderedMds] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -32,12 +33,9 @@ function SearchContent() {
 
     // Sync from URL to input only when URL changed externally (back/forward), not from our debounce
     useEffect(() => {
-        // Only sync if URL changed externally (not from our own updateUrl call)
-        if (urlQuery !== lastUrlUpdateRef.current && urlQuery !== inputValue.trim()) {
-            // Use startTransition to mark this as a non-urgent update (syncing from external URL change)
-            startTransition(() => {
-                setInputValue(urlQuery)
-            })
+        // Only sync if URL changed externally (not from our own updateUrl call) and we're not actively debouncing
+        if (urlQuery !== lastUrlUpdateRef.current && !isDebounsingRef.current && urlQuery !== inputValue.trim()) {
+            queueMicrotask(() => setInputValue(urlQuery))
         }
         // Update ref to track what we expect the URL to be
         lastUrlUpdateRef.current = urlQuery
@@ -46,10 +44,10 @@ function SearchContent() {
     // Fetch index once
     useEffect(() => {
         queueMicrotask(() => setLoading(true))
-        getFilesIndex()
-            .then(index => {
-                if (index) {
-                    setFilesIndex(flattenFilesIndex(index))
+        getMergedSearchIndex()
+            .then((entries) => {
+                if (entries !== null) {
+                    setFilesIndex(entries)
                 } else {
                     setError('Received invalid file index')
                 }
@@ -78,21 +76,21 @@ function SearchContent() {
         if (cleanQuery.length < 2) return []
 
         const searchTerms = cleanQuery.split(/\s+/).filter(Boolean)
-        return filesIndex.filter(path => {
-            if (typeof path !== 'string') return false
-            if (path.includes('.auto.md')) return false
-            const lowerPath = path.toLowerCase()
-            return searchTerms.every(term => lowerPath.includes(term))
+        return filesIndex.filter((entry) => {
+            if (!entry || typeof entry.path !== 'string') return false
+            if (entry.path.includes('.auto.md')) return false
+            const haystack = entry.searchText.toLowerCase()
+            return searchTerms.every((term) => haystack.includes(term))
         })
     }, [inputValue, filesIndex])
 
     // Fetch MD content for the top results when search results change
     useEffect(() => {
-        const mds = searchResults.filter(path =>
-            path.endsWith('.md') &&
-            !path.endsWith('page.md') &&
-            !path.endsWith('index.md') &&
-            !path.includes('.auto.md')
+        const mds = searchResults.filter((e) =>
+            e.path.endsWith('.md') &&
+            !e.path.endsWith('page.md') &&
+            !e.path.endsWith('index.md') &&
+            !e.path.includes('.auto.md')
         ).slice(0, 5)
 
         if (mds.length === 0) {
@@ -101,7 +99,8 @@ function SearchContent() {
         }
 
         queueMicrotask(() => setContentLoading(true))
-        Promise.all(mds.map(async path => {
+        Promise.all(mds.map(async (e) => {
+            const path = e.path
             const content = await getRemoteFile(path)
             if (!content) return null
             const { content: mdxSource, data: frontMatter } = matter(content)
@@ -129,24 +128,31 @@ function SearchContent() {
         setInputValue(val)
         const trimmed = val.trim()
         if (debounceRef.current) clearTimeout(debounceRef.current)
+        isDebounsingRef.current = true
         debounceRef.current = setTimeout(() => {
             debounceRef.current = null
+            isDebounsingRef.current = false
             updateUrl(trimmed)
         }, DEBOUNCE_MS)
     }, [updateUrl])
 
     useEffect(() => () => {
-        if (debounceRef.current) clearTimeout(debounceRef.current)
+        if (debounceRef.current) {
+            clearTimeout(debounceRef.current)
+            isDebounsingRef.current = false
+        }
     }, [])
 
     // Extract unique folders
-    const folderPaths = Array.from(new Set(searchResults.map(path => {
-        const parts = path.split('/')
+    const folderPaths = Array.from(new Set(searchResults.map((e) => {
+        const parts = e.path.split('/')
         return parts.length > 1 ? parts.slice(0, -1).join('/') : null
     }).filter(Boolean))) as string[]
 
     const folders = folderPaths.sort()
-    const images = searchResults.filter(path => /\.(jpg|jpeg|png|gif|svg|webp)$/i.test(path))
+    const images = searchResults
+        .filter((e) => /\.(jpg|jpeg|png|gif|svg|webp)$/i.test(e.path))
+        .map((e) => e.path)
 
     return (
         <div className="w-full min-h-screen bg-white dark:bg-slate-950">
@@ -191,7 +197,7 @@ function SearchContent() {
                         <ArticleStack
                             renderedMds={renderedMds}
                             contentLoading={contentLoading}
-                            totalArticles={searchResults.filter(f => f.endsWith('.md')).length}
+                            totalArticles={searchResults.filter((f) => f.path.endsWith('.md')).length}
                         />
 
                         <ImageGallery images={images} />

@@ -68,6 +68,16 @@ export function writeLastVisit(pathname: string, title: string): void {
   }
 }
 
+export function clearLastVisit(): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.removeItem(LS_LAST_PATH)
+    localStorage.removeItem(LS_LAST_TITLE)
+  } catch {
+    /* ignore */
+  }
+}
+
 export function readTtsResume(): TtsResumePayload | null {
   if (typeof window === 'undefined') return null
   try {

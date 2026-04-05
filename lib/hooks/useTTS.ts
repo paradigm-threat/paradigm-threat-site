@@ -28,8 +28,11 @@ export type TTSProvider = 'piper' | 'webSpeech'
 
 export interface PiperVoice {
     id: string
-    name: string
-    lang: string
+    name?: string
+    lang?: string
+    language?: string
+    voice?: string
+    quality?: string
 }
 
 export type SubtitleMode = 'caption' | 'scroll'
@@ -111,6 +114,32 @@ function parseSpeakerMapInput(input: string): Record<string, string> {
 
 function isQuotedSentence(text: string): boolean {
     return text.includes('"')
+}
+
+function titleCaseWords(value: string): string {
+    return value
+        .replace(/[_-]+/g, ' ')
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ')
+}
+
+function normalizePiperVoice(raw: PiperVoice): PiperVoice {
+    const lang = raw.lang?.trim() || raw.language?.trim() || raw.id.match(/^([a-z]{2}[_-][A-Z]{2})-/)?.[1] || ''
+    const region = lang.split(/[_-]/)[1] ?? ''
+    const quality = raw.quality?.trim() || raw.id.match(/-(low|medium|high|x_low)$/)?.[1] || ''
+    const baseName = raw.name?.trim() || (raw.voice ? titleCaseWords(raw.voice) : titleCaseWords(raw.id.replace(/^(?:[a-z]{2}[_-][A-Z]{2})-/, '').replace(/-(low|medium|high|x_low)$/, '')))
+    const suffix = [region, quality].filter(Boolean).join(', ')
+    return {
+        ...raw,
+        lang,
+        name: raw.name?.trim() || (suffix ? `${baseName} (${suffix})` : baseName),
+    }
+}
+
+function getPiperVoiceLabel(voiceId: string, voices: PiperVoice[]): string {
+    return voices.find(voice => voice.id === voiceId)?.name ?? voiceId
 }
 
 export function useTTS() {
@@ -305,7 +334,9 @@ export function useTTS() {
             .then(res => res.ok ? res.json() : null)
             .then(data => {
                 if (!mounted || !data) return
-                const voices = Array.isArray(data.voices) ? data.voices as PiperVoice[] : []
+                const voices = Array.isArray(data.voices)
+                    ? (data.voices as PiperVoice[]).map(normalizePiperVoice)
+                    : []
                 setAvailablePiperVoices(voices)
 
                 const savedVoiceId = localStorage.getItem(LS_PIPER_VOICE)
@@ -315,16 +346,41 @@ export function useTTS() {
                 const { voiceId: resolvedVoiceId, lang: langFromDefaultPick } =
                     resolveDefaultPiperVoiceId(voices, savedVoiceId, defaultVoiceId)
 
+                const savedVoiceMissing = Boolean(
+                    savedVoiceId?.trim() && !voices.some(voice => voice.id === savedVoiceId),
+                )
+                let nextVoiceId = resolvedVoiceId || ''
+                let nextVoiceLang =
+                    savedPiperLang ??
+                    (!hasSavedVoiceSelection ? langFromDefaultPick : undefined) ??
+                    voices[0]?.lang ??
+                    'en'
+                let unavailableVoiceError: string | null = null
+
+                if (savedVoiceMissing && savedVoiceId && resolvedVoiceId && resolvedVoiceId !== savedVoiceId) {
+                    const replacementLabel = getPiperVoiceLabel(resolvedVoiceId, voices)
+                    const shouldSwitch = window.confirm(
+                        `The selected Piper voice "${savedVoiceId}" is not available on this server. Switch to "${replacementLabel}" instead?`,
+                    )
+                    if (shouldSwitch) {
+                        localStorage.setItem(LS_PIPER_VOICE, resolvedVoiceId)
+                        if (langFromDefaultPick) {
+                            localStorage.setItem(LS_PIPER_LANG, langFromDefaultPick)
+                            nextVoiceLang = langFromDefaultPick
+                        }
+                        unavailableVoiceError = `Piper voice unavailable on this server. Switched to ${replacementLabel}.`
+                    } else {
+                        nextVoiceId = savedVoiceId
+                        unavailableVoiceError = `Selected Piper voice is unavailable on this server: ${savedVoiceId}`
+                    }
+                }
+
                 setState(prev => ({
                     ...prev,
-                    piperVoiceId: resolvedVoiceId || prev.piperVoiceId,
-                    piperLang:
-                        savedPiperLang ??
-                        (!hasSavedVoiceSelection ? langFromDefaultPick : undefined) ??
-                        prev.piperLang ??
-                        voices[0]?.lang ??
-                        'en',
+                    piperVoiceId: nextVoiceId || prev.piperVoiceId,
+                    piperLang: nextVoiceLang ?? prev.piperLang ?? 'en',
                     provider: voices.length > 0 ? prev.provider : 'webSpeech',
+                    error: unavailableVoiceError ?? prev.error,
                 }))
             })
             .catch(() => {

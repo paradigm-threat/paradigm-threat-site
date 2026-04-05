@@ -29,6 +29,15 @@ const PLANET_BC_MIN = -5000
 const PLANET_BC_MAX = -670
 // Per-chapter order: 1st image → planet sim → remaining images → loop (see ANIMATION_TRACKER §2.7)
 
+function getPiperVoiceOptionLabel(voice: PiperVoice): string {
+    if (voice.name?.trim()) return voice.name.trim()
+    if (voice.voice && (voice.lang || voice.language)) {
+        const lang = voice.lang ?? voice.language ?? ''
+        return `${voice.voice} (${lang})`
+    }
+    return voice.id
+}
+
 interface TTSSlideshowOverlayProps {
     ttsState: TTSState
     availableVoices: SpeechSynthesisVoice[]
@@ -693,9 +702,13 @@ export function TTSSlideshowOverlay({
                                     onChange={e => { e.stopPropagation(); onSetPiperVoiceId(e.target.value) }}
                                     className="bg-transparent text-white text-xs outline-none cursor-pointer max-w-[160px] truncate"
                                 >
-                                    {filteredPiperVoices.map(v => (
-                                        <option key={v.id} value={v.id} className="bg-slate-900">{v.name}</option>
-                                    ))}
+                                    {filteredPiperVoices.length === 0 ? (
+                                        <option value="" disabled className="bg-slate-900 text-slate-100">No Piper voices available</option>
+                                    ) : (
+                                        filteredPiperVoices.map(v => (
+                                            <option key={v.id} value={v.id} className="bg-slate-900 text-slate-100">{getPiperVoiceOptionLabel(v)}</option>
+                                        ))
+                                    )}
                                 </select>
                             </div>
 
@@ -706,9 +719,9 @@ export function TTSSlideshowOverlay({
                                     onChange={e => { e.stopPropagation(); onSetQuoteVoiceId(e.target.value) }}
                                     className="bg-transparent text-white text-xs outline-none cursor-pointer max-w-[160px] truncate"
                                 >
-                                    <option value="" className="bg-slate-900">Narrator</option>
+                                    <option value="" className="bg-slate-900 text-slate-100">Narrator</option>
                                     {filteredPiperVoices.map(v => (
-                                        <option key={v.id} value={v.id} className="bg-slate-900">{v.name}</option>
+                                        <option key={v.id} value={v.id} className="bg-slate-900 text-slate-100">{getPiperVoiceOptionLabel(v)}</option>
                                     ))}
                                 </select>
                             </div>
