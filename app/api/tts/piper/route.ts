@@ -62,7 +62,8 @@ export async function POST(req: NextRequest) {
             status: 200,
             headers: {
                 'Content-Type': upstream.headers.get('Content-Type') ?? 'audio/wav',
-                'Cache-Control': 'no-store',
+                'Cache-Control': upstream.headers.get('Cache-Control') ?? 'no-store',
+                'X-Cache': upstream.headers.get('X-Cache') ?? 'MISS',
             },
         })
     } catch (err) {

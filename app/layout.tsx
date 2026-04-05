@@ -75,7 +75,7 @@ function RootLayoutInner({ children }: { children: React.ReactNode }) {
                         </div>
                         <div className="flex flex-col items-center gap-3 text-xs text-slate-400">
                             <RelayFooterAttribution />
-                            <a href="https://github.com/sponsors/clevertree" className="text-pink-500 hover:underline font-semibold">♥ Sponsor</a>
+                            <a href="https://www.patreon.com/c/ahsctimeline" target="_blank" rel="noopener noreferrer" className="text-pink-500 hover:underline font-semibold">♥ Patreon</a>
                         </div>
                     </div>
                 </footer>
