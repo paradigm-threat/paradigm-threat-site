@@ -23,9 +23,9 @@ export default function MainLayout({
 
     return (
         <BottomChromeProvider>
-        <div className="flex-grow flex flex-col w-full px-4 py-8 relative">
+        <div className="relative flex w-full min-w-0 max-w-full flex-grow flex-col px-4 py-8">
             <RemoteFileIndexBanner />
-            <div className="max-w-[90rem] w-full mx-auto flex flex-col lg:flex-row gap-8">
+            <div className="mx-auto flex w-full min-w-0 max-w-[90rem] flex-col gap-8 lg:flex-row">
                 <aside className="lg:w-64 flex-shrink-0">
                     <FloatingDiv containerTag='nav' className="hidden lg:block lg:sticky lg:top-24 w-64" hideFloatingButtons={hideFloatingButtons}>
                         <div className="max-h-[calc(100vh-8rem)] overflow-y-auto bg-slate-100 dark:bg-slate-900 rounded-lg p-3">
@@ -38,7 +38,7 @@ export default function MainLayout({
                     </FloatingDiv>
                 </aside>
 
-                <main className="flex-grow max-w-4xl mx-auto w-full">
+                <main className="mx-auto w-full min-w-0 max-w-4xl flex-grow">
                     <Suspense fallback={<SuspenseLoader />}>
                         {children}
                     </Suspense>

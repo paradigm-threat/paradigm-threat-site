@@ -11,16 +11,16 @@ export function RelayFooterAttribution() {
   )
 
   return (
-    <div className="flex flex-col items-center gap-1 text-xs text-slate-400">
+    <div className="flex max-w-full min-w-0 flex-col items-center gap-1 px-1 text-xs text-slate-400">
       <a
         href="https://relaygateway.net"
         target="_blank"
         rel="noopener noreferrer"
-        className="hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+        className="text-center hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
       >
         Powered by the Relay Network
       </a>
-      <span className="font-mono text-[11px] text-slate-500 dark:text-slate-500">
+      <span className="max-w-full break-words text-center font-mono text-[11px] text-slate-500 dark:text-slate-500">
         server: {label || '—'}
       </span>
     </div>

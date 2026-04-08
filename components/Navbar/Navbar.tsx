@@ -10,6 +10,11 @@ interface NavbarProps {
     fileList: any
 }
 
+/** Full wordmark; served with static files. */
+const HEADER_WORDMARK_SRC = '/site/header.png'
+/** Triangle mark only (same graphic as favicon) — avoids clash with menu below ~350px. */
+const HEADER_MARK_SRC = '/site/favicon.svg'
+
 const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
     const [isOpen, setIsOpen] = useState(false)
     const pathname = usePathname()
@@ -31,11 +36,24 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
     return (
         <header className="w-full bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 select-none sticky top-0 z-[100] backdrop-blur-md bg-opacity-80 dark:bg-opacity-80">
             <div className="max-w-7xl mx-auto px-4">
-                <div className="flex justify-between items-center h-16 md:h-20">
-                    <div className="flex items-center gap-8">
-                        <Link href="/" className="hover:opacity-80 transition-opacity flex-shrink-0">
+                <div className="flex min-w-0 justify-between items-center gap-3 h-16 md:h-20">
+                    <div className="flex min-w-0 flex-1 items-center gap-8 lg:flex-initial">
+                        <Link
+                            href="/"
+                            className="hover:opacity-80 transition-opacity flex-shrink-0 min-w-0"
+                        >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src="/site/header.png" alt="Header Logo" className="h-10 md:h-14 w-auto" />
+                            <img
+                                src={HEADER_WORDMARK_SRC}
+                                alt="Paradigm Threat"
+                                className="h-10 w-auto md:h-14 max-[350px]:hidden"
+                            />
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src={HEADER_MARK_SRC}
+                                alt="Paradigm Threat"
+                                className="hidden h-10 w-10 shrink-0 object-contain max-[350px]:block"
+                            />
                         </Link>
 
                         {/* Desktop Navigation */}
@@ -57,9 +75,11 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
                         </nav>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <FontToggle />
-                        <ThemeToggle />
+                    <div className="flex shrink-0 items-center gap-2">
+                        <div className="hidden lg:flex items-center gap-2">
+                            <FontToggle />
+                            <ThemeToggle />
+                        </div>
 
                         {/* Mobile Menu Button */}
                         <button
@@ -77,6 +97,16 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
             {isOpen && (
                 <div className="lg:hidden absolute top-full left-0 right-0 bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-xl animate-in slide-in-from-top-4 duration-200 max-h-[80vh] overflow-y-auto">
                     <nav className="flex flex-col p-4 gap-4">
+                        <div className="flex items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-slate-800">
+                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                Display
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <FontToggle />
+                                <ThemeToggle />
+                            </div>
+                        </div>
+
                         <div className="flex flex-col gap-2">
                             {navLinks.map((link) => (
                                 <Link

@@ -96,6 +96,8 @@ pre * {
 /* Custom prose overrides */
 .prose {
   @apply max-w-none prose-slate dark:prose-invert;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .prose ul {

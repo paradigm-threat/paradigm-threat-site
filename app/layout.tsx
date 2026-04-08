@@ -51,28 +51,31 @@ function RootLayoutInner({ children }: { children: React.ReactNode }) {
                     __html: `try{if(localStorage.theme==='dark'||(!('theme' in localStorage)&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}else{document.documentElement.classList.remove('dark')}}catch(_){}`,
                 }} />
             </head>
-            <body className={`bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-300`}>
+            <body className={`bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex min-w-0 max-w-full flex-col overflow-x-hidden transition-colors duration-300`}>
                 <PwaRedirect />
                 <Navbar fileList={fileList} />
 
                 <div
                     id="site-main-scroll"
-                    className={`flex-1 min-h-0 flex flex-col overflow-auto scroll-smooth`}
+                    className={`flex-1 min-h-0 min-w-0 flex flex-col overflow-x-hidden overflow-y-auto scroll-smooth`}
                 >
                     <ImageGalleryProvider>
                         {children}
                     </ImageGalleryProvider>
                 </div>
 
-                <footer className="flex-shrink-0 w-full bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-12">
-                    <div className="max-w-7xl mx-auto px-4 text-center space-y-6">
-                        <div className="flex justify-center gap-8 text-slate-600 dark:text-slate-400">
-                            <Link href="/search" className="hover:text-slate-900 dark:hover:text-white transition-colors">Search</Link>
-                            <Link href="/" className="hover:text-slate-900 dark:hover:text-white transition-colors">Home</Link>
-                            <Link href="/timeline" className="hover:text-slate-900 dark:hover:text-white transition-colors">Timeline</Link>
-                            <Link href="/chat" className="hover:text-slate-900 dark:hover:text-white transition-colors">Chat</Link>
-                            <Link href="https://www.bitchute.com/channel/paradigmthreat" target="_blank" className="hover:text-slate-900 dark:hover:text-white transition-colors">Videos</Link>
-                        </div>
+                <footer className="flex-shrink-0 w-full min-w-0 max-w-full bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-12">
+                    <div className="max-w-7xl mx-auto min-w-0 px-4 text-center space-y-6">
+                        <nav
+                            aria-label="Site"
+                            className="flex max-w-full flex-wrap justify-center gap-x-4 gap-y-2 px-1 text-sm text-slate-600 dark:text-slate-400 sm:gap-x-6 sm:text-base"
+                        >
+                            <Link href="/search" className="shrink-0 hover:text-slate-900 dark:hover:text-white transition-colors">Search</Link>
+                            <Link href="/" className="shrink-0 hover:text-slate-900 dark:hover:text-white transition-colors">Home</Link>
+                            <Link href="/timeline" className="shrink-0 hover:text-slate-900 dark:hover:text-white transition-colors">Timeline</Link>
+                            <Link href="/chat" className="shrink-0 hover:text-slate-900 dark:hover:text-white transition-colors">Chat</Link>
+                            <Link href="https://www.bitchute.com/channel/paradigmthreat" target="_blank" rel="noopener noreferrer" className="shrink-0 hover:text-slate-900 dark:hover:text-white transition-colors">Videos</Link>
+                        </nav>
                         <div className="text-slate-500 text-sm">
                             Created by <a href="https://clevertree.net/" className="text-blue-500 hover:underline font-semibold">Ari Asulin</a>
                         </div>
