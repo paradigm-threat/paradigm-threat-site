@@ -1,13 +1,9 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-
-/** Hostnames: `/` rewrites internally to `/book` (markdown at `book/page.md` in paradigm-threat-files). */
-const LANDING_HOSTS = new Set(['thirdstory.site', 'www.thirdstory.site'])
+import { isThirdStoryLandingHostname } from '@/lib/thirdStoryLanding'
 
 function landingHost (host: string | null): boolean {
-  if (!host) return false
-  const h = host.split(':')[0]?.toLowerCase() ?? ''
-  return LANDING_HOSTS.has(h)
+  return isThirdStoryLandingHostname(host)
 }
 
 export function middleware (request: NextRequest) {

@@ -8,6 +8,7 @@ import { ArticleTTSScrollSync } from '@/components/ArticleTTS/ArticleTTSScrollSy
 import { stripMarkdownForTTS, buildParagraphStarts } from '@/components/Timeline/ttsHelpers'
 import { ArticleNav, ShareLinks } from '@/components'
 import { shouldPersistVisit } from '@/lib/visitResumeStorage'
+import { useMobileHubTtsChrome } from '@/lib/hooks/useMobileHubTtsChrome'
 
 export interface ArticleClientShellProps {
   articleTitle: string
@@ -29,6 +30,7 @@ export function ArticleClientShell ({
   const pathname = usePathname() || ''
   const articleRef = useRef<HTMLElement>(null)
   const [isScrolled, setIsScrolled] = useState(false)
+  const { suppressOverlay } = useMobileHubTtsChrome()
   const persistVisit = useMemo(
     () =>
       pathname && shouldPersistVisit(pathname) ? { pathname, title: articleTitle } : null,
@@ -126,32 +128,34 @@ export function ArticleClientShell ({
               isPlaying={isPlaying}
             />
             <ArticleNav />
-            <ArticleTTSOverlay
-              ttsState={ttsState}
-              availableVoices={availableVoices}
-              availablePiperVoices={availablePiperVoices}
-              onPlay={onPlay}
-              onPause={onPause}
-              onStop={onStop}
-              onClearError={onClearError}
-              onSeekToSentence={onPlayFromSentence}
-              sentences={sentences}
-              currentSentenceIndex={currentSentenceIndex}
-              onRetry={retry}
-              onSetVoice={setVoice}
-              onSetRate={setRate}
-              onSetProvider={setProvider}
-              onSetPiperVoiceId={setPiperVoiceId}
-              onSetPiperLang={setPiperLang}
-              onSetQuoteVoiceId={setQuoteVoiceId}
-              onSetSpeakerMapInput={setSpeakerMapInput}
-              onSetLangFilter={setLangFilter}
-              onSetLocalOnly={setLocalOnly}
-              onSetSubtitleMode={setSubtitleMode}
-              onSwitchToSpeechAndResume={switchToSpeechAndResume}
-              onScrollToTop={scrollToTop}
-              isScrolled={isScrolled}
-            />
+            {!suppressOverlay && (
+              <ArticleTTSOverlay
+                ttsState={ttsState}
+                availableVoices={availableVoices}
+                availablePiperVoices={availablePiperVoices}
+                onPlay={onPlay}
+                onPause={onPause}
+                onStop={onStop}
+                onClearError={onClearError}
+                onSeekToSentence={onPlayFromSentence}
+                sentences={sentences}
+                currentSentenceIndex={currentSentenceIndex}
+                onRetry={retry}
+                onSetVoice={setVoice}
+                onSetRate={setRate}
+                onSetProvider={setProvider}
+                onSetPiperVoiceId={setPiperVoiceId}
+                onSetPiperLang={setPiperLang}
+                onSetQuoteVoiceId={setQuoteVoiceId}
+                onSetSpeakerMapInput={setSpeakerMapInput}
+                onSetLangFilter={setLangFilter}
+                onSetLocalOnly={setLocalOnly}
+                onSetSubtitleMode={setSubtitleMode}
+                onSwitchToSpeechAndResume={switchToSpeechAndResume}
+                onScrollToTop={scrollToTop}
+                isScrolled={isScrolled}
+              />
+            )}
           </div>
         )
       }}

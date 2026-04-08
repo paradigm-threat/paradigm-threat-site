@@ -1,8 +1,9 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useLayoutEffect, useRef, useState } from 'react'
 import { Play, Pause, Square, ChevronUp, Settings2, X } from 'lucide-react'
 import type { TTSState, SubtitleMode, PiperVoice, TTSProvider } from '@/lib/hooks/useTTS'
+import { useBottomChrome } from '@/lib/BottomChromeContext'
 
 const RATES = [0.75, 1.0, 1.25, 1.5, 2.0]
 
@@ -72,8 +73,35 @@ export function ArticleTTSOverlay({
   currentSentenceIndex,
   onRetry,
 }: ArticleTTSOverlayProps) {
+  const rootRef = useRef<HTMLDivElement>(null)
+  const { isHub, setTtsDockHeightPx } = useBottomChrome()
   const [expanded, setExpanded] = useState(false)
   const [seekValue, setSeekValue] = useState<number | null>(null)
+
+  useLayoutEffect(() => {
+    if (!isHub) {
+      setTtsDockHeightPx(0)
+      return
+    }
+    const el = rootRef.current
+    if (!el) return
+
+    const publish = () => {
+      const rect = el.getBoundingClientRect()
+      setTtsDockHeightPx(Math.ceil(window.innerHeight - rect.top))
+    }
+
+    const ro = new ResizeObserver(publish)
+    ro.observe(el)
+    window.addEventListener('resize', publish)
+    publish()
+
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', publish)
+      setTtsDockHeightPx(0)
+    }
+  }, [isHub, setTtsDockHeightPx])
   const totalSentences = sentences.length
   const displayIndex = seekValue !== null ? seekValue : currentSentenceIndex
 
@@ -84,7 +112,10 @@ export function ArticleTTSOverlay({
   const filteredPiperVoices = availablePiperVoices
 
   return (
-    <div className="fixed bottom-0 right-0 left-0 md:left-auto md:right-8 md:bottom-8 md:max-w-md z-50">
+    <div
+      ref={rootRef}
+      className="fixed bottom-0 right-0 left-0 md:left-auto md:right-8 md:bottom-8 md:max-w-md z-50"
+    >
       {/* Error banner */}
       {ttsState.error && (
         <div className="mx-4 mb-2 rounded-lg bg-red-950/90 border border-red-500/50 text-red-100 px-4 py-3 flex items-center justify-between gap-4 shadow-xl">

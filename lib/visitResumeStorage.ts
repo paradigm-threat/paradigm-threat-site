@@ -27,6 +27,13 @@ export function normalizeResumePath(pathname: string): string {
   return trimmed
 }
 
+/** `/` and `/book` markdown hubs (resume banner + mobile TTS scroll coordination). */
+export function isMarkdownHubPath(pathname: string | null | undefined): boolean {
+  if (!pathname) return false
+  const p = normalizeResumePath(pathname)
+  return p === '/' || p === '/book'
+}
+
 /**
  * Landing URLs we never offer as “Resume investigation” / playback targets
  * (site root and book hub — same entry points excluded from {@link shouldPersistVisit}).

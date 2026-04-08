@@ -1,11 +1,13 @@
 'use client'
 
-import React, { Suspense, useEffect } from "react";
+import React, { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import { DynamicNav, FloatingDiv, DynamicIndex, useFiles } from "@/components";
 import { RemoteFileIndexBanner } from "@/components/RemoteFileIndexBanner";
 import { ResumeInvestigationBanner } from "@/components/ResumeInvestigationBanner";
 import { SuspenseLoader } from "@client";
+import { BottomChromeProvider } from "@/lib/BottomChromeContext";
+import { isMarkdownHubPath } from "@/lib/visitResumeStorage";
 
 export default function MainLayout({
     children
@@ -14,11 +16,14 @@ export default function MainLayout({
 }) {
     const pathname = usePathname();
     const { fileList } = useFiles();
-    // Hide FloatingDiv's Back to top on article pages (2+ path segments) where the Play FAB handles scroll-to-top
-    const hideFloatingButtons = pathname ? pathname.split('/').filter(Boolean).length >= 2 : false;
+    // Hide FloatingDiv's Back to top on article pages (2+ path segments) and markdown hubs where TTS dock handles chrome
+    const hideFloatingButtons = pathname
+        ? pathname.split('/').filter(Boolean).length >= 2 || isMarkdownHubPath(pathname)
+        : false;
     const isChatPage = pathname?.startsWith('/chat') ?? false;
 
     return (
+        <BottomChromeProvider>
         <div className="flex-grow flex flex-col w-full px-4 py-8 relative">
             <RemoteFileIndexBanner />
             <div className="max-w-[90rem] w-full mx-auto flex flex-col lg:flex-row gap-8">
@@ -51,5 +56,6 @@ export default function MainLayout({
                 )}
             </div>
         </div>
+        </BottomChromeProvider>
     );
 }

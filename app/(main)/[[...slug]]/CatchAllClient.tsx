@@ -14,11 +14,13 @@ import { stripMarkdownForTTS, buildParagraphStarts } from '@/components/Timeline
 import { SuspenseLoader } from '@client'
 import { formatIndexDateTiny } from '@/lib/indexUpdated'
 import { shouldPersistVisit } from '@/lib/visitResumeStorage'
+import { useMobileHubTtsChrome } from '@/lib/hooks/useMobileHubTtsChrome'
 import { remoteRelay } from '@/lib/remoteRelayStore'
 
 export const CatchAllClient = memo(function CatchAllClient() {
   const params = useParams()
   const pathname = usePathname()
+  const { suppressOverlay } = useMobileHubTtsChrome()
   const { fileList, loading: indexLoading } = useFiles()
   const filesBaseUrl = useSyncExternalStore(
     (cb) => remoteRelay.subscribe(cb),
@@ -283,32 +285,34 @@ export const CatchAllClient = memo(function CatchAllClient() {
               />
               <ArticleNav />
 
-              <ArticleTTSOverlay
-                ttsState={ttsState}
-                availableVoices={availableVoices}
-                availablePiperVoices={availablePiperVoices}
-                onPlay={onPlay}
-                onPause={onPause}
-                onStop={onStop}
-                onClearError={onClearError}
-                onSeekToSentence={onPlayFromSentence}
-                sentences={sentences}
-                currentSentenceIndex={currentSentenceIndex}
-                onRetry={retry}
-                onSetVoice={setVoice}
-                onSetRate={setRate}
-                onSetProvider={setProvider}
-                onSetPiperVoiceId={setPiperVoiceId}
-                onSetPiperLang={setPiperLang}
-                onSetQuoteVoiceId={setQuoteVoiceId}
-                onSetSpeakerMapInput={setSpeakerMapInput}
-                onSetLangFilter={setLangFilter}
-                onSetLocalOnly={setLocalOnly}
-                onSetSubtitleMode={setSubtitleMode}
-                onSwitchToSpeechAndResume={switchToSpeechAndResume}
-                onScrollToTop={scrollToTop}
-                isScrolled={isScrolled}
-              />
+              {!suppressOverlay && (
+                <ArticleTTSOverlay
+                  ttsState={ttsState}
+                  availableVoices={availableVoices}
+                  availablePiperVoices={availablePiperVoices}
+                  onPlay={onPlay}
+                  onPause={onPause}
+                  onStop={onStop}
+                  onClearError={onClearError}
+                  onSeekToSentence={onPlayFromSentence}
+                  sentences={sentences}
+                  currentSentenceIndex={currentSentenceIndex}
+                  onRetry={retry}
+                  onSetVoice={setVoice}
+                  onSetRate={setRate}
+                  onSetProvider={setProvider}
+                  onSetPiperVoiceId={setPiperVoiceId}
+                  onSetPiperLang={setPiperLang}
+                  onSetQuoteVoiceId={setQuoteVoiceId}
+                  onSetSpeakerMapInput={setSpeakerMapInput}
+                  onSetLangFilter={setLangFilter}
+                  onSetLocalOnly={setLocalOnly}
+                  onSetSubtitleMode={setSubtitleMode}
+                  onSwitchToSpeechAndResume={switchToSpeechAndResume}
+                  onScrollToTop={scrollToTop}
+                  isScrolled={isScrolled}
+                />
+              )}
 
               {unusedImages.length > 0 && (
                 <div className="space-y-8 pt-12 border-t border-slate-200 dark:border-slate-800">
