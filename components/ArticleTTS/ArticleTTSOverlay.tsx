@@ -120,10 +120,23 @@ export function ArticleTTSOverlay({
 
   const filteredPiperVoices = availablePiperVoices
 
+  /** Panel width: seek needs a wide bar; expanded settings need room below — but the top transport row only stretches when the seek slider is present. */
+  const panelNeedsFullWidth = totalSentences > 0 || expanded
+  const transportRowNeedsFullWidth = totalSentences > 0
+  /** With sentences, the seek uses flex-1 on the same row as buttons — when settings are open that reads as a hollow gap; move seek to a second row. */
+  const seekOnOwnRow = expanded && totalSentences > 0
+  /** Before first play, `sentences` is still empty but the panel is wide when expanded — pin the transport cluster to the trailing edge. */
+  const transportClusterEnd = seekOnOwnRow || (expanded && totalSentences === 0)
+  const transportRowFullWidth = seekOnOwnRow || transportRowNeedsFullWidth || (expanded && totalSentences === 0)
+
   return (
     <div
       ref={rootRef}
-      className="fixed bottom-0 left-0 right-0 z-50 box-border w-full max-w-[100vw] px-1 sm:px-0 lg:left-auto lg:right-8 lg:bottom-8 lg:max-w-md lg:px-0"
+      className={`fixed bottom-0 z-50 box-border max-w-[100vw] px-1 sm:px-0 lg:bottom-8 lg:px-0 ${
+        panelNeedsFullWidth
+          ? 'left-0 right-0 w-full lg:left-auto lg:right-8 lg:w-full lg:max-w-md'
+          : 'left-0 right-0 w-full lg:left-auto lg:right-8 lg:w-max lg:max-w-full'
+      }`}
     >
       {/* Error banner */}
       {ttsState.error && (
@@ -161,10 +174,71 @@ export function ArticleTTSOverlay({
         </div>
       )}
 
-      {/* Main overlay panel */}
-      <div className="max-w-full overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900/95 shadow-2xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95">
-        {/* Transport + Back to top row */}
-        <div className="flex w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-2 p-2 sm:p-3">
+      {/* Main overlay panel — full width only when seek needs room; otherwise hug controls */}
+      <div
+        className={`overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900/95 shadow-2xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95 ${panelNeedsFullWidth ? 'min-w-0 w-full max-w-full' : 'mx-auto box-content w-fit max-w-[min(100%,100vw-0.5rem)] lg:mx-0'}`}
+      >
+        {/* Transport + seek: inline seek only when settings collapsed; when expanded, seek on its own row so flex-1 does not separate resume from settings. */}
+        <div
+          className={`min-w-0 p-2 sm:p-3 ${seekOnOwnRow ? 'flex w-full flex-col gap-2' : ''} ${!transportRowFullWidth && panelNeedsFullWidth ? 'text-right' : ''}`}
+        >
+        <div
+          className={`min-w-0 flex-wrap items-center gap-1.5 sm:gap-2 ${transportRowFullWidth ? 'flex w-full' : 'inline-flex max-w-full'} ${transportClusterEnd ? 'justify-end' : ''}`}
+        >
+          {showHubResumeInline && (
+            <div
+              className="flex w-fit max-w-full min-w-0 shrink-0 flex-wrap items-center gap-1.5 rounded-lg border border-indigo-500/35 bg-indigo-950/35 px-1.5 py-1"
+              role="group"
+              aria-label="Resume reading"
+            >
+              {hubResume.showResumePage && hubResume.last && (
+                <Link
+                  href={hubResume.last.path}
+                  title={
+                    hubResume.last.title
+                      ? `Resume investigation — ${hubResume.last.title}`
+                      : 'Resume investigation'
+                  }
+                  className="inline-flex max-w-[min(15rem,calc(100vw-8rem))] min-w-0 items-center rounded-md bg-indigo-600 px-2 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-indigo-500 sm:text-xs"
+                >
+                  <span className="truncate">
+                    Resume investigation
+                    {hubResume.last.title ? (
+                      <span className="font-normal opacity-90"> — {hubResume.last.title}</span>
+                    ) : null}
+                  </span>
+                </Link>
+              )}
+              {hubResume.showResumePlayback && hubResume.tts && (
+                <Link
+                  href={hubResume.playbackHref}
+                  title={
+                    hubResume.tts.title && hubResume.tts.path !== hubResume.last?.path
+                      ? `Resume playback — ${hubResume.tts.title}`
+                      : 'Resume playback'
+                  }
+                  className="inline-flex max-w-[min(13rem,calc(100vw-8rem))] min-w-0 items-center rounded-md border border-indigo-400/35 bg-indigo-600/15 px-2 py-1.5 text-[11px] font-semibold text-indigo-100 transition-colors hover:bg-indigo-600/25 sm:text-xs"
+                >
+                  <span className="truncate">
+                    Resume playback
+                    {hubResume.tts.title && hubResume.tts.path !== hubResume.last?.path ? (
+                      <span className="font-normal opacity-90"> — {hubResume.tts.title}</span>
+                    ) : null}
+                  </span>
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={hubResume.handleDismiss}
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-indigo-950/50 text-indigo-200/90 ring-1 ring-indigo-500/30 transition-colors hover:bg-indigo-900/60 hover:text-white"
+                aria-label="Dismiss resume suggestions"
+                title="Dismiss"
+              >
+                <X className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
+              </button>
+            </div>
+          )}
+
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             {ttsState.sentences.length > 0 ? (
               <>
@@ -203,100 +277,76 @@ export function ArticleTTSOverlay({
             )}
           </div>
 
-          <div className="flex min-w-0 flex-[1_1_10rem] items-center gap-2 sm:mx-1">
-            {showHubResumeInline && (
-              <div
-                className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5 rounded-lg border border-amber-500/35 bg-amber-950/35 px-1.5 py-1"
-                role="group"
-                aria-label="Resume reading"
-              >
-                {hubResume.showResumePage && hubResume.last && (
-                  <Link
-                    href={hubResume.last.path}
-                    title={
-                      hubResume.last.title
-                        ? `Resume investigation — ${hubResume.last.title}`
-                        : 'Resume investigation'
-                    }
-                    className="inline-flex min-w-0 max-w-full items-center rounded-md bg-amber-600 px-2 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-amber-500 sm:max-w-[15rem] sm:text-xs"
-                  >
-                    <span className="truncate">
-                      Resume investigation
-                      {hubResume.last.title ? (
-                        <span className="font-normal opacity-90"> — {hubResume.last.title}</span>
-                      ) : null}
-                    </span>
-                  </Link>
-                )}
-                {hubResume.showResumePlayback && hubResume.tts && (
-                  <Link
-                    href={hubResume.playbackHref}
-                    title={
-                      hubResume.tts.title && hubResume.tts.path !== hubResume.last?.path
-                        ? `Resume playback — ${hubResume.tts.title}`
-                        : 'Resume playback'
-                    }
-                    className="inline-flex min-w-0 max-w-full items-center rounded-md border border-amber-400/35 bg-white/10 px-2 py-1.5 text-[11px] font-semibold text-amber-100 transition-colors hover:bg-white/15 sm:max-w-[13rem] sm:text-xs"
-                  >
-                    <span className="truncate">
-                      Resume playback
-                      {hubResume.tts.title && hubResume.tts.path !== hubResume.last?.path ? (
-                        <span className="font-normal opacity-90"> — {hubResume.tts.title}</span>
-                      ) : null}
-                    </span>
-                  </Link>
-                )}
-                <button
-                  type="button"
-                  onClick={hubResume.handleDismiss}
-                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-amber-950/40 text-amber-100/80 ring-1 ring-amber-500/25 transition-colors hover:bg-amber-900/50 hover:text-amber-50"
-                  aria-label="Dismiss resume suggestions"
-                  title="Dismiss"
-                >
-                  <X className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
-                </button>
-              </div>
-            )}
-            {totalSentences > 0 && (
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-                <input
-                  type="range"
-                  min={0}
-                  max={totalSentences - 1}
-                  step={1}
-                  value={clamp(displayIndex, 0, totalSentences - 1)}
-                  onChange={(e) => setSeekValue(parseInt(e.target.value, 10))}
-                  onPointerDown={() => setSeekValue(displayIndex)}
-                  onPointerUp={() => {
-                    if (seekValue !== null) {
-                      onSeekToSentence(seekValue)
-                      setSeekValue(null)
-                    }
-                  }}
-                  onTouchEnd={() => {
-                    if (seekValue !== null) {
-                      onSeekToSentence(seekValue)
-                      setSeekValue(null)
-                    }
-                  }}
-                  className="h-2 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-white/10 accent-indigo-500 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-500 [&::-webkit-slider-thumb]:shadow"
-                  aria-label="Seek position in article"
-                />
-                <span className="shrink-0 text-xs tabular-nums text-slate-400">
-                  {displayIndex + 1} / {totalSentences}
-                </span>
-              </div>
-            )}
-          </div>
+          {totalSentences > 0 && !seekOnOwnRow && (
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <input
+                type="range"
+                min={0}
+                max={totalSentences - 1}
+                step={1}
+                value={clamp(displayIndex, 0, totalSentences - 1)}
+                onChange={(e) => setSeekValue(parseInt(e.target.value, 10))}
+                onPointerDown={() => setSeekValue(displayIndex)}
+                onPointerUp={() => {
+                  if (seekValue !== null) {
+                    onSeekToSentence(seekValue)
+                    setSeekValue(null)
+                  }
+                }}
+                onTouchEnd={() => {
+                  if (seekValue !== null) {
+                    onSeekToSentence(seekValue)
+                    setSeekValue(null)
+                  }
+                }}
+                className="h-2 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-white/10 accent-indigo-500 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-500 [&::-webkit-slider-thumb]:shadow"
+                aria-label="Seek position in article"
+              />
+              <span className="shrink-0 text-xs tabular-nums text-slate-400">
+                {displayIndex + 1} / {totalSentences}
+              </span>
+            </div>
+          )}
 
           <button
             onClick={() => setExpanded(!expanded)}
-            className={`ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${expanded ? 'bg-indigo-600/30 text-indigo-400' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${expanded ? 'bg-indigo-600/30 text-indigo-400' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}
             aria-label="TTS settings"
             aria-expanded={expanded}
           >
             <Settings2 size={18} />
           </button>
+        </div>
+        {seekOnOwnRow && (
+          <div className="flex min-w-0 w-full items-center gap-2 px-0">
+            <input
+              type="range"
+              min={0}
+              max={totalSentences - 1}
+              step={1}
+              value={clamp(displayIndex, 0, totalSentences - 1)}
+              onChange={(e) => setSeekValue(parseInt(e.target.value, 10))}
+              onPointerDown={() => setSeekValue(displayIndex)}
+              onPointerUp={() => {
+                if (seekValue !== null) {
+                  onSeekToSentence(seekValue)
+                  setSeekValue(null)
+                }
+              }}
+              onTouchEnd={() => {
+                if (seekValue !== null) {
+                  onSeekToSentence(seekValue)
+                  setSeekValue(null)
+                }
+              }}
+              className="h-2 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-white/10 accent-indigo-500 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-500 [&::-webkit-slider-thumb]:shadow"
+              aria-label="Seek position in article"
+            />
+            <span className="shrink-0 text-xs tabular-nums text-slate-400">
+              {displayIndex + 1} / {totalSentences}
+            </span>
+          </div>
+        )}
         </div>
 
         {/* Settings strip (expandable) */}
