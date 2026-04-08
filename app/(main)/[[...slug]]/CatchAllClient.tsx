@@ -13,7 +13,8 @@ import { ArticleTTSScrollSync } from '@/components/ArticleTTS/ArticleTTSScrollSy
 import { stripMarkdownForTTS, buildParagraphStarts } from '@/components/Timeline/ttsHelpers'
 import { SuspenseLoader } from '@client'
 import { formatIndexDateTiny } from '@/lib/indexUpdated'
-import { shouldPersistVisit } from '@/lib/visitResumeStorage'
+import { shouldPersistVisit, isMarkdownHubPath } from '@/lib/visitResumeStorage'
+import { ResumeInvestigationBanner } from '@/components/ResumeInvestigationBanner'
 import { useMobileHubTtsChrome } from '@/lib/hooks/useMobileHubTtsChrome'
 import { remoteRelay } from '@/lib/remoteRelayStore'
 
@@ -358,6 +359,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
 
   return (
     <div className="space-y-12">
+      {pathname && isMarkdownHubPath(pathname) ? <ResumeInvestigationBanner /> : null}
       <div>
         <h1 className="text-4xl font-extrabold mb-8 capitalize tracking-tight text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800 pb-4">
           {path.split('/').pop() || 'Home'}

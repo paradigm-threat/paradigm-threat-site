@@ -4,7 +4,6 @@ import React, { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import { DynamicNav, FloatingDiv, DynamicIndex, useFiles } from "@/components";
 import { RemoteFileIndexBanner } from "@/components/RemoteFileIndexBanner";
-import { ResumeInvestigationBanner } from "@/components/ResumeInvestigationBanner";
 import { SuspenseLoader } from "@client";
 import { BottomChromeProvider } from "@/lib/BottomChromeContext";
 import { isMarkdownHubPath } from "@/lib/visitResumeStorage";
@@ -40,7 +39,6 @@ export default function MainLayout({
                 </aside>
 
                 <main className="flex-grow max-w-4xl mx-auto w-full">
-                    <ResumeInvestigationBanner />
                     <Suspense fallback={<SuspenseLoader />}>
                         {children}
                     </Suspense>

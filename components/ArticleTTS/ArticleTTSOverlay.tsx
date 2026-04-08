@@ -1,9 +1,11 @@
 'use client'
 
 import React, { useLayoutEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { Play, Pause, Square, ChevronUp, Settings2, X } from 'lucide-react'
 import type { TTSState, SubtitleMode, PiperVoice, TTSProvider } from '@/lib/hooks/useTTS'
 import { useBottomChrome } from '@/lib/BottomChromeContext'
+import { useHubResumeChrome } from '@/lib/hooks/useHubResumeChrome'
 
 const RATES = [0.75, 1.0, 1.25, 1.5, 2.0]
 
@@ -75,6 +77,7 @@ export function ArticleTTSOverlay({
 }: ArticleTTSOverlayProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const { isHub, setTtsDockHeightPx } = useBottomChrome()
+  const hubResume = useHubResumeChrome()
   const [expanded, setExpanded] = useState(false)
   const [seekValue, setSeekValue] = useState<number | null>(null)
 
@@ -105,6 +108,12 @@ export function ArticleTTSOverlay({
   const totalSentences = sentences.length
   const displayIndex = seekValue !== null ? seekValue : currentSentenceIndex
 
+  const showHubResumeInline =
+    isHub &&
+    (hubResume.showResumePage || hubResume.showResumePlayback) &&
+    !hubResume.dismissed &&
+    !hubResume.hiddenByScroll
+
   const filteredVoices = availableVoices
     .filter(v => ttsState.langFilter === 'all' || v.lang.startsWith(ttsState.langFilter))
     .filter(v => !ttsState.localOnly || v.localService)
@@ -114,7 +123,7 @@ export function ArticleTTSOverlay({
   return (
     <div
       ref={rootRef}
-      className="fixed bottom-0 right-0 left-0 md:left-auto md:right-8 md:bottom-8 md:max-w-md z-50"
+      className="fixed bottom-0 right-0 left-0 lg:left-auto lg:right-8 lg:bottom-8 lg:max-w-md z-50"
     >
       {/* Error banner */}
       {ttsState.error && (
@@ -156,74 +165,134 @@ export function ArticleTTSOverlay({
       <div className="bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md border border-slate-700/50 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
         {/* Transport + Back to top row */}
         <div className="flex items-center gap-2 p-3">
-          {ttsState.sentences.length > 0 ? (
-            <>
+
+
+          <div className="flex flex-1 min-w-0 items-center gap-2 justify-center sm:mx-1">
+            {showHubResumeInline && (
+              <div
+                className="flex min-w-0 shrink items-center gap-1.5 rounded-lg border border-amber-500/35 bg-amber-950/35 px-1.5 py-1"
+                role="group"
+                aria-label="Resume reading"
+              >
+                {hubResume.showResumePage && hubResume.last && (
+                  <Link
+                    href={hubResume.last.path}
+                    title={
+                      hubResume.last.title
+                        ? `Resume investigation — ${hubResume.last.title}`
+                        : 'Resume investigation'
+                    }
+                    className="inline-flex max-w-[min(11rem,40vw)] sm:max-w-[15rem] items-center rounded-md bg-amber-600 hover:bg-amber-500 px-2 py-1.5 text-[11px] sm:text-xs font-semibold text-white transition-colors"
+                  >
+                    <span className="truncate">
+                      Resume investigation
+                      {hubResume.last.title ? (
+                        <span className="font-normal opacity-90"> — {hubResume.last.title}</span>
+                      ) : null}
+                    </span>
+                  </Link>
+                )}
+                {hubResume.showResumePlayback && hubResume.tts && (
+                  <Link
+                    href={hubResume.playbackHref}
+                    title={
+                      hubResume.tts.title && hubResume.tts.path !== hubResume.last?.path
+                        ? `Resume playback — ${hubResume.tts.title}`
+                        : 'Resume playback'
+                    }
+                    className="inline-flex max-w-[min(10rem,36vw)] sm:max-w-[13rem] items-center rounded-md border border-amber-400/35 bg-white/10 px-2 py-1.5 text-[11px] sm:text-xs font-semibold text-amber-100 transition-colors hover:bg-white/15"
+                  >
+                    <span className="truncate">
+                      Resume playback
+                      {hubResume.tts.title && hubResume.tts.path !== hubResume.last?.path ? (
+                        <span className="font-normal opacity-90"> — {hubResume.tts.title}</span>
+                      ) : null}
+                    </span>
+                  </Link>
+                )}
+                <button
+                  type="button"
+                  onClick={hubResume.handleDismiss}
+                  className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-md text-amber-100/80 ring-1 ring-amber-500/25 bg-amber-950/40 hover:bg-amber-900/50 hover:text-amber-50 transition-colors"
+                  aria-label="Dismiss resume suggestions"
+                  title="Dismiss"
+                >
+                  <X className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
+                </button>
+              </div>
+            )}
+            {totalSentences > 0 && (
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <input
+                  type="range"
+                  min={0}
+                  max={totalSentences - 1}
+                  step={1}
+                  value={clamp(displayIndex, 0, totalSentences - 1)}
+                  onChange={(e) => setSeekValue(parseInt(e.target.value, 10))}
+                  onPointerDown={() => setSeekValue(displayIndex)}
+                  onPointerUp={() => {
+                    if (seekValue !== null) {
+                      onSeekToSentence(seekValue)
+                      setSeekValue(null)
+                    }
+                  }}
+                  onTouchEnd={() => {
+                    if (seekValue !== null) {
+                      onSeekToSentence(seekValue)
+                      setSeekValue(null)
+                    }
+                  }}
+                  className="w-full min-w-[4rem] h-2 bg-white/10 rounded-full appearance-none cursor-pointer accent-indigo-500 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-500 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow"
+                  aria-label="Seek position in article"
+                />
+                <span className="text-xs text-slate-400 tabular-nums shrink-0">
+                  {displayIndex + 1} / {totalSentences}
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {ttsState.sentences.length > 0 ? (
+              <>
+                <button
+                  onClick={ttsState.isPlaying ? onPause : () => { onScrollToTop(); onPlay(); }}
+                  className="w-14 h-14 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-lg transition-all hover:scale-105"
+                  aria-label={ttsState.isPlaying ? 'Pause' : 'Play'}
+                >
+                  {ttsState.isPlaying ? <Pause size={24} /> : <Play size={24} fill="currentColor" className="ml-1" />}
+                </button>
+                <button
+                  onClick={onStop}
+                  className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"
+                  aria-label="Stop"
+                >
+                  <Square size={18} fill="currentColor" />
+                </button>
+              </>
+            ) : (
               <button
-                onClick={ttsState.isPlaying ? onPause : () => { onScrollToTop(); onPlay(); }}
+                onClick={() => { onScrollToTop(); onPlay(); }}
                 className="w-14 h-14 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-lg transition-all hover:scale-105"
-                aria-label={ttsState.isPlaying ? 'Pause' : 'Play'}
+                aria-label="Play article"
               >
-                {ttsState.isPlaying ? <Pause size={24} /> : <Play size={24} fill="currentColor" className="ml-1" />}
+                <Play size={24} fill="currentColor" className="ml-1" />
               </button>
+            )}
+            {isScrolled && (
               <button
-                onClick={onStop}
+                onClick={onScrollToTop}
                 className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"
-                aria-label="Stop"
+                aria-label="Back to top"
               >
-                <Square size={18} fill="currentColor" />
+                <ChevronUp size={20} />
               </button>
-            </>
-          ) : (
-            <button
-              onClick={() => { onScrollToTop(); onPlay(); }}
-              className="w-14 h-14 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-lg transition-all hover:scale-105"
-              aria-label="Play article"
-            >
-              <Play size={24} fill="currentColor" className="ml-1" />
-            </button>
-          )}
-          {isScrolled && (
-            <button
-              onClick={onScrollToTop}
-              className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"
-              aria-label="Back to top"
-            >
-              <ChevronUp size={20} />
-            </button>
-          )}
-          {totalSentences > 0 && (
-            <div className="flex-1 min-w-0 flex items-center gap-2 mx-2">
-              <input
-                type="range"
-                min={0}
-                max={totalSentences - 1}
-                step={1}
-                value={clamp(displayIndex, 0, totalSentences - 1)}
-                onChange={(e) => setSeekValue(parseInt(e.target.value, 10))}
-                onPointerDown={() => setSeekValue(displayIndex)}
-                onPointerUp={() => {
-                  if (seekValue !== null) {
-                    onSeekToSentence(seekValue)
-                    setSeekValue(null)
-                  }
-                }}
-                onTouchEnd={() => {
-                  if (seekValue !== null) {
-                    onSeekToSentence(seekValue)
-                    setSeekValue(null)
-                  }
-                }}
-                className="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer accent-indigo-500 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-500 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow"
-                aria-label="Seek position in article"
-              />
-              <span className="text-xs text-slate-400 tabular-nums shrink-0">
-                {displayIndex + 1} / {totalSentences}
-              </span>
-            </div>
-          )}
+            )}
+          </div>
+
           <button
             onClick={() => setExpanded(!expanded)}
-            className={`ml-auto w-10 h-10 rounded-full flex items-center justify-center transition-colors ${expanded ? 'bg-indigo-600/30 text-indigo-400' : 'bg-white/5 hover:bg-white/10 text-slate-400'}`}
+            className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors ${expanded ? 'bg-indigo-600/30 text-indigo-400' : 'bg-white/5 hover:bg-white/10 text-slate-400'}`}
             aria-label="TTS settings"
             aria-expanded={expanded}
           >

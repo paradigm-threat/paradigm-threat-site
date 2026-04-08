@@ -29,6 +29,8 @@ const config: Config = {
     extend: {
       screens: {
         // px only: mixing rem with Tailwind’s default px screens breaks min-/max-* variants
+        /** Main shell: side nav, three-column row, navbar desktop links (default lg was 1024px). */
+        lg: '1180px',
         toc: '1400px',
       },
       backgroundImage: {
