@@ -20,20 +20,31 @@ function normalizeBaseUrl(raw: string): string {
     return raw.trim().replace(/\/+$/, '')
 }
 
+/**
+ * Ordered, deduped list: explicit env first, then legacy single host, then public relay defaults.
+ * Vercel often sets `PIPER_API_URLS` to `http://…:5590`; serverless cannot reach that port, so listing
+ * only env bases yields zero voices. Appending defaults ensures HTTPS :443 relays are always tried.
+ */
 export function getPiperApiBaseUrls(): string[] {
     const explicitList = (process.env.PIPER_API_URLS ?? '').trim()
     const fromExplicit = explicitList
         .split(/[\s|]+/)
         .map((s) => normalizeBaseUrl(s))
         .filter(Boolean)
-    if (fromExplicit.length > 0) return fromExplicit
-
-    const single = normalizeBaseUrl(process.env.PIPER_API_URL ?? '')
-    if (single) return [single]
-
-    return DEFAULT_PIPER_API_URLS.split(/\s+/)
+    const legacy = normalizeBaseUrl(process.env.PIPER_API_URL ?? '')
+    const fromDefault = DEFAULT_PIPER_API_URLS.split(/\s+/)
         .map((s) => normalizeBaseUrl(s))
         .filter(Boolean)
+
+    const seen = new Set<string>()
+    const out: string[] = []
+    for (const u of [...fromExplicit, ...(legacy ? [legacy] : []), ...fromDefault]) {
+        if (!seen.has(u)) {
+            seen.add(u)
+            out.push(u)
+        }
+    }
+    return out
 }
 
 export function getPiperApiSecret(): string {
