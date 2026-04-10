@@ -15,7 +15,7 @@ function normalizeBaseUrl(raw: string): string {
 export function getPiperApiBaseUrls(): string[] {
     const listRaw = (process.env.PIPER_API_URLS ?? '').trim()
     const fromList = listRaw
-        .split(/\s+/)
+        .split(/[\s|]+/)
         .map((s) => normalizeBaseUrl(s))
         .filter(Boolean)
     if (fromList.length > 0) return fromList

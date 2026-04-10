@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from 'react'
 import { remoteRelay, type RelayNotifyEvent } from '@/lib/remoteRelayStore'
 
-const TOAST_MS = 5500
+/** Brief status flash when relay pair is chosen or fails over (~1s). */
+const TOAST_MS = 1000
 
 export function RelayServerToast() {
   const [toast, setToast] = useState<{ message: string; key: number } | null>(null)
