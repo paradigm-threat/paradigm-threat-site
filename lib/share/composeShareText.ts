@@ -42,14 +42,14 @@ function limitHashtagLine (line: string, maxTags: number): string {
 function joinShare (
   title: string,
   url: string,
-  snippet: string,
   hashtags: string,
+  snippet: string,
   article: string,
   includeArticle: boolean
 ): string {
   const parts: string[] = [title, '', url]
-  if (snippet) parts.push('', snippet)
   if (hashtags) parts.push('', hashtags)
+  if (snippet) parts.push('', snippet)
   if (includeArticle && article) parts.push('', article)
   return parts.join('\n').replace(/\n{3,}/g, '\n\n').trim()
 }
@@ -59,8 +59,8 @@ function longFormPlatform (platform: SharePlatformId): boolean {
 }
 
 /**
- * Build copy text with priority: title, URL, snippet, hashtags, optional long body.
- * Truncation removes long body first, then hashtags (drop tags from the end), then snippet — never title/URL.
+ * Build copy text with priority: title, URL, hashtags, snippet, optional long body.
+ * Truncation removes long body first, then snippet, then hashtags (drop tags from the end) — never title/URL.
  */
 export function composeShareText (platform: SharePlatformId, input: ComposeShareInput): string {
   const limit = platformCopyLimit(platform)
@@ -75,7 +75,7 @@ export function composeShareText (platform: SharePlatformId, input: ComposeShare
   let article = includeArticle ? input.articleBodyPlain.trim() : ''
 
   const build = (sn: string, ht: string, art: string) =>
-    joinShare(input.title.trim(), input.canonicalUrl, sn, ht, art, includeArticle)
+    joinShare(input.title.trim(), input.canonicalUrl, ht, sn, art, includeArticle)
 
   let text = build(snippet, hashtags, article)
   let guard = 0
@@ -86,14 +86,14 @@ export function composeShareText (platform: SharePlatformId, input: ComposeShare
       if (article.length > 0 && !article.endsWith('…')) article += '…'
     } else if (article.length > 0) {
       article = ''
-    } else if (hashtags) {
-      const tags = hashtags.split(/\s+/).filter(Boolean)
-      if (tags.length > 1) hashtags = tags.slice(0, -1).join(' ')
-      else hashtags = ''
     } else if (snippet.length > 20) {
       snippet = snippet.slice(0, Math.max(0, Math.floor(snippet.length * 0.65))).trim() + '…'
     } else if (snippet.length > 0) {
       snippet = ''
+    } else if (hashtags) {
+      const tags = hashtags.split(/\s+/).filter(Boolean)
+      if (tags.length > 1) hashtags = tags.slice(0, -1).join(' ')
+      else hashtags = ''
     } else {
       const t = input.title.trim()
       if (t.length <= 1) break

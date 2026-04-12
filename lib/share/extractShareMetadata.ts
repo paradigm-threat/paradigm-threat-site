@@ -8,7 +8,7 @@ export interface ShareExtractInput {
 export interface ShareExtractResult {
   /** frontmatter description → else TL;DR → else first paragraph */
   snippetPlain: string
-  /** Space-separated #tags from frontmatter.keywords */
+  /** Space-separated #tags from frontmatter.keywords and trailing `Keywords:` line in body */
   hashtagsLine: string
   /** Plain article body for long platforms (excludes TL;DR block text when possible) */
   articleBodyPlain: string
@@ -107,11 +107,50 @@ function keywordsToHashtagLine (frontmatter: Record<string, unknown> | undefined
   return Array.from(new Set(tags)).join(' ')
 }
 
+/**
+ * Many investigations end with `Keywords: #tag #tag` (see paradigm-threat-files docs/BLOG.md).
+ * Scan from the end of the file for a Keywords line and collect #tokens.
+ */
+function extractKeywordsLineFromMarkdownBody (md: string): string {
+  const lines = md.split('\n')
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i].replace(/\*\*/g, '').trim()
+    const m = line.match(/^Keywords:\s*(.+)$/i)
+    if (m) {
+      const raw = m[1]
+      const found = raw.match(/#[A-Za-z0-9_]+/g)
+      if (!found?.length) return ''
+      return Array.from(new Set(found)).join(' ')
+    }
+  }
+  return ''
+}
+
+function mergeHashtagLines (a: string, b: string): string {
+  const tokens = [...a.split(/\s+/), ...b.split(/\s+/)]
+    .map((t) => t.trim())
+    .filter(Boolean)
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const t of tokens) {
+    const norm = t.startsWith('#') ? t : `#${t.replace(/^#+/, '')}`
+    const key = norm.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(norm)
+  }
+  return out.join(' ')
+}
+
+function removeKeywordsFooter (md: string): string {
+  return md.replace(/\n*(?:---\s*\n*)?Keywords:\s+[^\n]+\s*$/im, '').trim()
+}
+
 function markdownToPlainBody (md: string): string {
   const noFm = stripFrontmatter(md)
   const noH1 = stripLeadingH1(noFm)
   const noTldr = removeTldrBlockForBody(noH1)
-  let s = noTldr
+  let s = removeKeywordsFooter(noTldr)
   s = s.replace(/^#{1,6}\s+.+\n+/gm, '\n')
   s = s.replace(/!\[[^\]]*\]\([^)]*\)/g, '')
   s = s.replace(/```[\s\S]*?```/g, ' ')
@@ -135,7 +174,9 @@ export function extractShareMetadata (input: ShareExtractInput): ShareExtractRes
   const firstPara = extractFirstParagraphPlain(rawMarkdown)
 
   const snippetPlain = desc || tldr || firstPara || ''
-  const hashtagsLine = keywordsToHashtagLine(frontmatter)
+  const fromFm = keywordsToHashtagLine(frontmatter)
+  const fromBody = extractKeywordsLineFromMarkdownBody(rawMarkdown)
+  const hashtagsLine = mergeHashtagLines(fromFm, fromBody)
   const articleBodyPlain = markdownToPlainBody(rawMarkdown)
 
   return { snippetPlain, hashtagsLine, articleBodyPlain }
