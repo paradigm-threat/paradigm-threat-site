@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Menu, X, Search, Home, MessageSquare, Video, Clock, Heart } from 'lucide-react'
 import { ThemeToggle, FontToggle, DynamicNav } from '@/components'
+import { FeelingLuckyButton } from '@/components/FeelingLucky/FeelingLuckyButton'
 
 interface NavbarProps {
     fileList: any
@@ -129,6 +130,9 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
                                 Directory
                             </div>
                             <DynamicNav directory={fileList} className="flex flex-col" />
+                            <div className="px-4 mt-3">
+                                <FeelingLuckyButton />
+                            </div>
                         </div>
                     </nav>
                 </div>

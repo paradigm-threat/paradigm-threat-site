@@ -3,6 +3,7 @@
 import React, { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import { DynamicNav, FloatingDiv, DynamicIndex, useFiles } from "@/components";
+import { FeelingLuckyButton } from "@/components/FeelingLucky/FeelingLuckyButton";
 import { RemoteFileIndexBanner } from "@/components/RemoteFileIndexBanner";
 import { SuspenseLoader } from "@client";
 import { BottomChromeProvider } from "@/lib/BottomChromeContext";
@@ -34,6 +35,7 @@ export default function MainLayout({
                                     Directory
                                 </div>
                             </DynamicNav>
+                            <FeelingLuckyButton className="mt-3 px-0" />
                         </div>
                     </FloatingDiv>
                 </aside>
