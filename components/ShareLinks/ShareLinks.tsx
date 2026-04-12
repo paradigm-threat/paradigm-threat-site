@@ -1,12 +1,13 @@
 'use client'
 
 import React, { useMemo, useState, useCallback } from 'react'
-import Script from 'next/script'
 import {
   composeShareText,
   effectiveLengthX,
   extractShareMetadata,
+  platformUsesTruncatedOutboundIntent,
   shareTextCharCount,
+  truncateShareTextForOutbound,
   type ShareExtractResult,
   type SharePlatformId,
 } from '@/lib/share'
@@ -39,14 +40,15 @@ function buildOutboundHref (
   platform: SharePlatformId,
   absUrl: string,
   title: string,
-  copyText: string
+  /** Text embedded in intent URLs — truncated per platform when needed */
+  intentText: string
 ): { href: string | null; label: string; copyOnlyNote?: string } {
   const encodedUrl = encodeURIComponent(absUrl)
 
   switch (platform) {
     case 'x':
       return {
-        href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(copyText)}`,
+        href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(intentText)}`,
         label: 'Open X to post',
       }
     case 'facebook':
@@ -68,7 +70,7 @@ function buildOutboundHref (
     }
     case 'bluesky':
       return {
-        href: `https://bsky.app/intent/compose?text=${encodeURIComponent(copyText)}`,
+        href: `https://bsky.app/intent/compose?text=${encodeURIComponent(intentText)}`,
         label: 'Open Bluesky',
       }
     case 'instagram':
@@ -80,15 +82,15 @@ function buildOutboundHref (
       }
     case 'threads':
       return {
-        href: `https://www.threads.net/intent/post?text=${encodeURIComponent(copyText)}`,
+        href: `https://www.threads.net/intent/post?text=${encodeURIComponent(intentText)}`,
         label: 'Open Threads',
       }
     case 'truthsocial':
       return {
-        href: `https://truthsocial.com/share?url=${encodedUrl}&text=${encodeURIComponent(copyText)}`,
+        href: `https://truthsocial.com/share?url=${encodedUrl}&text=${encodeURIComponent(intentText)}`,
         label: 'Open Truth Social',
         copyOnlyNote:
-          'Truth Social may cap the prefilled text; shorten in the composer if needed. URL is passed separately (see help.truthsocial.com/publishers/share-button/).',
+          'URL is passed separately. The Open link prefills text trimmed to the official limit when needed (help.truthsocial.com/publishers/share-button/).',
       }
     default:
       return { href: null, label: '' }
@@ -161,10 +163,26 @@ export function ShareLinks ({
     return effectiveLengthX(activeCopyText)
   }, [modal, activeCopyText])
 
+  /** Shortened only for intent URLs (X, Threads, Bluesky, Truth Social). */
+  const intentTextForOutbound = useMemo(() => {
+    if (!modal) return ''
+    if (platformUsesTruncatedOutboundIntent(modal.platform)) {
+      return truncateShareTextForOutbound(modal.platform, composeInput)
+    }
+    return ''
+  }, [modal, composeInput])
+
+  const outboundOpenUsesShortDraft = useMemo(() => {
+    if (!modal || !platformUsesTruncatedOutboundIntent(modal.platform)) return false
+    return intentTextForOutbound !== activeCopyText
+  }, [modal, intentTextForOutbound, activeCopyText])
+
   const outbound = useMemo(() => {
     if (!modal) return { href: null as string | null, label: '', copyOnlyNote: undefined as string | undefined }
-    return buildOutboundHref(modal.platform, absUrl, title, activeCopyText)
-  }, [modal, absUrl, title, activeCopyText])
+    const intent =
+      platformUsesTruncatedOutboundIntent(modal.platform) ? intentTextForOutbound : activeCopyText
+    return buildOutboundHref(modal.platform, absUrl, title, intent)
+  }, [modal, absUrl, title, intentTextForOutbound, activeCopyText])
 
   const openModal = useCallback((platform: SharePlatformId, label: string) => {
     setModal({ platform, label })
@@ -174,19 +192,6 @@ export function ShareLinks ({
 
   return (
     <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
-      {/* Official Truth Social share.js — binds `.truthsocial-share` + `data-url` (see help.truthsocial.com/publishers/share-button/). */}
-      <Script src="https://truthsocial.com/instance/share.js" strategy="lazyOnload" />
-      <a
-        className="truthsocial-share sr-only"
-        data-url={absUrl}
-        href={`https://truthsocial.com/share?url=${encodeURIComponent(absUrl)}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        tabIndex={-1}
-        aria-hidden="true"
-      >
-        Truth Social
-      </a>
       <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">Share</p>
       <div className="flex flex-wrap gap-2">
         {PLATFORMS.map(({ id, label }) => (
@@ -214,6 +219,8 @@ export function ShareLinks ({
           outboundLabel={outbound.label}
           ogImageUrl={ogImageUrl}
           copyOnlyNote={outbound.copyOnlyNote}
+          outboundOpenUsesShortDraft={outboundOpenUsesShortDraft}
+          intentCharCount={outboundOpenUsesShortDraft ? shareTextCharCount(intentTextForOutbound) : undefined}
         />
       ) : null}
     </div>

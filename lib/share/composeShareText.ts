@@ -1,5 +1,11 @@
 import type { SharePlatformId } from '@/lib/share/platformLimits'
-import { X_URL_WEIGHT } from '@/lib/share/platformLimits'
+import {
+  BLUESKY_MAX,
+  TRUTHSOCIAL_TEXT_MAX,
+  THREADS_MAX,
+  X_MAX,
+  X_URL_WEIGHT,
+} from '@/lib/share/platformLimits'
 
 export interface ComposeShareInput {
   title: string
@@ -46,4 +52,94 @@ export function composeShareText (_platform: SharePlatformId, input: ComposeShar
 /** Character count for the copy box (no platform cap). */
 export function shareTextCharCount (text: string): number {
   return text.length
+}
+
+function joinShareParts (
+  title: string,
+  hashtags: string,
+  url: string,
+  snippet: string,
+  article: string
+): string {
+  const parts: string[] = [title]
+  if (hashtags) parts.push('', hashtags)
+  parts.push('', url)
+  if (snippet) parts.push('', snippet)
+  if (article) parts.push('', article)
+  return parts.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+}
+
+function effectiveLengthPlatform (platform: SharePlatformId, text: string): number {
+  if (platform === 'x' || platform === 'threads') return effectiveLengthX(text)
+  return text.length
+}
+
+/** Platforms that pass full copy into a query param; must stay within compose limits. */
+export function platformUsesTruncatedOutboundIntent (platform: SharePlatformId): boolean {
+  return platform === 'x' || platform === 'threads' || platform === 'bluesky' || platform === 'truthsocial'
+}
+
+function outboundIntentLimit (platform: SharePlatformId): number | null {
+  switch (platform) {
+    case 'x':
+      return X_MAX
+    case 'threads':
+      return THREADS_MAX
+    case 'bluesky':
+      return BLUESKY_MAX
+    case 'truthsocial':
+      return TRUTHSOCIAL_TEXT_MAX
+    default:
+      return null
+  }
+}
+
+/**
+ * Shortened text for intent URLs only (X, Threads, Bluesky, Truth Social).
+ * Same block order as composeShareText; trims article → snippet → hashtags → title last resort.
+ */
+export function truncateShareTextForOutbound (
+  platform: SharePlatformId,
+  input: ComposeShareInput
+): string {
+  const limit = outboundIntentLimit(platform)
+  let title = input.title.trim()
+  let hashtags = input.hashtagsLine.trim()
+  let url = input.canonicalUrl.trim()
+  let snippet = input.snippetPlain.trim()
+  let article = input.articleBodyPlain.trim()
+
+  if (limit == null) {
+    return joinShareParts(title, hashtags, url, snippet, article)
+  }
+
+  const measure = (s: string) => effectiveLengthPlatform(platform, s)
+
+  let text = joinShareParts(title, hashtags, url, snippet, article)
+  let guard = 0
+  while (measure(text) > limit && guard < 500) {
+    guard++
+    if (article.length > 80) {
+      article = article.slice(0, Math.max(0, article.length - 120)).trim()
+      if (article.length > 0 && !article.endsWith('…')) article += '…'
+    } else if (article.length > 0) {
+      article = ''
+    } else if (snippet.length > 20) {
+      snippet = snippet.slice(0, Math.max(0, Math.floor(snippet.length * 0.65))).trim() + '…'
+    } else if (snippet.length > 0) {
+      snippet = ''
+    } else if (hashtags) {
+      const tags = hashtags.split(/\s+/).filter(Boolean)
+      if (tags.length > 1) hashtags = tags.slice(0, -1).join(' ')
+      else hashtags = ''
+    } else {
+      const t = input.title.trim()
+      if (t.length <= 1) break
+      const titleMax = Math.max(12, Math.floor(t.length * 0.85))
+      title = `${t.slice(0, titleMax).trim()}…`
+    }
+    text = joinShareParts(title, hashtags, url, snippet, article)
+  }
+
+  return text
 }

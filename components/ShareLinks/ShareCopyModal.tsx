@@ -15,6 +15,9 @@ export interface ShareCopyModalProps {
   outboundLabel: string
   ogImageUrl?: string
   copyOnlyNote?: string
+  /** True when the Open … link embeds a shorter draft than the copy box */
+  outboundOpenUsesShortDraft?: boolean
+  intentCharCount?: number
 }
 
 export function ShareCopyModal ({
@@ -28,6 +31,8 @@ export function ShareCopyModal ({
   outboundLabel,
   ogImageUrl,
   copyOnlyNote,
+  outboundOpenUsesShortDraft,
+  intentCharCount,
 }: ShareCopyModalProps) {
   const [copied, setCopied] = React.useState(false)
 
@@ -110,6 +115,13 @@ export function ShareCopyModal ({
 
           {copyOnlyNote ? (
             <p className="text-xs text-slate-500 dark:text-slate-400">{copyOnlyNote}</p>
+          ) : null}
+
+          {outboundOpenUsesShortDraft && intentCharCount != null ? (
+            <p className="text-xs text-amber-800/90 dark:text-amber-200/90 bg-amber-500/10 dark:bg-amber-500/15 rounded-lg px-2 py-1.5">
+              The &quot;Open …&quot; button uses a shortened draft ({intentCharCount} characters) so the prefilled post
+              fits this network&apos;s compose limit. The text area below is still the full article.
+            </p>
           ) : null}
 
           <div className="flex flex-wrap gap-2">

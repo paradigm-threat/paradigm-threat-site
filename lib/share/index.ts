@@ -5,5 +5,7 @@ export {
   composeShareText,
   shareTextCharCount,
   effectiveLengthX,
+  truncateShareTextForOutbound,
+  platformUsesTruncatedOutboundIntent,
   type ComposeShareInput,
 } from '@/lib/share/composeShareText'
