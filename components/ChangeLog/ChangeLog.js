@@ -34,11 +34,15 @@ function normalizeEntry(entry, fallbackRepo) {
   const files = explicitFiles.length > 0 ? explicitFiles : inferFilesFromMessage(entry.message || '', repo)
   return {
     repo,
-    hash: entry.hash || '',
     date: entry.date || '',
     message: entry.message || '',
     files
   }
+}
+
+/** Stable React key without git hash (changelog is paths-first). */
+function entryKey(entry, index) {
+  return `${entry.repo}:${entry.date}:${entry.message}:${index}`
 }
 
 function getFileLabel(filePath) {
@@ -96,15 +100,15 @@ export default function ChangeLog({ target = '_self' }) {
 
   return (
     <ul className={styles.changelog}>
-      {Array.isArray(changeLog) && changeLog.map(entry => (
-        <li key={`${entry.repo}:${entry.hash}`}>
+      {Array.isArray(changeLog) && changeLog.map((entry, entryIdx) => (
+        <li key={entryKey(entry, entryIdx)}>
           <div>
             {new Date(entry.date).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })} - {entry.message} ({entry.repo})
           </div>
           {Array.isArray(entry.files) && entry.files.length > 0 && (
             <div>
               {entry.files.map((file, idx) => (
-                <React.Fragment key={`${entry.hash}:${file.path}:${idx}`}>
+                <React.Fragment key={`${entryKey(entry, entryIdx)}:${file.path}:${idx}`}>
                   {idx > 0 ? ' | ' : ''}
                   <a href={file.href} target={target} title={file.path}>{getFileLabel(file.path)}</a>
                 </React.Fragment>
