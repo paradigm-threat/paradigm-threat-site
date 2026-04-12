@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useMemo, useState, useCallback } from 'react'
+import Script from 'next/script'
 import {
   composeShareText,
   countDisplay,
@@ -81,6 +82,13 @@ function buildOutboundHref (
         href: `https://www.threads.net/intent/post?text=${encodeURIComponent(copyText)}`,
         label: 'Open Threads',
       }
+    case 'truthsocial':
+      return {
+        href: `https://truthsocial.com/share?url=${encodedUrl}&text=${encodeURIComponent(copyText)}`,
+        label: 'Open Truth Social',
+        copyOnlyNote:
+          'Official share URL (help.truthsocial.com/publishers/share-button): the text parameter is limited to 500 characters. The page URL is passed separately.',
+      }
     default:
       return { href: null, label: '' }
   }
@@ -94,6 +102,7 @@ const PLATFORMS: { id: SharePlatformId; label: string }[] = [
   { id: 'bluesky', label: 'Bluesky' },
   { id: 'instagram', label: 'Instagram' },
   { id: 'threads', label: 'Threads' },
+  { id: 'truthsocial', label: 'Truth Social' },
 ]
 
 export function ShareLinks ({
@@ -158,6 +167,19 @@ export function ShareLinks ({
 
   return (
     <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
+      {/* Official Truth Social share.js — binds `.truthsocial-share` + `data-url` (see help.truthsocial.com/publishers/share-button/). */}
+      <Script src="https://truthsocial.com/instance/share.js" strategy="lazyOnload" />
+      <a
+        className="truthsocial-share sr-only"
+        data-url={absUrl}
+        href={`https://truthsocial.com/share?url=${encodeURIComponent(absUrl)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        tabIndex={-1}
+        aria-hidden="true"
+      >
+        Truth Social
+      </a>
       <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">Share</p>
       <div className="flex flex-wrap gap-2">
         {PLATFORMS.map(({ id, label }) => (

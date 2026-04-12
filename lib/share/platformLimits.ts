@@ -11,6 +11,7 @@ export type SharePlatformId =
   | 'bluesky'
   | 'instagram'
   | 'threads'
+  | 'truthsocial'
 
 /** Max chars for Reddit submission title query param */
 export const REDDIT_TITLE_MAX = 300
@@ -30,6 +31,9 @@ export const INSTAGRAM_HASHTAG_MAX = 30
 
 /** Threads post text */
 export const THREADS_MAX = 500
+
+/** Truth Social share `text` query param (first composer line) — https://help.truthsocial.com/publishers/share-button/ */
+export const TRUTHSOCIAL_TEXT_MAX = 500
 
 /** LinkedIn feed post (common cap; document if Meta changes) */
 export const LINKEDIN_MAX = 3000
@@ -52,6 +56,8 @@ export function platformCopyLimit (platform: SharePlatformId): number {
       return INSTAGRAM_CAPTION_MAX
     case 'threads':
       return THREADS_MAX
+    case 'truthsocial':
+      return TRUTHSOCIAL_TEXT_MAX
     case 'linkedin':
       return LINKEDIN_MAX
     case 'facebook':
