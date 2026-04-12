@@ -22,14 +22,24 @@ export interface ArticleData {
 function extractFirstImageUrl(md: string, basePath: string): string | undefined {
   const match = md.match(/!\[[^\]]*\]\(([^)]+)\)/)
   if (!match) return undefined
-  let src = match[1].trim().split('?')[0]
-  if (src.startsWith('http')) return src
-  if (src.startsWith('/')) src = src.slice(1)
+  const rawSrc = match[1].trim().split('?')[0]
+  if (rawSrc.startsWith('http')) return rawSrc
+  // Root-absolute paths (/events/...) are from site root; do not prepend article basePath.
+  const rootAbsolute = rawSrc.startsWith('/')
+  let src = rawSrc
+  if (rootAbsolute) src = src.slice(1)
   else if (src.startsWith('./')) src = src.slice(2)
-  const prefix = basePath ? (basePath.endsWith('/') ? basePath : basePath + '/') : ''
+  const prefix =
+    rootAbsolute ? '' : basePath ? (basePath.endsWith('/') ? basePath : basePath + '/') : ''
   const path = (prefix + src).replace(/\/+/g, '/')
   const base = getPrimaryFilesBaseUrl()
   return `${base.replace(/\/$/, '')}/${path.replace(/^\//, '')}`
+}
+
+/** First # heading in body (after frontmatter strip), for OG title when YAML has no title */
+function extractFirstHeading(md: string): string | undefined {
+  const m = md.match(/^#\s+(.+)$/m)
+  return m ? m[1].trim().replace(/\s+#\s*$/, '').trim() : undefined
 }
 
 export async function fetchArticle(path: string): Promise<ArticleData | null> {
@@ -84,7 +94,11 @@ export async function fetchArticle(path: string): Promise<ArticleData | null> {
   const titleFromPath = basePath
     ? basePath.split('/').pop()?.replace(/_/g, ' ')
     : 'Article'
-  const title = (frontMatter?.title as string) || titleFromPath || 'Article'
+  const title =
+    (frontMatter?.title as string) ||
+    extractFirstHeading(rawContent) ||
+    titleFromPath ||
+    'Article'
 
   // Same autolink transform as API (MDX treats < as JSX)
   const mdxSource = rawContent.replace(/<(https?:\/\/[^>]+)>/g, (_, url) => `[${url}](${url})`)
