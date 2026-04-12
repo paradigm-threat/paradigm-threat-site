@@ -3,7 +3,7 @@ export * from '@/lib/share/platformLimits'
 export { extractShareMetadata, type ShareExtractInput, type ShareExtractResult } from '@/lib/share/extractShareMetadata'
 export {
   composeShareText,
-  countDisplay,
+  shareTextCharCount,
   effectiveLengthX,
   type ComposeShareInput,
 } from '@/lib/share/composeShareText'

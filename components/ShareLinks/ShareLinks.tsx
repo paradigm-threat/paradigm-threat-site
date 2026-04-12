@@ -4,8 +4,9 @@ import React, { useMemo, useState, useCallback } from 'react'
 import Script from 'next/script'
 import {
   composeShareText,
-  countDisplay,
+  effectiveLengthX,
   extractShareMetadata,
+  shareTextCharCount,
   type ShareExtractResult,
   type SharePlatformId,
 } from '@/lib/share'
@@ -87,7 +88,7 @@ function buildOutboundHref (
         href: `https://truthsocial.com/share?url=${encodedUrl}&text=${encodeURIComponent(copyText)}`,
         label: 'Open Truth Social',
         copyOnlyNote:
-          'Official share URL (help.truthsocial.com/publishers/share-button): the text parameter is limited to 500 characters. The page URL is passed separately.',
+          'Truth Social may cap the prefilled text; shorten in the composer if needed. URL is passed separately (see help.truthsocial.com/publishers/share-button/).',
       }
     default:
       return { href: null, label: '' }
@@ -149,9 +150,15 @@ export function ShareLinks ({
     return composeShareText(modal.platform, composeInput)
   }, [modal, composeInput])
 
-  const activeDisplay = useMemo(() => {
-    if (!modal) return { used: 0, limit: 0 }
-    return countDisplay(modal.platform, activeCopyText)
+  const charCount = useMemo(() => {
+    if (!modal) return 0
+    return shareTextCharCount(activeCopyText)
+  }, [modal, activeCopyText])
+
+  const xComposerWeight = useMemo(() => {
+    if (!modal) return undefined
+    if (modal.platform !== 'x' && modal.platform !== 'threads') return undefined
+    return effectiveLengthX(activeCopyText)
   }, [modal, activeCopyText])
 
   const outbound = useMemo(() => {
@@ -201,9 +208,8 @@ export function ShareLinks ({
           onClose={closeModal}
           platformLabel={modal.label}
           copyText={activeCopyText}
-          usedChars={activeDisplay.used}
-          limitChars={activeDisplay.limit}
-          weightedNote={modal.platform === 'x' || modal.platform === 'threads'}
+          charCount={charCount}
+          xComposerWeight={xComposerWeight}
           outboundHref={outbound.href}
           outboundLabel={outbound.label}
           ogImageUrl={ogImageUrl}

@@ -8,14 +8,12 @@ export interface ShareCopyModalProps {
   onClose: () => void
   platformLabel: string
   copyText: string
-  usedChars: number
-  limitChars: number
-  /** X/Threads: URLs count as 23 toward limit */
-  weightedNote?: boolean
+  charCount: number
+  /** X/Threads: optional t.co-style weighted length for composer hint */
+  xComposerWeight?: number
   outboundHref: string | null
   outboundLabel: string
   ogImageUrl?: string
-  /** Instagram: no web composer with prefilled caption */
   copyOnlyNote?: string
 }
 
@@ -24,9 +22,8 @@ export function ShareCopyModal ({
   onClose,
   platformLabel,
   copyText,
-  usedChars,
-  limitChars,
-  weightedNote,
+  charCount,
+  xComposerWeight,
   outboundHref,
   outboundLabel,
   ogImageUrl,
@@ -62,7 +59,6 @@ export function ShareCopyModal ({
 
   if (!open) return null
 
-  const over = usedChars > limitChars
   const sameSiteDownload =
     typeof window !== 'undefined' &&
     ogImageUrl &&
@@ -103,11 +99,11 @@ export function ShareCopyModal ({
         </div>
 
         <div className="overflow-y-auto px-4 py-3 space-y-3">
-          <p className={`text-sm ${over ? 'text-amber-700 dark:text-amber-300' : 'text-slate-600 dark:text-slate-400'}`}>
-            {usedChars} / {limitChars} characters
-            {weightedNote ? (
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            {charCount} characters (full text; trim in the app if a network imposes a limit)
+            {xComposerWeight != null ? (
               <span className="block mt-1 text-xs text-slate-500">
-                On X, each link counts as {X_URL_WEIGHT} characters after posting (t.co).
+                X counts each URL as {X_URL_WEIGHT} characters in the composer (~{xComposerWeight} weighted).
               </span>
             ) : null}
           </p>
