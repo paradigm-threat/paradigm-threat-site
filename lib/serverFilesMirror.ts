@@ -1,31 +1,12 @@
-import { getFilesBaseUrlList } from '@/lib/urlListEnv'
+import { fetchFromAssetMirrors } from '@/lib/remoteAssetMirrors'
 
-const FETCH_TIMEOUT_MS = 20_000
-
-async function fetchText(url: string): Promise<string | null> {
-  try {
-    const r = await fetch(url, {
-      cache: 'no-store',
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    })
-    if (!r.ok) return null
-    return await r.text()
-  } catch {
-    return null
-  }
-}
-
-/** Try each mirror until one returns body text for this path. */
-export async function fetchFilesTextFromMirrors(
+/** Try each files mirror until one returns body text for this path. */
+export async function fetchFilesTextFromMirrors (
   relPath: string,
   vParam: string,
 ): Promise<string | null> {
-  const bases = getFilesBaseUrlList()
-  const path = relPath.replace(/^\//, '')
-  for (const base of bases) {
-    const url = `${base.replace(/\/$/, '')}/${path}${vParam}`
-    const text = await fetchText(url)
-    if (text != null) return text
-  }
-  return null
+  const path = '/' + relPath.replace(/^\//, '')
+  const res = await fetchFromAssetMirrors('files', path, { search: vParam })
+  if (!res) return null
+  return await res.text()
 }

@@ -3,11 +3,8 @@
  */
 
 import { firstTimelineOgMediaPath } from '@/lib/timelineMedia'
-import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
-
-import { getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
-
-const TIMELINE_BASE = getPrimaryTimelineBaseUrl()
+import { publicTimelineAssetUrl } from '@/lib/canonicalPublicSite'
+import { fetchTimelineEventsResponse } from '@/lib/serverTimelineMirror'
 
 interface TimelineEntry {
   id: string
@@ -16,9 +13,9 @@ interface TimelineEntry {
   children?: TimelineEntry[]
 }
 
-function flattenEntries(entries: TimelineEntry[]): TimelineEntry[] {
+function flattenEntries (entries: TimelineEntry[]): TimelineEntry[] {
   const result: TimelineEntry[] = []
-  function visit(nodes: TimelineEntry[]) {
+  function visit (nodes: TimelineEntry[]) {
     for (const e of nodes) {
       result.push(e)
       if (e.children?.length) visit(e.children)
@@ -33,12 +30,10 @@ export interface TimelineEventMeta {
   ogImageUrl?: string
 }
 
-export async function getTimelineEventMeta(eventId: string): Promise<TimelineEventMeta | null> {
+export async function getTimelineEventMeta (eventId: string): Promise<TimelineEventMeta | null> {
   try {
-    const res = await fetch(`${TIMELINE_BASE}/data/events.json${timelineManifestCacheQuery()}`, {
-      next: { revalidate: 60 },
-    })
-    if (!res.ok) return null
+    const res = await fetchTimelineEventsResponse({ next: { revalidate: 60 } })
+    if (!res?.ok) return null
     const data = await res.json()
     const entries = (data.entries || []) as TimelineEntry[]
     const events = flattenEntries(entries)
@@ -47,12 +42,12 @@ export async function getTimelineEventMeta(eventId: string): Promise<TimelineEve
 
     const ogPath = firstTimelineOgMediaPath(event.media)
     const ogImageUrl = ogPath
-      ? `${TIMELINE_BASE.replace(/\/$/, '')}${ogPath.startsWith('/') ? '' : '/'}${ogPath}`
+      ? publicTimelineAssetUrl(ogPath.replace(/^\/+/, ''))
       : undefined
 
     return {
       title: event.title,
-      ogImageUrl
+      ogImageUrl,
     }
   } catch {
     return null

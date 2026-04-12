@@ -4,9 +4,8 @@
  */
 
 import { isNonArticlePath } from '@/lib/isNonArticlePath'
-import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
-
-const FILES_BASE_URL = getPrimaryFilesBaseUrl()
+import { publicFilesAssetUrl } from '@/lib/canonicalPublicSite'
+import { fetchFilesTextFromMirrors } from '@/lib/serverFilesMirror'
 
 export interface ArticleData {
   mdxSource: string
@@ -19,7 +18,7 @@ export interface ArticleData {
 }
 
 /** Extract first markdown image URL: ![alt](url) */
-function extractFirstImageUrl(md: string, basePath: string): string | undefined {
+function extractFirstImageUrl (md: string, basePath: string): string | undefined {
   const match = md.match(/!\[[^\]]*\]\(([^)]+)\)/)
   if (!match) return undefined
   const rawSrc = match[1].trim().split('?')[0]
@@ -32,38 +31,34 @@ function extractFirstImageUrl(md: string, basePath: string): string | undefined 
   const prefix =
     rootAbsolute ? '' : basePath ? (basePath.endsWith('/') ? basePath : basePath + '/') : ''
   const path = (prefix + src).replace(/\/+/g, '/')
-  const base = getPrimaryFilesBaseUrl()
-  return `${base.replace(/\/$/, '')}/${path.replace(/^\//, '')}`
+  return publicFilesAssetUrl(path.replace(/^\//, ''))
 }
 
 /** First # heading in body (after frontmatter strip), for OG title when YAML has no title */
-function extractFirstHeading(md: string): string | undefined {
+function extractFirstHeading (md: string): string | undefined {
   const m = md.match(/^#\s+(.+)$/m)
   return m ? m[1].trim().replace(/\s+#\s*$/, '').trim() : undefined
 }
 
-export async function fetchArticle(path: string): Promise<ArticleData | null> {
+export async function fetchArticle (path: string): Promise<ArticleData | null> {
   if (isNonArticlePath(path)) return null
 
   let targetPath = ''
   let fileContent: string | null = null
+  const vParam = ''
 
   // 1. Try direct .md/.mdx
   if (path.endsWith('.md') || path.endsWith('.mdx')) {
-    const res = await fetch(`${FILES_BASE_URL}/${path}`, { cache: 'no-store' })
-    if (res.ok) {
-      fileContent = await res.text()
-      targetPath = path
-    }
+    fileContent = await fetchFilesTextFromMirrors(path, vParam)
+    if (fileContent) targetPath = path
   }
 
   // 2. Try path.md then path.mdx (extension omitted in URL)
   if (!fileContent && path && !path.endsWith('.md') && !path.endsWith('.mdx')) {
     for (const ext of ['.md', '.mdx']) {
       const p = `${path}${ext}`
-      const res = await fetch(`${FILES_BASE_URL}/${p}`, { cache: 'no-store' })
-      if (res.ok) {
-        fileContent = await res.text()
+      fileContent = await fetchFilesTextFromMirrors(p, vParam)
+      if (fileContent) {
         targetPath = p
         break
       }
@@ -75,9 +70,8 @@ export async function fetchArticle(path: string): Promise<ArticleData | null> {
     const base = path ? `${path}/` : ''
     for (const name of ['page.md', 'page.mdx']) {
       const p = `${base}${name}`
-      const res = await fetch(`${FILES_BASE_URL}/${p}`, { cache: 'no-store' })
-      if (res.ok) {
-        fileContent = await res.text()
+      fileContent = await fetchFilesTextFromMirrors(p, vParam)
+      if (fileContent) {
         targetPath = p
         break
       }
@@ -103,18 +97,17 @@ export async function fetchArticle(path: string): Promise<ArticleData | null> {
   // Same autolink transform as API (MDX treats < as JSX)
   const mdxSource = rawContent.replace(/<(https?:\/\/[^>]+)>/g, (_, url) => `[${url}](${url})`)
 
-  // OG image: frontmatter.image or first image in content
-  const filesBase = getPrimaryFilesBaseUrl()
+  // OG image: frontmatter.image or first image in content (canonical paradigmthreat.net /files/...)
   let ogImageUrl: string | undefined
   if (frontMatter?.image && typeof frontMatter.image === 'string') {
     const img = frontMatter.image as string
     if (img.startsWith('http')) {
       ogImageUrl = img
     } else if (img.startsWith('/')) {
-      ogImageUrl = `${filesBase}${img}`
+      ogImageUrl = publicFilesAssetUrl(img.replace(/^\//, ''))
     } else {
       const rel = basePath ? `${basePath}/${img.replace(/^\.\//, '')}` : img.replace(/^\.\//, '')
-      ogImageUrl = `${filesBase}/${rel}`.replace(/\/+/g, '/')
+      ogImageUrl = publicFilesAssetUrl(rel.replace(/^\//, ''))
     }
   } else {
     ogImageUrl = extractFirstImageUrl(rawContent, basePath)
@@ -126,6 +119,6 @@ export async function fetchArticle(path: string): Promise<ArticleData | null> {
     title,
     basePath,
     frontmatter: frontMatter as Record<string, unknown>,
-    ogImageUrl
+    ogImageUrl,
   }
 }

@@ -1,23 +1,13 @@
-import { getTimelineOrigins } from '@/lib/timelineOrigins'
+import { fetchFromAssetMirrors } from '@/lib/remoteAssetMirrors'
 import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
 
-const FETCH_TIMEOUT_MS = 20_000
-
-/** First mirror that returns ok for timeline events.json */
-export async function fetchTimelineEventsResponse(init?: RequestInit): Promise<Response | null> {
-  const bases = getTimelineOrigins()
+/** First mirror that returns ok for timeline `data/events.json` */
+export async function fetchTimelineEventsResponse (
+  init?: { next?: { revalidate?: number | false } },
+): Promise<Response | null> {
   const q = timelineManifestCacheQuery()
-  for (const base of bases) {
-    const url = `${base.replace(/\/$/, '')}/data/events.json${q}`
-    try {
-      const r = await fetch(url, {
-        ...init,
-        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      })
-      if (r.ok) return r
-    } catch {
-      /* try next */
-    }
-  }
-  return null
+  return fetchFromAssetMirrors('timeline', '/data/events.json', {
+    search: q,
+    next: init?.next ?? { revalidate: 60 },
+  })
 }

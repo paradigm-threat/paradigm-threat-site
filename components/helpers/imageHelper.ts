@@ -4,8 +4,21 @@ interface ImagePropsFormatted {
 }
 
 import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
+import { publicFilesAssetUrl, publicTimelineAssetUrl } from '@/lib/canonicalPublicSite'
 
 const DEFAULT_FILES_BASE_URL = getPrimaryFilesBaseUrl()
+
+/** Canonical https://paradigmthreat.net URLs for high-res (not relay hostnames). */
+function canonicalHighResPublicUrl (pathForAPI: string): string {
+  if (pathForAPI.startsWith('http')) return pathForAPI
+  const [p, ...rest] = pathForAPI.split('?')
+  const q = rest.length ? '?' + rest.join('?') : ''
+  const norm = p.replace(/^\//, '')
+  if (norm.startsWith('media/')) {
+    return publicTimelineAssetUrl(norm) + q
+  }
+  return publicFilesAssetUrl(norm) + q
+}
 
 let cachedIndex: any = null;
 let indexPromise: Promise<any> | null = null;
@@ -13,7 +26,7 @@ let indexPromise: Promise<any> | null = null;
 export async function checkFileExists(path: string): Promise<boolean> {
     try {
         if (!indexPromise) {
-            indexPromise = fetch(`${DEFAULT_FILES_BASE_URL}/index.json`)
+            indexPromise = fetch('/files/index.json')
                 .then(res => res.ok ? res.json() : null)
                 .then(index => {
                     cachedIndex = index;
@@ -235,7 +248,7 @@ export function processImageProps(props: any, basePath?: string, filesRootUrl?: 
         }
 
         // High res for popout (full URL)
-        finalProps.highResSrc = pathForAPI.startsWith('http') ? pathForAPI : `${FILES_BASE_URL}${pathForAPI}`;
+        finalProps.highResSrc = canonicalHighResPublicUrl(pathForAPI);
 
         return { src: pathForAPI, ...finalProps, title, alt, className } as ImagePropsFormatted;
     }

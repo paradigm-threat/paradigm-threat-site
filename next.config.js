@@ -81,6 +81,16 @@ const withPWA = require('@ducanh2912/next-pwa').default({
           cacheableResponse: { statuses: [0, 200] },
         },
       },
+      // Canonical site proxies: /files/* and /files/timeline/*
+      {
+        urlPattern: /^https:\/\/paradigmthreat\.net\/files\/.+/i,
+        handler: 'StaleWhileRevalidate',
+        options: {
+          cacheName: 'pt-files-proxy',
+          expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 },
+          cacheableResponse: { statuses: [0, 200] },
+        },
+      },
     ],
   },
 })
@@ -112,6 +122,10 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: '**.relaygateway.net',
+      },
+      {
+        protocol: 'https',
+        hostname: 'paradigmthreat.net',
       },
     ],
     localPatterns: [

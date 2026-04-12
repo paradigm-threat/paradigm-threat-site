@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server'
-import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
-import { getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
-
-const TIMELINE_BASE = getPrimaryTimelineBaseUrl()
+import { fetchTimelineEventsResponse } from '@/lib/serverTimelineMirror'
 
 const UNKNOWN_START_YEAR = -50000
 
-function getEventYear(evt: { dates?: { start?: number | null; end?: number; value?: number }[] }): number | null {
+function getEventYear (evt: { dates?: { start?: number | null; end?: number; value?: number }[] }): number | null {
   const d = evt.dates?.[0]
   if (!d) return null
   const start = d.start ?? (d as { value?: number }).value
@@ -14,7 +11,7 @@ function getEventYear(evt: { dates?: { start?: number | null; end?: number; valu
   return d.end ?? null
 }
 
-function getEventStartYear(evt: { dates?: { start?: number | null; end?: number }[] }): number | null {
+function getEventStartYear (evt: { dates?: { start?: number | null; end?: number }[] }): number | null {
   const d = evt.dates?.[0]
   if (!d) return null
   if (d.start != null) return d.start
@@ -22,9 +19,9 @@ function getEventStartYear(evt: { dates?: { start?: number | null; end?: number 
   return null
 }
 
-function flattenEntries(entries: { children?: unknown[] }[]): object[] {
+function flattenEntries (entries: { children?: unknown[] }[]): object[] {
   const result: object[] = []
-  function visit(nodes: { children?: unknown[] }[]) {
+  function visit (nodes: { children?: unknown[] }[]) {
     for (const e of nodes) {
       result.push(e)
       visit((e.children as { children?: unknown[] }[]) || [])
@@ -34,7 +31,7 @@ function flattenEntries(entries: { children?: unknown[] }[]): object[] {
   return result
 }
 
-function groupForYear(year: number): string {
+function groupForYear (year: number): string {
   if (year < -3000) return 'Before Creation'
   if (year < 0) return 'BCE'
   if (year < 1000) return 'CE 1-999'
@@ -53,15 +50,10 @@ const ERAS = [
   { start: 1800, end: 2100, name: 'CE 1800+' },
 ]
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const maxDepth = Math.min(4, Math.max(1, parseInt(searchParams.get('maxDepth') || '4', 10)))
-
+export async function GET (request: Request) {
   try {
-    const res = await fetch(`${TIMELINE_BASE}/data/events.json${timelineManifestCacheQuery()}`, {
-      next: { revalidate: 60 },
-    })
-    if (!res.ok) throw new Error('Failed to fetch events')
+    const res = await fetchTimelineEventsResponse({ next: { revalidate: 60 } })
+    if (!res?.ok) throw new Error('Failed to fetch events')
     const data = await res.json()
     const entries = data.entries || []
     type Entry = { id: string; title: string; md_path?: string; dates?: { start?: number | null; end?: number }[] }
