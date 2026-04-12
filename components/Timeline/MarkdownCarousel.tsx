@@ -11,6 +11,8 @@ import { formatDateRange, formatElapsedSinceStart } from './utils'
 import { useClientClock } from './useClientClock'
 import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
 import { remoteRelay } from '@/lib/remoteRelayStore'
+import { firstTimelineOgMediaPath } from '@/lib/timelineMedia'
+import { publicTimelineAssetUrl } from '@/lib/canonicalPublicSite'
 
 /** H1 date prefix: only when title begins with formatted range + em dash (avoids duplicating e.g. `1421 CE — Title`). */
 function getHeaderDatePrefixInfo(entry: TimelineEntry): {
@@ -80,6 +82,13 @@ export function MarkdownCarousel({
       : null
 
   const headerDateInfo = currentEntry ? getHeaderDatePrefixInfo(currentEntry) : null
+
+  const timelineOgImageUrl = currentEntry
+    ? (() => {
+        const ogPath = firstTimelineOgMediaPath(currentEntry.media)
+        return ogPath ? publicTimelineAssetUrl(ogPath.replace(/^\/+/, '')) : undefined
+      })()
+    : undefined
 
   useEffect(() => {
     if (!baseUrl) return
@@ -223,6 +232,8 @@ export function MarkdownCarousel({
                 <ShareLinks
                   url={`/timeline/${currentEntry.id}`}
                   title={currentEntry.title}
+                  mdSource={typeof mdContent === 'string' ? mdContent : undefined}
+                  ogImageUrl={timelineOgImageUrl}
                 />
               </div>
             ) : null}

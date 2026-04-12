@@ -5,6 +5,7 @@ import rehypeUnwrapImages from 'rehype-unwrap-images'
 import remarkGfm from 'remark-gfm'
 import rehypeUnwrapFigures from '@/lib/rehypeUnwrapFigures'
 import { isNonArticlePath } from '@/lib/isNonArticlePath'
+import { resolveOgImageUrl } from '@/lib/share/resolveOgImageUrl'
 import { fetchFilesTextFromMirrors } from '@/lib/serverFilesMirror'
 
 /**
@@ -77,6 +78,8 @@ export async function GET(req: NextRequest) {
       },
     })
 
+    const ogImageUrl = resolveOgImageUrl(mdxSource, basePath, frontMatter as Record<string, unknown>)
+
     return NextResponse.json({
       compiledSource,
       frontmatter,
@@ -84,6 +87,7 @@ export async function GET(req: NextRequest) {
       content: mdxSource,
       title,
       basePath,
+      ogImageUrl,
     })
   } catch (err) {
     console.error('[api/article]', err)

@@ -15,7 +15,9 @@ import { SuspenseLoader } from '@client'
 import { formatIndexDateTiny } from '@/lib/indexUpdated'
 import { shouldPersistVisit, isMarkdownHubPath } from '@/lib/visitResumeStorage'
 import { ResumeInvestigationBanner } from '@/components/ResumeInvestigationBanner'
+import { ShareLinks } from '@/components'
 import { useMobileHubTtsChrome } from '@/lib/hooks/useMobileHubTtsChrome'
+import { resolveOgImageUrl } from '@/lib/share/resolveOgImageUrl'
 import { remoteRelay } from '@/lib/remoteRelayStore'
 
 export const CatchAllClient = memo(function CatchAllClient() {
@@ -29,7 +31,12 @@ export const CatchAllClient = memo(function CatchAllClient() {
     () => remoteRelay.getSnapshot().filesBaseUrl,
   )
   const [content, setContent] = useState<string | null>(null)
-  const [compiledMdx, setCompiledMdx] = useState<{ compiledSource: string; frontmatter?: Record<string, unknown>; scope?: Record<string, unknown> } | null>(null)
+  const [compiledMdx, setCompiledMdx] = useState<{
+    compiledSource: string
+    frontmatter?: Record<string, unknown>
+    scope?: Record<string, unknown>
+    ogImageUrl?: string
+  } | null>(null)
   const [basePath, setBasePath] = useState('')
   const [articleTitle, setArticleTitle] = useState('')
   const [unusedImages, setUnusedImages] = useState<string[]>([])
@@ -58,6 +65,16 @@ export const CatchAllClient = memo(function CatchAllClient() {
         : null,
     [content, pathname, articleTitle]
   )
+
+  const ogImageUrlForShare = useMemo(() => {
+    if (compiledMdx?.ogImageUrl) return compiledMdx.ogImageUrl
+    if (!content || !compiledMdx) return undefined
+    return resolveOgImageUrl(
+      content,
+      basePath,
+      (compiledMdx.frontmatter || {}) as Record<string, unknown>
+    )
+  }, [content, basePath, compiledMdx])
   const loadingPathRef = useRef<string | null>(null)
   const articleRef = useRef<HTMLElement>(null)
 
@@ -93,13 +110,21 @@ export const CatchAllClient = memo(function CatchAllClient() {
 
           if (loadingPathRef.current !== requestPath || !isMounted) return
 
-          const { compiledSource, frontmatter, scope, content: mdxSource, title: articleTitle, basePath: calcBasePath } = data
+          const {
+            compiledSource,
+            frontmatter,
+            scope,
+            content: mdxSource,
+            title: articleTitle,
+            basePath: calcBasePath,
+            ogImageUrl: apiOg,
+          } = data
 
           if (isMounted && loadingPathRef.current === requestPath) {
             setRemoteArticle404(false)
             setBasePath(calcBasePath || '')
             setContent(mdxSource)
-            setCompiledMdx({ compiledSource, frontmatter, scope })
+            setCompiledMdx({ compiledSource, frontmatter, scope, ogImageUrl: apiOg as string | undefined })
             setArticleTitle(articleTitle || 'Article')
             setDirectFiles([])
             setSubDirs([])
@@ -271,10 +296,26 @@ export const CatchAllClient = memo(function CatchAllClient() {
                 onDoubleClick={sentences.length > 0 ? handleArticleDoubleClick : undefined}
               >
                 {compiledMdx ? (
-                  <RemoteMDX compiled={compiledMdx} basePath={basePath} />
+                  <RemoteMDX
+                    compiled={{
+                      compiledSource: compiledMdx.compiledSource,
+                      frontmatter: compiledMdx.frontmatter,
+                      scope: compiledMdx.scope,
+                    }}
+                    basePath={basePath}
+                  />
                 ) : (
                   <div className="animate-pulse h-32 bg-slate-200/50 dark:bg-slate-800/50 rounded-xl" />
                 )}
+                {path ? (
+                  <ShareLinks
+                    url={`/${path}`}
+                    title={articleTitle}
+                    mdSource={content || ''}
+                    frontmatter={compiledMdx?.frontmatter as Record<string, unknown> | undefined}
+                    ogImageUrl={ogImageUrlForShare}
+                  />
+                ) : null}
               </article>
               <ArticleTTSScrollSync
                 articleRef={articleRef}

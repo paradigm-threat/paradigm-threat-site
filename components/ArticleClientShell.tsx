@@ -7,6 +7,7 @@ import { ArticleTTSOverlay } from '@/components/ArticleTTS/ArticleTTSOverlay'
 import { ArticleTTSScrollSync } from '@/components/ArticleTTS/ArticleTTSScrollSync'
 import { stripMarkdownForTTS, buildParagraphStarts } from '@/components/Timeline/ttsHelpers'
 import { ArticleNav, ShareLinks } from '@/components'
+import type { ShareExtractResult } from '@/lib/share'
 import { shouldPersistVisit } from '@/lib/visitResumeStorage'
 import { useMobileHubTtsChrome } from '@/lib/hooks/useMobileHubTtsChrome'
 
@@ -15,7 +16,11 @@ export interface ArticleClientShellProps {
   articleContent: string
   basePath: string
   articlePath?: string
+  /** @deprecated superseded by mdSource + shareExtract */
   articleDescription?: string
+  articleFrontmatter?: Record<string, unknown>
+  ogImageUrl?: string
+  shareExtract?: ShareExtractResult
   children: React.ReactNode
 }
 
@@ -25,6 +30,9 @@ export function ArticleClientShell ({
   basePath,
   articlePath,
   articleDescription,
+  articleFrontmatter,
+  ogImageUrl,
+  shareExtract,
   children
 }: ArticleClientShellProps) {
   const pathname = usePathname() || ''
@@ -116,6 +124,10 @@ export function ArticleClientShell ({
                   url={`/${articlePath}`}
                   title={articleTitle}
                   description={articleDescription}
+                  mdSource={articleContent}
+                  frontmatter={articleFrontmatter}
+                  shareExtract={shareExtract}
+                  ogImageUrl={ogImageUrl}
                 />
               )}
             </article>

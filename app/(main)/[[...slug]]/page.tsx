@@ -1,4 +1,5 @@
 import React, { Suspense } from 'react'
+import { extractShareMetadata } from '@/lib/share'
 import { fetchArticle } from '@/lib/articleServer'
 import { ArticleContentSSR } from '@/components/ArticleContentSSR'
 import { ArticleClientShell } from '@/components/ArticleClientShell'
@@ -58,6 +59,10 @@ export default async function CatchAllPage ({ params }: PageProps) {
 
   if (article) {
     const description = (article.frontmatter.description as string) || undefined
+    const shareExtract = extractShareMetadata({
+      rawMarkdown: article.mdxSource,
+      frontmatter: article.frontmatter,
+    })
     return (
       <ArticleClientShell
         articleTitle={article.title}
@@ -65,6 +70,9 @@ export default async function CatchAllPage ({ params }: PageProps) {
         basePath={article.basePath}
         articlePath={path}
         articleDescription={description}
+        articleFrontmatter={article.frontmatter}
+        ogImageUrl={article.ogImageUrl}
+        shareExtract={shareExtract}
       >
         <Suspense fallback={<div className="animate-pulse h-32 bg-slate-200/50 dark:bg-slate-800/50 rounded-xl" />}>
           <ArticleContentSSR mdxSource={article.mdxSource} basePath={article.basePath} />

@@ -1,87 +1,193 @@
 'use client'
 
-import React from 'react'
+import React, { useMemo, useState, useCallback } from 'react'
+import {
+  composeShareText,
+  countDisplay,
+  extractShareMetadata,
+  type ShareExtractResult,
+  type SharePlatformId,
+} from '@/lib/share'
+import { REDDIT_TITLE_MAX } from '@/lib/share/platformLimits'
+import { ShareCopyModal } from '@/components/ShareLinks/ShareCopyModal'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://paradigmthreat.net'
-
-/** Max chars for Twitter/X text param (URL counts toward limit when combined) */
-const TWITTER_TEXT_MAX = 200
-/** Bluesky compose has 300 char limit */
-const BLUESKY_MAX_CHARS = 300
 
 export interface ShareLinksProps {
   url: string
   title: string
+  /** @deprecated optional short line; prefer mdSource + frontmatter for rich share */
   description?: string
+  /** Raw markdown body (no YAML) for TL;DR / first paragraph / long body */
+  mdSource?: string
+  frontmatter?: Record<string, unknown>
+  /** Precomputed when SSR already ran extractShareMetadata */
+  shareExtract?: ShareExtractResult
+  ogImageUrl?: string
 }
 
-function buildAbsoluteUrl(path: string): string {
+function buildAbsoluteUrl (path: string): string {
   if (path.startsWith('http')) return path
   const base = SITE_URL.replace(/\/$/, '')
   const p = path.startsWith('/') ? path : `/${path}`
   return `${base}${p}`
 }
 
-function buildShareHrefs(
-  url: string,
+function buildOutboundHref (
+  platform: SharePlatformId,
+  absUrl: string,
   title: string,
-  description?: string
-): { platform: string; href: string }[] {
-  const absUrl = buildAbsoluteUrl(url)
+  copyText: string
+): { href: string | null; label: string; copyOnlyNote?: string } {
   const encodedUrl = encodeURIComponent(absUrl)
 
-  const text = description ? `${title} — ${description}` : title
-  const truncatedText = text.length > TWITTER_TEXT_MAX ? text.slice(0, TWITTER_TEXT_MAX - 3) + '...' : text
-  const encodedText = encodeURIComponent(truncatedText)
-
-  // Bluesky only has 'text' param — must include URL in the body (300 char limit)
-  const bskyMaxTitle = Math.max(0, BLUESKY_MAX_CHARS - absUrl.length - 2)
-  const bskyText = `${text.length > bskyMaxTitle ? text.slice(0, bskyMaxTitle - 3) + '...' : text}\n${absUrl}`
-  const encodedBskyText = encodeURIComponent(bskyText)
-
-  return [
-    {
-      platform: 'X',
-      href: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`
-    },
-    {
-      platform: 'Facebook',
-      href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`
-    },
-    {
-      platform: 'LinkedIn',
-      href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`
-    },
-    {
-      platform: 'Reddit',
-      href: `https://www.reddit.com/submit?url=${encodedUrl}&title=${encodeURIComponent(title)}`
-    },
-    {
-      platform: 'Bluesky',
-      href: `https://bsky.app/intent/compose?text=${encodedBskyText}`
+  switch (platform) {
+    case 'x':
+      return {
+        href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(copyText)}`,
+        label: 'Open X to post',
+      }
+    case 'facebook':
+      return {
+        href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
+        label: 'Open Facebook share',
+      }
+    case 'linkedin':
+      return {
+        href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
+        label: 'Open LinkedIn',
+      }
+    case 'reddit': {
+      const t = title.length > REDDIT_TITLE_MAX ? `${title.slice(0, REDDIT_TITLE_MAX - 3)}…` : title
+      return {
+        href: `https://www.reddit.com/submit?url=${encodedUrl}&title=${encodeURIComponent(t)}`,
+        label: 'Open Reddit submit',
+      }
     }
-  ]
+    case 'bluesky':
+      return {
+        href: `https://bsky.app/intent/compose?text=${encodeURIComponent(copyText)}`,
+        label: 'Open Bluesky',
+      }
+    case 'instagram':
+      return {
+        href: 'https://www.instagram.com/',
+        label: 'Open Instagram',
+        copyOnlyNote:
+          'Instagram has no web link that opens the new-post screen with a filled caption. Copy the text here, then create a post in the app and paste.',
+      }
+    case 'threads':
+      return {
+        href: `https://www.threads.net/intent/post?text=${encodeURIComponent(copyText)}`,
+        label: 'Open Threads',
+      }
+    default:
+      return { href: null, label: '' }
+  }
 }
 
-export function ShareLinks({ url, title, description }: ShareLinksProps) {
-  const links = buildShareHrefs(url, title, description)
+const PLATFORMS: { id: SharePlatformId; label: string }[] = [
+  { id: 'x', label: 'X' },
+  { id: 'facebook', label: 'Facebook' },
+  { id: 'linkedin', label: 'LinkedIn' },
+  { id: 'reddit', label: 'Reddit' },
+  { id: 'bluesky', label: 'Bluesky' },
+  { id: 'instagram', label: 'Instagram' },
+  { id: 'threads', label: 'Threads' },
+]
+
+export function ShareLinks ({
+  url,
+  title,
+  description,
+  mdSource,
+  frontmatter,
+  shareExtract: shareExtractProp,
+  ogImageUrl,
+}: ShareLinksProps) {
+  const absUrl = buildAbsoluteUrl(url)
+
+  const shareExtract = useMemo(() => {
+    if (shareExtractProp) return shareExtractProp
+    if (mdSource) {
+      return extractShareMetadata({ rawMarkdown: mdSource, frontmatter })
+    }
+    return {
+      snippetPlain: description?.trim() || '',
+      hashtagsLine: '',
+      articleBodyPlain: '',
+    }
+  }, [shareExtractProp, mdSource, frontmatter, description])
+
+  const composeInput = useMemo(
+    () => ({
+      title,
+      canonicalUrl: absUrl,
+      snippetPlain: shareExtract.snippetPlain,
+      hashtagsLine: shareExtract.hashtagsLine,
+      articleBodyPlain: shareExtract.articleBodyPlain,
+    }),
+    [title, absUrl, shareExtract]
+  )
+
+  const [modal, setModal] = useState<{
+    platform: SharePlatformId
+    label: string
+  } | null>(null)
+
+  const activeCopyText = useMemo(() => {
+    if (!modal) return ''
+    return composeShareText(modal.platform, composeInput)
+  }, [modal, composeInput])
+
+  const activeDisplay = useMemo(() => {
+    if (!modal) return { used: 0, limit: 0 }
+    return countDisplay(modal.platform, activeCopyText)
+  }, [modal, activeCopyText])
+
+  const outbound = useMemo(() => {
+    if (!modal) return { href: null as string | null, label: '', copyOnlyNote: undefined as string | undefined }
+    return buildOutboundHref(modal.platform, absUrl, title, activeCopyText)
+  }, [modal, absUrl, title, activeCopyText])
+
+  const openModal = useCallback((platform: SharePlatformId, label: string) => {
+    setModal({ platform, label })
+  }, [])
+
+  const closeModal = useCallback(() => setModal(null), [])
 
   return (
     <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
       <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">Share</p>
       <div className="flex flex-wrap gap-2">
-        {links.map(({ platform, href }) => (
-          <a
-            key={platform}
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
+        {PLATFORMS.map(({ id, label }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => openModal(id, label)}
             className="inline-flex items-center rounded border border-slate-300 dark:border-slate-600 px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
-            {platform}
-          </a>
+            {label}
+          </button>
         ))}
       </div>
+
+      {modal ? (
+        <ShareCopyModal
+          key={modal.platform}
+          open
+          onClose={closeModal}
+          platformLabel={modal.label}
+          copyText={activeCopyText}
+          usedChars={activeDisplay.used}
+          limitChars={activeDisplay.limit}
+          weightedNote={modal.platform === 'x' || modal.platform === 'threads'}
+          outboundHref={outbound.href}
+          outboundLabel={outbound.label}
+          ogImageUrl={ogImageUrl}
+          copyOnlyNote={outbound.copyOnlyNote}
+        />
+      ) : null}
     </div>
   )
 }
