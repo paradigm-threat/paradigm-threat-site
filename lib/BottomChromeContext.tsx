@@ -18,8 +18,8 @@ export type BottomChromeContextValue = {
   /** thirdstory.site-style landing: omit TTS overlay */
   suppressOverlay: boolean
   /**
-   * Pixels from the viewport bottom to the top edge of the TTS dock (fixed overlay),
-   * so sibling UI (resume banner) can sit above it. Updated via ResizeObserver on the dock.
+   * Pixels from the viewport bottom to the top edge of the TTS dock (fixed overlay).
+   * Updated via ResizeObserver on the dock.
    */
   ttsDockHeightPx: number
   setTtsDockHeightPx: (px: number) => void

@@ -19,8 +19,6 @@ export type HubResumeChromeState = {
   showResumePage: boolean
   showResumePlayback: boolean
   playbackHref: string
-  /** Hide resume links when user scrolled (same as standalone banner). */
-  hiddenByScroll: boolean
   dismissed: boolean
   handleDismiss: () => void
 }
@@ -33,7 +31,6 @@ export function useHubResumeChrome(): HubResumeChromeState {
   const [last, setLast] = useState<{ path: string; title: string | null } | null>(null)
   const [tts, setTts] = useState<TtsResumePayload | null>(null)
   const [dismissed, setDismissed] = useState(false)
-  const [scrollY, setScrollY] = useState(0)
 
   useEffect(() => {
     if (!isMarkdownHubPath(pathname)) return
@@ -42,18 +39,6 @@ export function useHubResumeChrome(): HubResumeChromeState {
       setTts(readTtsResume())
       setDismissed(false)
     })
-  }, [pathname])
-
-  useEffect(() => {
-    if (!isMarkdownHubPath(pathname)) return
-    const root = document.getElementById('site-main-scroll')
-    const sync = () => {
-      setScrollY(root ? root.scrollTop : window.scrollY)
-    }
-    sync()
-    const target: EventTarget = root ?? window
-    target.addEventListener('scroll', sync, { passive: true })
-    return () => target.removeEventListener('scroll', sync)
   }, [pathname])
 
   const showResumePage = Boolean(
@@ -83,7 +68,6 @@ export function useHubResumeChrome(): HubResumeChromeState {
     showResumePage,
     showResumePlayback,
     playbackHref,
-    hiddenByScroll: scrollY > 0,
     dismissed,
     handleDismiss,
   }

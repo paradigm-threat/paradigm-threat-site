@@ -27,7 +27,7 @@ export function normalizeResumePath(pathname: string): string {
   return trimmed
 }
 
-/** `/` and `/book` markdown hubs (resume banner + mobile TTS scroll coordination). */
+/** `/` and `/book` markdown hubs (resume UI in Directory + hub TTS chrome). */
 export function isMarkdownHubPath(pathname: string | null | undefined): boolean {
   if (!pathname) return false
   const p = normalizeResumePath(pathname)

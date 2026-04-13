@@ -13,9 +13,8 @@ import { ArticleTTSScrollSync } from '@/components/ArticleTTS/ArticleTTSScrollSy
 import { stripMarkdownForTTS, buildParagraphStarts } from '@/components/Timeline/ttsHelpers'
 import { SuspenseLoader } from '@client'
 import { formatIndexDateTiny } from '@/lib/indexUpdated'
-import { shouldPersistVisit, isMarkdownHubPath } from '@/lib/visitResumeStorage'
-import { ResumeInvestigationBanner } from '@/components/ResumeInvestigationBanner'
-import { ShareLinks } from '@/components'
+import { shouldPersistVisit } from '@/lib/visitResumeStorage'
+import { ShareLinks, ShareLinksFloating } from '@/components'
 import { useMobileHubTtsChrome } from '@/lib/hooks/useMobileHubTtsChrome'
 import { resolveOgImageUrl } from '@/lib/share/resolveOgImageUrl'
 import { remoteRelay } from '@/lib/remoteRelayStore'
@@ -75,6 +74,9 @@ export const CatchAllClient = memo(function CatchAllClient() {
       (compiledMdx.frontmatter || {}) as Record<string, unknown>
     )
   }, [content, basePath, compiledMdx])
+
+  /** Index / generated listing pages (no article MDX) — same label as the page title (h1). */
+  const listingPageTitle = useMemo(() => path.split('/').pop() || 'Home', [path])
   const loadingPathRef = useRef<string | null>(null)
   const articleRef = useRef<HTMLElement>(null)
 
@@ -295,6 +297,17 @@ export const CatchAllClient = memo(function CatchAllClient() {
                 className="prose prose-slate dark:prose-invert max-w-none"
                 onDoubleClick={sentences.length > 0 ? handleArticleDoubleClick : undefined}
               >
+                {path ? (
+                  <div className="not-prose mb-6">
+                    <ShareLinksFloating
+                      url={`/${path}`}
+                      title={articleTitle}
+                      mdSource={content || ''}
+                      frontmatter={compiledMdx?.frontmatter as Record<string, unknown> | undefined}
+                      ogImageUrl={ogImageUrlForShare}
+                    />
+                  </div>
+                ) : null}
                 {compiledMdx ? (
                   <RemoteMDX
                     compiled={{
@@ -398,12 +411,20 @@ export const CatchAllClient = memo(function CatchAllClient() {
     )
   }
 
+  const listingShareUrl = path ? `/${path}` : '/'
+
   return (
     <div className="space-y-12">
-      {pathname && isMarkdownHubPath(pathname) ? <ResumeInvestigationBanner /> : null}
+      <div className="not-prose mb-6">
+        <ShareLinksFloating
+          url={listingShareUrl}
+          title={listingPageTitle}
+          mdSource=""
+        />
+      </div>
       <div>
         <h1 className="text-4xl font-extrabold mb-8 capitalize tracking-tight text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800 pb-4">
-          {path.split('/').pop() || 'Home'}
+          {listingPageTitle}
         </h1>
 
         {directFiles.length === 0 && subDirs.length === 0 ? (
@@ -561,6 +582,12 @@ export const CatchAllClient = memo(function CatchAllClient() {
             )}
           </>
         )}
+
+        <ShareLinks
+          url={listingShareUrl}
+          title={listingPageTitle}
+          mdSource=""
+        />
       </div>
     </div>
   )

@@ -100,23 +100,29 @@ pre * {
   word-break: break-word;
 }
 
-.prose ul {
+/* Scope list styles to MDX body only — avoid hitting toolbar/UI `ol`/`ul` outside `.mdx-content` */
+.prose .mdx-content ul,
+.prose.mdx-content ul {
   @apply list-none ml-0 mb-6;
 }
 
-.prose ol {
+.prose .mdx-content ol,
+.prose.mdx-content ol {
   @apply list-decimal list-outside ml-6 mb-6;
 }
 
-.prose li {
+.prose .mdx-content li,
+.prose.mdx-content li {
   @apply mb-2;
 }
 
-.prose li::before {
+.prose .mdx-content li::before,
+.prose.mdx-content li::before {
   content: none !important;
 }
 
-.prose a {
+.prose .mdx-content a,
+.prose.mdx-content a {
   @apply no-underline hover:underline transition-all;
 }
 

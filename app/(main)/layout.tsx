@@ -4,6 +4,7 @@ import React, { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import { DynamicNav, FloatingDiv, DynamicIndex, useFiles } from "@/components";
 import { FeelingLuckyButton } from "@/components/FeelingLucky/FeelingLuckyButton";
+import { ResumeInvestigationPanel } from "@/components/ResumeInvestigationPanel";
 import { RemoteFileIndexBanner } from "@/components/RemoteFileIndexBanner";
 import { SuspenseLoader } from "@client";
 import { BottomChromeProvider } from "@/lib/BottomChromeContext";
@@ -24,7 +25,7 @@ export default function MainLayout({
 
     return (
         <BottomChromeProvider>
-        <div className="relative flex w-full min-w-0 max-w-full flex-grow flex-col px-4 py-8">
+        <div className="relative flex w-full min-w-0 max-w-full flex-grow flex-col px-4 pb-8 pt-2">
             <RemoteFileIndexBanner />
             <div className="mx-auto flex w-full min-w-0 max-w-[90rem] flex-col gap-8 lg:flex-row">
                 <aside className="lg:w-64 flex-shrink-0">
@@ -35,7 +36,10 @@ export default function MainLayout({
                                     Directory
                                 </div>
                             </DynamicNav>
-                            <FeelingLuckyButton className="mt-3 px-0" />
+                            <div className="mt-3 space-y-3">
+                                <ResumeInvestigationPanel />
+                                <FeelingLuckyButton className="px-0" />
+                            </div>
                         </div>
                     </FloatingDiv>
                 </aside>

@@ -6,7 +6,7 @@ import { ArticleTTSProvider } from '@/components/ArticleTTS/ArticleTTSProvider'
 import { ArticleTTSOverlay } from '@/components/ArticleTTS/ArticleTTSOverlay'
 import { ArticleTTSScrollSync } from '@/components/ArticleTTS/ArticleTTSScrollSync'
 import { stripMarkdownForTTS, buildParagraphStarts } from '@/components/Timeline/ttsHelpers'
-import { ArticleNav, ShareLinks } from '@/components'
+import { ArticleNav, ShareLinks, ShareLinksFloating } from '@/components'
 import type { ShareExtractResult } from '@/lib/share'
 import { shouldPersistVisit } from '@/lib/visitResumeStorage'
 import { useMobileHubTtsChrome } from '@/lib/hooks/useMobileHubTtsChrome'
@@ -118,6 +118,19 @@ export function ArticleClientShell ({
               className="prose prose-slate dark:prose-invert max-w-none"
               onDoubleClick={sentences.length > 0 ? handleArticleDoubleClick : undefined}
             >
+              {articlePath ? (
+                <div className="not-prose mb-6">
+                  <ShareLinksFloating
+                    url={`/${articlePath}`}
+                    title={articleTitle}
+                    description={articleDescription}
+                    mdSource={articleContent}
+                    frontmatter={articleFrontmatter}
+                    shareExtract={shareExtract}
+                    ogImageUrl={ogImageUrl}
+                  />
+                </div>
+              ) : null}
               {children}
               {articlePath && (
                 <ShareLinks
