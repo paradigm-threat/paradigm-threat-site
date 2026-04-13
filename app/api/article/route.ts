@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import matter from 'gray-matter'
 import { serialize } from 'next-mdx-remote/serialize'
-import rehypeUnwrapImages from 'rehype-unwrap-images'
-import remarkGfm from 'remark-gfm'
+import { articleMdxOptions } from '@/lib/articleMdxOptions'
 import rehypeUnwrapFigures from '@/lib/rehypeUnwrapFigures'
 import { isNonArticlePath } from '@/lib/isNonArticlePath'
 import { resolveOgImageUrl } from '@/lib/share/resolveOgImageUrl'
@@ -72,10 +71,7 @@ export async function GET(req: NextRequest) {
     const title = (frontMatter?.title as string) || titleFromPath || 'Article'
 
     const { compiledSource, frontmatter, scope } = await serialize(mdxSource, {
-      mdxOptions: {
-        remarkPlugins: [remarkGfm],
-        rehypePlugins: [rehypeUnwrapImages, rehypeUnwrapFigures],
-      },
+      mdxOptions: articleMdxOptions,
     })
 
     const ogImageUrl = resolveOgImageUrl(mdxSource, basePath, frontMatter as Record<string, unknown>)
