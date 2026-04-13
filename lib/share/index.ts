@@ -7,5 +7,7 @@ export {
   effectiveLengthX,
   truncateShareTextForOutbound,
   platformUsesTruncatedOutboundIntent,
+  platformUsesSeparateUrlInShareIntent,
+  dedupeCanonicalUrlInPlainText,
   type ComposeShareInput,
 } from '@/lib/share/composeShareText'

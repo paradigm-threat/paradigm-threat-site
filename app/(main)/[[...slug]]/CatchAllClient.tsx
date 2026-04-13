@@ -18,6 +18,18 @@ import { ShareLinks, ShareLinksFloating } from '@/components'
 import { useMobileHubTtsChrome } from '@/lib/hooks/useMobileHubTtsChrome'
 import { resolveOgImageUrl } from '@/lib/share/resolveOgImageUrl'
 import { remoteRelay } from '@/lib/remoteRelayStore'
+import { publicFilesAssetUrl } from '@/lib/canonicalPublicSite'
+
+const DIRECT_IMAGE_EXT = /\.(jpg|jpeg|png|gif|svg|webp|avif|ico)$/i
+
+type DirectImageLeaf = {
+  basePath: string
+  fileName: string
+  lqip?: string
+  intrinsicWidth?: number
+  intrinsicHeight?: number
+  displayTitle: string
+}
 
 export const CatchAllClient = memo(function CatchAllClient() {
   const params = useParams()
@@ -50,6 +62,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
   const [remoteArticle404, setRemoteArticle404] = useState(false)
   const [articleRetryKey, setArticleRetryKey] = useState(0)
   const [isScrolled, setIsScrolled] = useState(false)
+  const [directImageLeaf, setDirectImageLeaf] = useState<DirectImageLeaf | null>(null)
 
   const slugArray = useMemo(() => {
     if (!params.slug) return []
@@ -101,6 +114,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
         setLoading(true)
         setRemoteArticle404(false)
         setError(null)
+        setDirectImageLeaf(null)
 
         const articleUrl = `/api/article?path=${encodeURIComponent(requestPath)}${version ? `&v=${encodeURIComponent(version)}` : ''}`
         const articleRes = await fetch(articleUrl, { signal: abortController.signal })
@@ -124,6 +138,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
 
           if (isMounted && loadingPathRef.current === requestPath) {
             setRemoteArticle404(false)
+            setDirectImageLeaf(null)
             setBasePath(calcBasePath || '')
             setContent(mdxSource)
             setCompiledMdx({ compiledSource, frontmatter, scope, ogImageUrl: apiOg as string | undefined })
@@ -165,7 +180,42 @@ export const CatchAllClient = memo(function CatchAllClient() {
             current = null
           }
 
-          if (current && typeof current === 'object') {
+          const lastSeg = slugArray.length ? slugArray[slugArray.length - 1] : ''
+          const looksLikeRasterImage = DIRECT_IMAGE_EXT.test(lastSeg)
+          const isImageFileLeaf =
+            current &&
+            typeof current === 'object' &&
+            !('_count' in current) &&
+            looksLikeRasterImage
+
+          if (isImageFileLeaf) {
+            const parentParts = slugArray.slice(0, -1)
+            const calcBasePath = parentParts.join('/')
+            const meta = current as Record<string, unknown>
+            const titled =
+              typeof meta._title === 'string' && meta._title.trim()
+                ? meta._title.trim()
+                : lastSeg.replace(/_/g, ' ').replace(/\.[^.]+$/, '')
+            if (isMounted && loadingPathRef.current === requestPath) {
+              setRemoteArticle404(false)
+              setContent(null)
+              setCompiledMdx(null)
+              setArticleTitle(titled)
+              setDirectFiles([])
+              setSubDirs([])
+              setImages([])
+              setMds([])
+              setMdContents({})
+              setDirectImageLeaf({
+                basePath: calcBasePath,
+                fileName: lastSeg,
+                lqip: typeof meta._lqip === 'string' ? meta._lqip : undefined,
+                intrinsicWidth: typeof meta._width === 'number' ? meta._width : undefined,
+                intrinsicHeight: typeof meta._height === 'number' ? meta._height : undefined,
+                displayTitle: titled,
+              })
+            }
+          } else if (current && typeof current === 'object' && '_count' in current) {
             const dirs: string[] = []
             const files: string[] = []
 
@@ -182,6 +232,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
 
             if (isMounted && loadingPathRef.current === requestPath) {
               setRemoteArticle404(false)
+              setDirectImageLeaf(null)
               setContent(null)
               setCompiledMdx(null)
               setArticleTitle('')
@@ -218,6 +269,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
               if (isMounted && loadingPathRef.current === requestPath) setMdContents(contents)
             }
           } else if (isMounted && loadingPathRef.current === requestPath) {
+            setDirectImageLeaf(null)
             setContent(null)
             setCompiledMdx(null)
             setArticleTitle('')
@@ -261,6 +313,46 @@ export const CatchAllClient = memo(function CatchAllClient() {
 
   if (indexLoading || loading) {
     return <div className="flex items-center justify-center min-h-screen"><SuspenseLoader /></div>
+  }
+
+  if (directImageLeaf) {
+    const listingShareUrl = path ? `/${path}` : '/'
+    const ogForImage = publicFilesAssetUrl(path)
+    return (
+      <div className="space-y-12">
+        <div className="not-prose mb-6">
+          <ShareLinksFloating
+            url={listingShareUrl}
+            title={directImageLeaf.displayTitle}
+            mdSource=""
+            ogImageUrl={ogForImage}
+          />
+        </div>
+        <div>
+          <h1 className="text-4xl font-extrabold mb-8 capitalize tracking-tight text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800 pb-4">
+            {directImageLeaf.displayTitle}
+          </h1>
+          <div className="flex justify-center py-4">
+            <PopImage
+              src={directImageLeaf.fileName}
+              basePath={directImageLeaf.basePath}
+              lqip={directImageLeaf.lqip}
+              intrinsicWidth={directImageLeaf.intrinsicWidth}
+              intrinsicHeight={directImageLeaf.intrinsicHeight}
+              w={1600}
+              className="max-w-full h-auto rounded-xl shadow-lg border border-slate-200 dark:border-slate-800"
+              alt={directImageLeaf.displayTitle}
+            />
+          </div>
+          <ShareLinks
+            url={listingShareUrl}
+            title={directImageLeaf.displayTitle}
+            mdSource=""
+            ogImageUrl={ogForImage}
+          />
+        </div>
+      </div>
+    )
   }
 
   if (content) {

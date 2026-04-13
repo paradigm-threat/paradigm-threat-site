@@ -7,6 +7,28 @@ import {
   X_URL_WEIGHT,
 } from '@/lib/share/platformLimits'
 
+/**
+ * Truth Social (and any future intent that passes `url=` separately) must not repeat the same URL
+ * inside `text=` or the composer shows it twice.
+ */
+export function platformUsesSeparateUrlInShareIntent (platform: SharePlatformId): boolean {
+  return platform === 'truthsocial'
+}
+
+/** Remove duplicate occurrences of `canonicalUrl` in plain text (standalone lines + repeated runs). */
+export function dedupeCanonicalUrlInPlainText (text: string, canonicalUrl: string): string {
+  const u = canonicalUrl.trim()
+  if (!text || !u) return text
+  const escaped = u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  let s = text
+    .split('\n')
+    .filter((line) => line.trim() !== u)
+    .join('\n')
+  const repeated = new RegExp(`(?:${escaped})(?:\\s*\\n*\\s*)+(?:${escaped})+`, 'g')
+  s = s.replace(repeated, u)
+  return s.replace(/\n{3,}/g, '\n\n').trim()
+}
+
 export interface ComposeShareInput {
   title: string
   canonicalUrl: string
@@ -59,11 +81,13 @@ function joinShareParts (
   hashtags: string,
   url: string,
   snippet: string,
-  article: string
+  article: string,
+  opts?: { includeCanonicalUrl?: boolean }
 ): string {
+  const includeUrl = opts?.includeCanonicalUrl !== false
   const parts: string[] = [title]
   if (hashtags) parts.push('', hashtags)
-  parts.push('', url)
+  if (includeUrl) parts.push('', url)
   if (snippet) parts.push('', snippet)
   if (article) parts.push('', article)
   return parts.join('\n').replace(/\n{3,}/g, '\n\n').trim()
@@ -109,13 +133,20 @@ export function truncateShareTextForOutbound (
   let snippet = input.snippetPlain.trim()
   let article = input.articleBodyPlain.trim()
 
+  const omitUrlInBody = platformUsesSeparateUrlInShareIntent(platform)
+  if (omitUrlInBody) {
+    snippet = dedupeCanonicalUrlInPlainText(snippet, url)
+    article = dedupeCanonicalUrlInPlainText(article, url)
+  }
+  const joinOpts = omitUrlInBody ? { includeCanonicalUrl: false as const } : undefined
+
   if (limit == null) {
-    return joinShareParts(title, hashtags, url, snippet, article)
+    return joinShareParts(title, hashtags, url, snippet, article, joinOpts)
   }
 
   const measure = (s: string) => effectiveLengthPlatform(platform, s)
 
-  let text = joinShareParts(title, hashtags, url, snippet, article)
+  let text = joinShareParts(title, hashtags, url, snippet, article, joinOpts)
   let guard = 0
   while (measure(text) > limit && guard < 500) {
     guard++
@@ -138,7 +169,7 @@ export function truncateShareTextForOutbound (
       const titleMax = Math.max(12, Math.floor(t.length * 0.85))
       title = `${t.slice(0, titleMax).trim()}…`
     }
-    text = joinShareParts(title, hashtags, url, snippet, article)
+    text = joinShareParts(title, hashtags, url, snippet, article, joinOpts)
   }
 
   return text
