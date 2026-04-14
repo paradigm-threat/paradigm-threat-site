@@ -9,6 +9,17 @@ import type { Metadata } from 'next'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://paradigmthreat.net'
 
+/** Keep OG/meta description readable in link previews (first para can be very long). */
+const OG_DESCRIPTION_MAX = 320
+
+function truncateForOgDescription (plain: string): string {
+  const t = plain.trim()
+  if (t.length <= OG_DESCRIPTION_MAX) return t
+  const cut = t.slice(0, OG_DESCRIPTION_MAX - 1)
+  const lastSpace = cut.lastIndexOf(' ')
+  return (lastSpace > 40 ? cut.slice(0, lastSpace) : cut) + '…'
+}
+
 interface PageProps {
   params: Promise<{ slug?: string | string[] }>
 }
@@ -28,7 +39,13 @@ export async function generateMetadata ({ params }: PageProps): Promise<Metadata
   if (!article) return { title: 'Paradigm Threat' }
 
   const title = `${article.title} | Paradigm Threat`
-  const description = (article.frontmatter.description as string) || `Read ${article.title} on Paradigm Threat`
+  const shareExtract = extractShareMetadata({
+    rawMarkdown: article.mdxSource,
+    frontmatter: article.frontmatter,
+  })
+  const descriptionPlain =
+    shareExtract.snippetPlain.trim() || `Read ${article.title} on Paradigm Threat`
+  const description = truncateForOgDescription(descriptionPlain)
   const canonicalUrl = `${SITE_URL.replace(/\/$/, '')}/${path}`
 
   return {
@@ -58,11 +75,11 @@ export default async function CatchAllPage ({ params }: PageProps) {
   const article = path ? await fetchArticle(path) : null
 
   if (article) {
-    const description = (article.frontmatter.description as string) || undefined
     const shareExtract = extractShareMetadata({
       rawMarkdown: article.mdxSource,
       frontmatter: article.frontmatter,
     })
+    const description = shareExtract.snippetPlain.trim() || undefined
     return (
       <ArticleClientShell
         articleTitle={article.title}
