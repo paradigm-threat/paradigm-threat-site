@@ -16,6 +16,8 @@
     "cypress-prod:run": "CYPRESS_BASE_URL=https://paradigmthreat.net cypress run",
     "smoke:prod": "node scripts/smoke-production.mjs",
     "lint": "eslint . --max-warnings 0",
+    "test:unit": "node --import tsx --test components/Timeline/ttsHelpers.regression.test.ts",
+    "test": "pnpm run test:unit",
     "standard": "npx standard --fix",
     "prepare": "husky install"
   },
@@ -73,7 +75,8 @@
     "eslint-plugin-cypress": "^2.15.2",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "husky": "^8.0.3",
-    "standard": "^17.1.2"
+    "standard": "^17.1.2",
+    "tsx": "^4.21.0"
   },
   "standard": {
     "globals": [

@@ -303,9 +303,80 @@ export function expandWorldWarsForTTS(text: string): string {
     return s
 }
 
+/**
+ * Unicode arrows and symbols that TTS often reads as names ("right pointing arrow", "section sign", "bullet").
+ * - Spaced `→` becomes a short chain phrase; glued `word→word` / `2012→2016` becomes "to".
+ * - Other arrow code points get a small spoken gloss; unknown arrows in the Arrows block become ", then ".
+ */
+export function expandUnicodeSymbolsForTTS(text: string): string {
+    let s = text
+
+    // Section sign (prose and numbered) — avoid \b before § (often not a word boundary at line start)
+    s = s.replace(/§\s*([0-9][\d.]*)\b/g, 'section $1')
+    s = s.replace(/§\s*([IVXLC]+)(?=[\s.)]|$)/gi, 'section $1')
+    s = s.replace(/§\s+(?=[A-Za-z*])/g, 'Section ')
+
+    // List bullets / middle dot (often read as symbol names)
+    s = s.replace(/[•‣⁃]/g, ', ')
+    s = s.replace(/·/g, ' ')
+
+    // Tight token chains first: Iran→Israel, OSS→CIA, 2012→2016, a→b→c (repeat for stacked arrows).
+    // Must run before loose `\s*→\s*` — otherwise `\s*` matches zero width and turns glued pairs into ", then ".
+    let prev: string
+    do {
+        prev = s
+        s = s.replace(/([^→\s]+)\u2192([^→\s]+)/g, '$1 to $2')
+    } while (s !== prev)
+
+    // Remaining right arrows (spaced narrative chains: "x → y", or odd spacing like "a→ b")
+    s = s.replace(/\s*\u2192\s*/g, ', then ')
+
+    // Other common arrow characters (explicit so we don't rely only on catch-all)
+    const arrowSpoken: Array<[RegExp, string]> = [
+        [/\u2190/g, ' from '],
+        [/\u2191/g, ' up '],
+        [/\u2193/g, ' down '],
+        [/\u2194/g, ' and '],
+        [/\u2195/g, ' up and down '],
+        [/\u21A9/g, ' returns '],
+        [/\u21AA/g, ' continues '],
+        [/\u21C4/g, ' and '],
+        [/\u21D0/g, ' implies '],
+        [/\u21D2/g, ' so '],
+        [/\u21D4/g, ' if and only if '],
+        [/\u27F6/g, ', then '],
+        [/\u2794/g, ', then '],
+        [/\u279C/g, ', then '],
+        [/\u25B6/g, ', then '],
+        [/\u25BA/g, ', then '],
+        [/\u25C0/g, ' before '],
+        [/\u25C4/g, ' before '],
+    ]
+    for (const [re, rep] of arrowSpoken) {
+        s = s.replace(re, rep)
+    }
+
+    // Remaining characters in Unicode "Arrows" block and common supplemental arrows
+    s = s.replace(/[\u2190-\u21FF]/g, ', then ')
+    s = s.replace(/[\u27F0-\u27FF]/g, ', then ')
+    s = s.replace(/[\u2900-\u297F]/g, ', then ')
+
+    return s
+        .replace(/\s{2,}/g, ' ')
+        .replace(/\s+,/g, ',')
+        .replace(/, then\s*, then/g, ', then')
+        .trim()
+}
+
 /** Dates then Latin — single entry point for TTS preprocessing. */
 export function preprocessSpeechText(text: string): string {
-    return normalizeLatinForTTS(expandDatesForTTS(expandMathNotationForTTS(expandWorldWarsForTTS(text))))
+    return normalizeLatinForTTS(
+        expandDatesForTTS(
+            expandMathNotationForTTS(
+                expandWorldWarsForTTS(expandUnicodeSymbolsForTTS(text)),
+            ),
+        ),
+    )
 }
 
 function centuryOrdinal(n: number): string {
