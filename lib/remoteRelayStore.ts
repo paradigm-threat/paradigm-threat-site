@@ -34,6 +34,36 @@ const PROBE_TIMEOUT_MS = 8000
 const MD_FETCH_TIMEOUT_MS = 12_000
 const INDEX_FETCH_TIMEOUT_MS = 5000
 
+/**
+ * Among mirrors whose probe time is within this band of the fastest, pick one at random.
+ * Spreads load when latency is similar; still strongly prefers clearly faster mirrors.
+ */
+const NEAR_BEST_MIN_EXTRA_MS = 100
+const NEAR_BEST_RELATIVE_EXTRA = 0.2
+
+function extraMsNearBestBand(fastestProbeMs: number): number {
+  if (!Number.isFinite(fastestProbeMs) || fastestProbeMs < 0) {
+    return NEAR_BEST_MIN_EXTRA_MS
+  }
+  return Math.max(NEAR_BEST_MIN_EXTRA_MS, fastestProbeMs * NEAR_BEST_RELATIVE_EXTRA)
+}
+
+type ScoredProbe = {
+  pair: RelayOriginPair
+  scoreMs: number
+}
+
+/**
+ * `sorted` must be ascending by `scoreMs`. Returns a random element among those
+ * within the performance band of the fastest.
+ */
+function pickRandomAmongNearBest(sorted: ScoredProbe[]): RelayOriginPair {
+  const fastest = sorted[0]!
+  const limit = fastest.scoreMs + extraMsNearBestBand(fastest.scoreMs)
+  const pool = sorted.filter((r) => r.scoreMs <= limit)
+  return pool[Math.floor(Math.random() * pool.length)]!.pair
+}
+
 function mergeAbort(parent: AbortSignal, timeoutMs: number): AbortSignal {
   if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
     try {
@@ -200,7 +230,7 @@ class RemoteRelayStore {
     return {
       pair: p,
       bothOk,
-      scoreMs: bothOk ? ms : Number.POSITIVE_INFINITY,
+      scoreMs: ms,
       filesOk,
       timelineOk,
     }
@@ -212,13 +242,13 @@ class RemoteRelayStore {
 
     const results = await Promise.all(this.pairs.map((p) => this.probePair(p)))
     const dual = results.filter((r) => r.bothOk).sort((a, b) => a.scoreMs - b.scoreMs)
-    if (dual[0]) return dual[0].pair
+    if (dual.length > 0) return pickRandomAmongNearBest(dual)
 
     const filesOnly = results.filter((r) => r.filesOk).sort((a, b) => a.scoreMs - b.scoreMs)
-    if (filesOnly[0]) return filesOnly[0].pair
+    if (filesOnly.length > 0) return pickRandomAmongNearBest(filesOnly)
 
     const timelineOnly = results.filter((r) => r.timelineOk).sort((a, b) => a.scoreMs - b.scoreMs)
-    if (timelineOnly[0]) return timelineOnly[0].pair
+    if (timelineOnly.length > 0) return pickRandomAmongNearBest(timelineOnly)
 
     return this.pairs[0]!
   }
