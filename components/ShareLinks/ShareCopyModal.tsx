@@ -1,40 +1,67 @@
 'use client'
 
-import React, { useEffect, useCallback } from 'react'
+import React, { useEffect, useCallback, useRef } from 'react'
 import { X_URL_WEIGHT } from '@/lib/share/platformLimits'
+import type { SharePlatformId } from '@/lib/share'
+
+export interface ShareCopyPlatformAction {
+  platformId: SharePlatformId
+  platformLabel: string
+  href: string | null
+  openLabel: string
+  copyOnlyNote?: string
+  outboundOpenUsesShortDraft: boolean
+  intentCharCount?: number
+}
 
 export interface ShareCopyModalProps {
   open: boolean
   onClose: () => void
-  platformLabel: string
   copyText: string
   charCount: number
   /** X/Threads: optional t.co-style weighted length for composer hint */
   xComposerWeight?: number
-  outboundHref: string | null
-  outboundLabel: string
+  platformActions: ShareCopyPlatformAction[]
   ogImageUrl?: string
-  copyOnlyNote?: string
-  /** True when the Open … link embeds a shorter draft than the copy box */
-  outboundOpenUsesShortDraft?: boolean
-  intentCharCount?: number
+}
+
+function getFocusableList (root: HTMLElement): HTMLElement[] {
+  const focusables = root.querySelectorAll<HTMLElement>(
+    'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )
+  return Array.from(focusables).filter((el) => !el.hasAttribute('data-focus-guard'))
+}
+
+function focusTrapHandler (root: HTMLElement, e: KeyboardEvent) {
+  if (e.key !== 'Tab') return
+  const list = getFocusableList(root)
+  if (list.length === 0) return
+  const first = list[0]
+  const last = list[list.length - 1]
+  const active = document.activeElement as HTMLElement | null
+  if (list.length === 1) return
+  if (e.shiftKey) {
+    if (active === first || (active && !root.contains(active))) {
+      e.preventDefault()
+      last.focus()
+    }
+  } else if (active === last) {
+    e.preventDefault()
+    first.focus()
+  }
 }
 
 export function ShareCopyModal ({
   open,
   onClose,
-  platformLabel,
   copyText,
   charCount,
   xComposerWeight,
-  outboundHref,
-  outboundLabel,
+  platformActions,
   ogImageUrl,
-  copyOnlyNote,
-  outboundOpenUsesShortDraft,
-  intentCharCount,
 }: ShareCopyModalProps) {
   const [copied, setCopied] = React.useState(false)
+  const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!open) return
@@ -44,6 +71,17 @@ export function ShareCopyModal ({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
+
+  useEffect(() => {
+    if (!open) return
+    const root = panelRef.current
+    if (!root) return
+    const list = getFocusableList(root)
+    window.setTimeout(() => list[0]?.focus(), 0)
+    const onTab = (e: KeyboardEvent) => focusTrapHandler(root, e)
+    root.addEventListener('keydown', onTab)
+    return () => root.removeEventListener('keydown', onTab)
+  }, [open])
 
   const handleCopy = useCallback(async () => {
     try {
@@ -76,6 +114,8 @@ export function ShareCopyModal ({
       }
     })()
 
+  const anyShortDraft = platformActions.some((a) => a.outboundOpenUsesShortDraft)
+
   return (
     <div
       className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-0 sm:p-4"
@@ -83,16 +123,18 @@ export function ShareCopyModal ({
       aria-modal="true"
       aria-labelledby="share-copy-modal-title"
     >
-      <button
-        type="button"
+      <div
         className="absolute inset-0 bg-black/50 dark:bg-black/70"
-        aria-label="Close"
+        aria-hidden
         onClick={onClose}
       />
-      <div className="relative w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col rounded-t-2xl sm:rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl">
+      <div
+        ref={panelRef}
+        className="relative w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col rounded-t-2xl sm:rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl"
+      >
         <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-slate-200 dark:border-slate-700 shrink-0">
           <h2 id="share-copy-modal-title" className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-            Copy & Share — {platformLabel}
+            Copy &amp; Share
           </h2>
           <button
             type="button"
@@ -108,19 +150,17 @@ export function ShareCopyModal ({
             {charCount} characters (full text; trim in the app if a network imposes a limit)
             {xComposerWeight != null ? (
               <span className="block mt-1 text-xs text-slate-500">
-                X counts each URL as {X_URL_WEIGHT} characters in the composer (~{xComposerWeight} weighted).
+                X and Threads count each URL as {X_URL_WEIGHT} characters in the composer (~{xComposerWeight}{' '}
+                weighted for this text).
               </span>
             ) : null}
           </p>
 
-          {copyOnlyNote ? (
-            <p className="text-xs text-slate-500 dark:text-slate-400">{copyOnlyNote}</p>
-          ) : null}
-
-          {outboundOpenUsesShortDraft && intentCharCount != null ? (
+          {anyShortDraft ? (
             <p className="text-xs text-amber-800/90 dark:text-amber-200/90 bg-amber-500/10 dark:bg-amber-500/15 rounded-lg px-2 py-1.5">
-              The &quot;Open …&quot; button uses a shortened draft ({intentCharCount} characters) so the prefilled post
-              fits this network&apos;s compose limit. The text area below is still the full article.
+              Some &quot;Open …&quot; links use a shortened draft so the prefilled post fits that network&apos;s
+              compose limit. The text area below is always the full article. See per-network notes next to each
+              link where trimming applies.
             </p>
           ) : null}
 
@@ -132,16 +172,41 @@ export function ShareCopyModal ({
             >
               {copied ? 'Copied!' : 'Copy to clipboard'}
             </button>
-            {outboundHref ? (
-              <a
-                href={outboundHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-              >
-                {outboundLabel}
-              </a>
-            ) : null}
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Open in app or site</p>
+            <ul className="flex flex-col gap-2 list-none m-0 p-0">
+              {platformActions.map((a) => (
+                <li key={a.platformId} className="rounded-lg border border-slate-200 dark:border-slate-700 p-2 space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-medium text-slate-600 dark:text-slate-300 shrink-0">
+                      {a.platformLabel}
+                    </span>
+                    {a.href ? (
+                      <a
+                        href={a.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                      >
+                        {a.openLabel}
+                      </a>
+                    ) : (
+                      <span className="text-xs text-slate-500 dark:text-slate-400">No web open link — copy below</span>
+                    )}
+                  </div>
+                  {a.outboundOpenUsesShortDraft && a.intentCharCount != null ? (
+                    <p className="text-xs text-amber-800/90 dark:text-amber-200/90 pl-0">
+                      This open link uses a shortened draft ({a.intentCharCount} characters).
+                    </p>
+                  ) : null}
+                  {a.copyOnlyNote ? (
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{a.copyOnlyNote}</p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
           </div>
 
           <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Text to copy</label>

@@ -8,7 +8,6 @@ import {
   platformUsesTruncatedOutboundIntent,
   shareTextCharCount,
   truncateShareTextForOutbound,
-  type ShareExtractResult,
   type SharePlatformId,
 } from '@/lib/share'
 import { REDDIT_TITLE_MAX } from '@/lib/share/platformLimits'
@@ -128,67 +127,51 @@ export function useShareLinksModel({
     [title, absUrl, shareExtract]
   )
 
-  const [modal, setModal] = useState<{
-    platform: SharePlatformId
-    label: string
-  } | null>(null)
+  const [modalOpen, setModalOpen] = useState(false)
 
-  const activeCopyText = useMemo(() => {
-    if (!modal) return ''
-    return composeShareText(modal.platform, composeInput)
-  }, [modal, composeInput])
+  const activeCopyText = useMemo(() => composeShareText('x', composeInput), [composeInput])
 
-  const charCount = useMemo(() => {
-    if (!modal) return 0
-    return shareTextCharCount(activeCopyText)
-  }, [modal, activeCopyText])
+  const charCount = useMemo(() => shareTextCharCount(activeCopyText), [activeCopyText])
 
-  const xComposerWeight = useMemo(() => {
-    if (!modal) return undefined
-    if (modal.platform !== 'x' && modal.platform !== 'threads') return undefined
-    return effectiveLengthX(activeCopyText)
-  }, [modal, activeCopyText])
+  const xComposerWeight = useMemo(() => effectiveLengthX(activeCopyText), [activeCopyText])
 
-  const intentTextForOutbound = useMemo(() => {
-    if (!modal) return ''
-    if (platformUsesTruncatedOutboundIntent(modal.platform)) {
-      return truncateShareTextForOutbound(modal.platform, composeInput)
-    }
-    return ''
-  }, [modal, composeInput])
+  const platformOutbounds = useMemo(() => {
+    return SHARE_PLATFORMS.map(({ id, label }) => {
+      const intent = platformUsesTruncatedOutboundIntent(id)
+        ? truncateShareTextForOutbound(id, composeInput)
+        : activeCopyText
+      const ob = buildOutboundHref(id, absUrl, title, intent)
+      const outboundOpenUsesShortDraft =
+        platformUsesTruncatedOutboundIntent(id) && intent !== activeCopyText
+      const intentCharCount = outboundOpenUsesShortDraft
+        ? shareTextCharCount(intent)
+        : undefined
+      return {
+        platformId: id,
+        platformLabel: label,
+        href: ob.href,
+        openLabel: ob.label,
+        copyOnlyNote: ob.copyOnlyNote,
+        outboundOpenUsesShortDraft,
+        intentCharCount,
+      }
+    })
+  }, [activeCopyText, composeInput, absUrl, title])
 
-  const outboundOpenUsesShortDraft = useMemo(() => {
-    if (!modal || !platformUsesTruncatedOutboundIntent(modal.platform)) return false
-    return intentTextForOutbound !== activeCopyText
-  }, [modal, intentTextForOutbound, activeCopyText])
-
-  const outbound = useMemo(() => {
-    if (!modal) return { href: null as string | null, label: '', copyOnlyNote: undefined as string | undefined }
-    const intent =
-      platformUsesTruncatedOutboundIntent(modal.platform) ? intentTextForOutbound : activeCopyText
-    return buildOutboundHref(modal.platform, absUrl, title, intent)
-  }, [modal, absUrl, title, intentTextForOutbound, activeCopyText])
-
-  const openModal = useCallback((platform: SharePlatformId, label: string) => {
-    setModal({ platform, label })
+  const openModal = useCallback((_platform: SharePlatformId, _label: string) => {
+    setModalOpen(true)
   }, [])
 
-  const closeModal = useCallback(() => setModal(null), [])
-
-  const intentCharCount = outboundOpenUsesShortDraft
-    ? shareTextCharCount(intentTextForOutbound)
-    : undefined
+  const closeModal = useCallback(() => setModalOpen(false), [])
 
   return {
-    modal,
+    modalOpen,
     openModal,
     closeModal,
     activeCopyText,
     charCount,
     xComposerWeight,
-    outbound,
-    outboundOpenUsesShortDraft,
-    intentCharCount,
+    platformOutbounds,
     ogImageUrl,
   }
 }

@@ -15,15 +15,13 @@ const platformButtonClass =
 
 export function ShareLinks(props: ShareLinksProps) {
   const {
-    modal,
+    modalOpen,
     openModal,
     closeModal,
     activeCopyText,
     charCount,
     xComposerWeight,
-    outbound,
-    outboundOpenUsesShortDraft,
-    intentCharCount,
+    platformOutbounds,
     ogImageUrl,
   } = useShareLinksModel(props)
 
@@ -43,21 +41,15 @@ export function ShareLinks(props: ShareLinksProps) {
         ))}
       </div>
 
-      {modal ? (
+      {modalOpen ? (
         <ShareCopyModal
-          key={modal.platform}
           open
           onClose={closeModal}
-          platformLabel={modal.label}
           copyText={activeCopyText}
           charCount={charCount}
           xComposerWeight={xComposerWeight}
-          outboundHref={outbound.href}
-          outboundLabel={outbound.label}
+          platformActions={platformOutbounds}
           ogImageUrl={ogImageUrl}
-          copyOnlyNote={outbound.copyOnlyNote}
-          outboundOpenUsesShortDraft={outboundOpenUsesShortDraft}
-          intentCharCount={intentCharCount}
         />
       ) : null}
     </div>
@@ -71,15 +63,13 @@ export function ShareLinks(props: ShareLinksProps) {
 export function ShareLinksFloating(props: ShareLinksProps) {
   const { url, title } = props
   const {
-    modal,
+    modalOpen,
     openModal,
     closeModal,
     activeCopyText,
     charCount,
     xComposerWeight,
-    outbound,
-    outboundOpenUsesShortDraft,
-    intentCharCount,
+    platformOutbounds,
     ogImageUrl,
   } = useShareLinksModel(props)
 
@@ -154,21 +144,15 @@ export function ShareLinksFloating(props: ShareLinksProps) {
         </div>
       </div>
 
-      {modal ? (
+      {modalOpen ? (
         <ShareCopyModal
-          key={modal.platform}
           open
           onClose={closeModal}
-          platformLabel={modal.label}
           copyText={activeCopyText}
           charCount={charCount}
           xComposerWeight={xComposerWeight}
-          outboundHref={outbound.href}
-          outboundLabel={outbound.label}
+          platformActions={platformOutbounds}
           ogImageUrl={ogImageUrl}
-          copyOnlyNote={outbound.copyOnlyNote}
-          outboundOpenUsesShortDraft={outboundOpenUsesShortDraft}
-          intentCharCount={intentCharCount}
         />
       ) : null}
     </>
