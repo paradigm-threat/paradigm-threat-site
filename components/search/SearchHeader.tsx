@@ -1,15 +1,68 @@
 'use client'
 
-import React from 'react'
+import React, { useCallback, useEffect, useRef, useState, memo } from 'react'
 import { Search, Loader2 } from 'lucide-react'
 
+const SEARCH_DEBOUNCE_MS = 120
+const URL_DEBOUNCE_MS = 350
+
 interface SearchHeaderProps {
-    query: string
+    initialQuery: string
     loading: boolean
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+    onDebouncedSearchQuery: (trimmed: string) => void
+    onDebouncedUrl: (trimmed: string) => void
 }
 
-export function SearchHeader({ query, loading, onChange }: SearchHeaderProps) {
+export const SearchHeader = memo(function SearchHeader({
+    initialQuery,
+    loading,
+    onDebouncedSearchQuery,
+    onDebouncedUrl,
+}: SearchHeaderProps) {
+    const [local, setLocal] = useState(initialQuery)
+    const prevInitial = useRef(initialQuery)
+    const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const urlTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    useEffect(() => {
+        if (initialQuery !== prevInitial.current) {
+            prevInitial.current = initialQuery
+            queueMicrotask(() => setLocal(initialQuery))
+        }
+    }, [initialQuery])
+
+    useEffect(
+        () => () => {
+            if (searchTimer.current) clearTimeout(searchTimer.current)
+            if (urlTimer.current) clearTimeout(urlTimer.current)
+        },
+        []
+    )
+
+    const onInputChange = useCallback(
+        (e: React.ChangeEvent<HTMLInputElement>) => {
+            const val = e.target.value
+            setLocal(val)
+            const trimmed = val.trim()
+
+            if (searchTimer.current) clearTimeout(searchTimer.current)
+            searchTimer.current = setTimeout(() => {
+                searchTimer.current = null
+                onDebouncedSearchQuery(trimmed)
+            }, SEARCH_DEBOUNCE_MS)
+
+            if (urlTimer.current) clearTimeout(urlTimer.current)
+            urlTimer.current = setTimeout(() => {
+                urlTimer.current = null
+                onDebouncedUrl(trimmed)
+            }, URL_DEBOUNCE_MS)
+        },
+        [onDebouncedSearchQuery, onDebouncedUrl]
+    )
+
+    const trimmed = local.trim()
+    const showShortHint = local.length > 0 && trimmed.length < 2
+
     return (
         <div className="max-w-3xl mx-auto space-y-8">
             <div className="text-center space-y-4">
@@ -27,8 +80,8 @@ export function SearchHeader({ query, loading, onChange }: SearchHeaderProps) {
                     type="search"
                     autoFocus
                     enterKeyHint="search"
-                    value={query}
-                    onChange={onChange}
+                    value={local}
+                    onChange={onInputChange}
                     placeholder="Type keywords (e.g. '911 physics', 'mars water')..."
                     className="w-full pl-16 pr-6 py-6 bg-slate-100 dark:bg-slate-900/50 border-2 border-slate-200 dark:border-slate-800 rounded-3xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-semibold text-xl shadow-lg"
                 />
@@ -38,6 +91,12 @@ export function SearchHeader({ query, loading, onChange }: SearchHeaderProps) {
                     </div>
                 )}
             </div>
+
+            {showShortHint && (
+                <div className="text-center text-slate-400 text-sm">
+                    Please enter at least 2 characters to search...
+                </div>
+            )}
         </div>
     )
-}
+})

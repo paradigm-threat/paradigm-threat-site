@@ -8,8 +8,6 @@ import { Loader2, Search } from 'lucide-react'
 import { useRouter, useSearchParams, useParams } from 'next/navigation'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
 
-const DEBOUNCE_MS = 350
-
 function SearchContent() {
     const router = useRouter()
     const params = useParams()
@@ -19,11 +17,8 @@ function SearchContent() {
     const queryFromSearch = searchParams.get('q') || ''
     const urlQuery = queryFromPath || queryFromSearch
 
-    // Local state for input - avoids router.replace on every keystroke (prevents mobile keyboard dismiss)
-    const [inputValue, setInputValue] = useState(urlQuery)
-    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-    const lastUrlUpdateRef = useRef<string>(urlQuery)
-    const isDebounsingRef = useRef<boolean>(false)
+    const [debouncedSearch, setDebouncedSearch] = useState(urlQuery)
+    const lastPushedRef = useRef(urlQuery)
 
     const [filesIndex, setFilesIndex] = useState<IndexedPathEntry[]>([])
     const [renderedMds, setRenderedMds] = useState<any[]>([])
@@ -31,15 +26,16 @@ function SearchContent() {
     const [error, setError] = useState<string | null>(null)
     const [contentLoading, setContentLoading] = useState(false)
 
-    // Sync from URL to input only when URL changed externally (back/forward), not from our debounce
+    // Sync list state when URL changes without our replace completing to the same value (e.g. back/forward, deep link).
     useEffect(() => {
-        // Only sync if URL changed externally (not from our own updateUrl call) and we're not actively debouncing
-        if (urlQuery !== lastUrlUpdateRef.current && !isDebounsingRef.current && urlQuery !== inputValue.trim()) {
-            queueMicrotask(() => setInputValue(urlQuery))
+        if (urlQuery === lastPushedRef.current) {
+            return
         }
-        // Update ref to track what we expect the URL to be
-        lastUrlUpdateRef.current = urlQuery
-    }, [urlQuery, inputValue])
+        queueMicrotask(() => {
+            setDebouncedSearch(urlQuery)
+            lastPushedRef.current = urlQuery
+        })
+    }, [urlQuery])
 
     // Fetch index once
     useEffect(() => {
@@ -72,7 +68,7 @@ function SearchContent() {
 
     const searchResults = useMemo(() => {
         if (!filesIndex || !Array.isArray(filesIndex)) return []
-        const cleanQuery = inputValue.trim().toLowerCase()
+        const cleanQuery = debouncedSearch.trim().toLowerCase()
         if (cleanQuery.length < 2) return []
 
         const searchTerms = cleanQuery.split(/\s+/).filter(Boolean)
@@ -82,7 +78,7 @@ function SearchContent() {
             const haystack = entry.searchText.toLowerCase()
             return searchTerms.every((term) => haystack.includes(term))
         })
-    }, [inputValue, filesIndex])
+    }, [debouncedSearch, filesIndex])
 
     // Fetch MD content for the top results when search results change
     useEffect(() => {
@@ -113,7 +109,7 @@ function SearchContent() {
     }, [searchResults])
 
     const updateUrl = useCallback((val: string) => {
-        lastUrlUpdateRef.current = val
+        lastPushedRef.current = val
         if (val && !val.includes(' ')) {
             router.replace(`/search/${encodeURIComponent(val)}`, { scroll: false })
         } else if (val) {
@@ -123,25 +119,13 @@ function SearchContent() {
         }
     }, [router])
 
-    const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = e.target.value
-        setInputValue(val)
-        const trimmed = val.trim()
-        if (debounceRef.current) clearTimeout(debounceRef.current)
-        isDebounsingRef.current = true
-        debounceRef.current = setTimeout(() => {
-            debounceRef.current = null
-            isDebounsingRef.current = false
-            updateUrl(trimmed)
-        }, DEBOUNCE_MS)
-    }, [updateUrl])
-
-    useEffect(() => () => {
-        if (debounceRef.current) {
-            clearTimeout(debounceRef.current)
-            isDebounsingRef.current = false
-        }
+    const onDebouncedSearchQuery = useCallback((trimmed: string) => {
+        setDebouncedSearch(trimmed)
     }, [])
+
+    const onDebouncedUrl = useCallback((trimmed: string) => {
+        updateUrl(trimmed)
+    }, [updateUrl])
 
     // Extract unique folders
     const folderPaths = Array.from(new Set(searchResults.map((e) => {
@@ -154,13 +138,16 @@ function SearchContent() {
         .filter((e) => /\.(jpg|jpeg|png|gif|svg|webp)$/i.test(e.path))
         .map((e) => e.path)
 
+    const ds = debouncedSearch.trim()
+
     return (
         <div className="w-full min-h-screen bg-white dark:bg-slate-950">
             <div className="max-w-[90rem] mx-auto px-4 py-12 space-y-16">
                 <SearchHeader
-                    query={inputValue}
+                    initialQuery={urlQuery}
                     loading={loading}
-                    onChange={handleSearchChange}
+                    onDebouncedSearchQuery={onDebouncedSearchQuery}
+                    onDebouncedUrl={onDebouncedUrl}
                 />
 
                 {error && (
@@ -176,13 +163,7 @@ function SearchContent() {
                     </div>
                 )}
 
-                {inputValue.length > 0 && inputValue.trim().length < 2 && (
-                    <div className="text-center py-20 text-slate-400">
-                        Please enter at least 2 characters to search...
-                    </div>
-                )}
-
-                {!loading && inputValue.trim().length >= 2 && searchResults.length === 0 && (
+                {!loading && ds.length >= 2 && searchResults.length === 0 && (
                     <div className="text-center py-24 bg-slate-50 dark:bg-slate-900/30 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800 max-w-2xl mx-auto">
                         <Search size={48} className="mx-auto text-slate-300 dark:text-slate-700 mb-4" />
                         <div className="text-xl font-bold text-slate-900 dark:text-white mb-2">No matching files found</div>
