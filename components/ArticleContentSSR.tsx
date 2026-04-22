@@ -6,9 +6,10 @@
 import React from 'react'
 import { compileMDX } from 'next-mdx-remote/rsc'
 import { articleMdxOptions } from '@/lib/articleMdxOptions'
-import rehypeUnwrapFigures from '@/lib/rehypeUnwrapFigures'
 import * as componentsNamespace from '@/components'
 import { MarkdownLink } from './MarkdownLink'
+import { diagnoseMdxCompileError } from '@/lib/mdxCompileDiagnostics'
+import { MdxCompileErrorPanel } from '@/components/MdxCompileErrorPanel'
 
 const {
   PopImage,
@@ -59,20 +60,40 @@ function mdxComponents (basePath: string): Record<string, React.ComponentType<an
 export interface ArticleContentSSRProps {
   mdxSource: string
   basePath: string
+  /** URL slug path (for error panel). */
+  sourcePath?: string
 }
 
-export async function ArticleContentSSR ({ mdxSource, basePath }: ArticleContentSSRProps) {
-  const { content } = await compileMDX({
-    source: mdxSource,
-    options: {
-      mdxOptions: articleMdxOptions,
-    },
-    components: mdxComponents(basePath)
-  })
+export async function ArticleContentSSR ({ mdxSource, basePath, sourcePath }: ArticleContentSSRProps) {
+  let compiled: React.ReactNode = null
+  let compileError: unknown = null
+  try {
+    const { content } = await compileMDX({
+      source: mdxSource,
+      options: {
+        mdxOptions: articleMdxOptions,
+      },
+      components: mdxComponents(basePath)
+    })
+    compiled = content
+  } catch (err) {
+    compileError = err
+  }
+
+  if (compileError != null) {
+    const diagnostics = diagnoseMdxCompileError(compileError, mdxSource)
+    return (
+      <MdxCompileErrorPanel
+        diagnostics={diagnostics}
+        sourcePath={sourcePath ?? basePath}
+        phase="server"
+      />
+    )
+  }
 
   return (
     <div className="mdx-content">
-      {content}
+      {compiled}
     </div>
   )
 }

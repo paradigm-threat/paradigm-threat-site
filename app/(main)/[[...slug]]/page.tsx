@@ -92,7 +92,11 @@ export default async function CatchAllPage ({ params }: PageProps) {
         shareExtract={shareExtract}
       >
         <Suspense fallback={<div className="animate-pulse h-32 bg-slate-200/50 dark:bg-slate-800/50 rounded-xl" />}>
-          <ArticleContentSSR mdxSource={article.mdxSource} basePath={article.basePath} />
+          <ArticleContentSSR
+            mdxSource={article.mdxSource}
+            basePath={article.basePath}
+            sourcePath={path}
+          />
         </Suspense>
       </ArticleClientShell>
     )

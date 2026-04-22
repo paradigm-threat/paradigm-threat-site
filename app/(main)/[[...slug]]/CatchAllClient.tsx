@@ -18,6 +18,8 @@ import { useMobileHubTtsChrome } from '@/lib/hooks/useMobileHubTtsChrome'
 import { resolveOgImageUrl } from '@/lib/share/resolveOgImageUrl'
 import { remoteRelay } from '@/lib/remoteRelayStore'
 import { publicFilesAssetUrl } from '@/lib/canonicalPublicSite'
+import type { MdxCompileDiagnostics } from '@/lib/mdxCompileDiagnostics'
+import { MdxCompileErrorPanel } from '@/components/MdxCompileErrorPanel'
 
 const DIRECT_IMAGE_EXT = /\.(jpg|jpeg|png|gif|svg|webp|avif|ico)$/i
 
@@ -58,6 +60,11 @@ export const CatchAllClient = memo(function CatchAllClient() {
   const [mds, setMds] = useState<string[]>([])
   const [mdContents, setMdContents] = useState<Record<string, { title: string; content: string }>>({})
   const [error, setError] = useState<string | null>(null)
+  const [mdxCompileFailure, setMdxCompileFailure] = useState<{
+    path: string
+    title: string
+    diagnostics: MdxCompileDiagnostics
+  } | null>(null)
   const [remoteArticle404, setRemoteArticle404] = useState(false)
   const [articleRetryKey, setArticleRetryKey] = useState(0)
   const [isScrolled, setIsScrolled] = useState(false)
@@ -113,6 +120,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
         setLoading(true)
         setRemoteArticle404(false)
         setError(null)
+        setMdxCompileFailure(null)
         setDirectImageLeaf(null)
 
         const articleUrl = `/api/article?path=${encodeURIComponent(requestPath)}${version ? `&v=${encodeURIComponent(version)}` : ''}`
@@ -169,6 +177,39 @@ export const CatchAllClient = memo(function CatchAllClient() {
             if (isMounted && loadingPathRef.current === requestPath) setUnusedImages(unused)
           }
         } else {
+          let errJson: Record<string, unknown> | null = null
+          try {
+            errJson = (await articleRes.json()) as Record<string, unknown>
+          } catch {
+            errJson = null
+          }
+
+          const handledMdxCompile =
+            articleRes.status === 422 &&
+            errJson?.error === 'mdx_compile' &&
+            errJson?.diagnostics != null &&
+            typeof errJson.diagnostics === 'object'
+
+          if (handledMdxCompile && isMounted && loadingPathRef.current === requestPath) {
+            const diag = errJson!.diagnostics as MdxCompileDiagnostics
+            const failTitle =
+              typeof errJson!.title === 'string' && errJson!.title.trim()
+                ? (errJson!.title as string).trim()
+                : requestPath.replace(/_/g, ' ')
+            setMdxCompileFailure({ path: requestPath, title: failTitle, diagnostics: diag })
+            setRemoteArticle404(false)
+            setDirectImageLeaf(null)
+            setContent(null)
+            setCompiledMdx(null)
+            setArticleTitle(failTitle)
+            setDirectFiles([])
+            setSubDirs([])
+            setImages([])
+            setMds([])
+            setMdContents({})
+            setUnusedImages([])
+            setError(null)
+          } else if (!handledMdxCompile) {
           let current = tree
           if (current && typeof current === 'object') {
             for (const s of slugArray) {
@@ -281,8 +322,13 @@ export const CatchAllClient = memo(function CatchAllClient() {
               setRemoteArticle404(true)
             } else {
               setRemoteArticle404(false)
-              setError(`Could not load this page (HTTP ${articleRes.status}).`)
+              const msg =
+                errJson && typeof errJson.error === 'string'
+                  ? errJson.error
+                  : `Could not load this page (HTTP ${articleRes.status}).`
+              setError(msg)
             }
+          }
           }
         }
       } catch (e) {
@@ -312,6 +358,49 @@ export const CatchAllClient = memo(function CatchAllClient() {
 
   if (indexLoading || loading) {
     return <div className="flex items-center justify-center min-h-screen"><SuspenseLoader /></div>
+  }
+
+  if (mdxCompileFailure && mdxCompileFailure.path === path) {
+    const listingShareUrl = path ? `/${path}` : '/'
+    return (
+      <div className="space-y-12">
+        <div className="not-prose mb-6">
+          <ShareLinksFloating
+            url={listingShareUrl}
+            title={mdxCompileFailure.title}
+            mdSource=""
+          />
+        </div>
+        <div>
+          <h1 className="text-4xl font-extrabold mb-8 capitalize tracking-tight text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800 pb-4">
+            {mdxCompileFailure.title}
+          </h1>
+          <MdxCompileErrorPanel
+            diagnostics={mdxCompileFailure.diagnostics}
+            sourcePath={mdxCompileFailure.path}
+            phase="client"
+          />
+          <div className="mt-8 flex flex-wrap gap-3">
+            <button
+              type="button"
+              className="rounded-xl bg-slate-200 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
+              onClick={() => {
+                setMdxCompileFailure(null)
+                setArticleRetryKey((k) => k + 1)
+              }}
+            >
+              Retry
+            </button>
+            <Link
+              href="/"
+              className="inline-flex items-center rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              Home
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (directImageLeaf) {

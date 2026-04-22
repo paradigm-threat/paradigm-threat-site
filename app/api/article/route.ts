@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import matter from 'gray-matter'
 import { serialize } from 'next-mdx-remote/serialize'
 import { articleMdxOptions } from '@/lib/articleMdxOptions'
-import rehypeUnwrapFigures from '@/lib/rehypeUnwrapFigures'
+import { diagnoseMdxCompileError } from '@/lib/mdxCompileDiagnostics'
 import { isNonArticlePath } from '@/lib/isNonArticlePath'
 import { resolveOgImageUrl } from '@/lib/share/resolveOgImageUrl'
 import { fetchFilesTextFromMirrors } from '@/lib/serverFilesMirror'
@@ -70,21 +70,37 @@ export async function GET(req: NextRequest) {
       : 'Article'
     const title = (frontMatter?.title as string) || titleFromPath || 'Article'
 
-    const { compiledSource, frontmatter, scope } = await serialize(mdxSource, {
-      mdxOptions: articleMdxOptions,
-    })
+    try {
+      const { compiledSource, frontmatter, scope } = await serialize(mdxSource, {
+        mdxOptions: articleMdxOptions,
+      })
 
-    const ogImageUrl = resolveOgImageUrl(mdxSource, basePath, frontMatter as Record<string, unknown>)
+      const ogImageUrl = resolveOgImageUrl(mdxSource, basePath, frontMatter as Record<string, unknown>)
 
-    return NextResponse.json({
-      compiledSource,
-      frontmatter,
-      scope,
-      content: mdxSource,
-      title,
-      basePath,
-      ogImageUrl,
-    })
+      return NextResponse.json({
+        compiledSource,
+        frontmatter,
+        scope,
+        content: mdxSource,
+        title,
+        basePath,
+        ogImageUrl,
+      })
+    } catch (compileErr) {
+      const diagnostics = diagnoseMdxCompileError(compileErr, mdxSource)
+      console.error('[api/article] mdx_compile', path || targetPath, diagnostics.headline)
+      return NextResponse.json(
+        {
+          error: 'mdx_compile',
+          path,
+          targetPath,
+          title,
+          basePath,
+          diagnostics,
+        },
+        { status: 422 }
+      )
+    }
   } catch (err) {
     console.error('[api/article]', err)
     return NextResponse.json(
