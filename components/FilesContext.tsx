@@ -11,6 +11,8 @@ import React, {
   useSyncExternalStore,
 } from 'react'
 import { remoteRelay } from '@/lib/remoteRelayStore'
+import { sendClientTelemetry } from '@/lib/clientTelemetrySend'
+import { getFilesBaseUrlList } from '@/lib/urlListEnv'
 
 interface FilesContextType {
   fileList: any
@@ -56,6 +58,14 @@ export function FilesProvider({ children }: { children: ReactNode }) {
             'Could not load the file index from any relay mirror (timeout or network error). Use Retry or check your connection.',
           )
           setLoading(false)
+          const snap = remoteRelay.getSnapshot()
+          sendClientTelemetry({
+            kind: 'mirror_index_failed',
+            mirrorPhase: 'index_json',
+            message: 'fetchIndexJson returned null (all relay pairs failed or non-OK)',
+            attemptedHostCount: getFilesBaseUrlList().length,
+            attemptedHostsSummary: snap.serverLabel || snap.filesHostLabel || undefined,
+          })
           return
         }
         setFileList(data)
@@ -70,6 +80,14 @@ export function FilesProvider({ children }: { children: ReactNode }) {
         } else {
           setFileList(null)
           setError(err instanceof Error ? err.message : 'Failed to load file index')
+          const snap = remoteRelay.getSnapshot()
+          sendClientTelemetry({
+            kind: 'mirror_index_failed',
+            mirrorPhase: 'index_json',
+            message: err instanceof Error ? err.message : 'Failed to load file index',
+            attemptedHostCount: getFilesBaseUrlList().length,
+            attemptedHostsSummary: snap.serverLabel || snap.filesHostLabel || undefined,
+          })
         }
         setLoading(false)
       }

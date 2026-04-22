@@ -4,6 +4,7 @@ import {
   zipRelayPairs,
   type RelayOriginPair,
 } from '@/lib/urlListEnv'
+import { sendClientTelemetry } from '@/lib/clientTelemetrySend'
 import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
 
 export function relayHostLabel(origin: string): string {
@@ -308,7 +309,17 @@ class RemoteRelayStore {
         lastErr = e instanceof Error ? e : new Error(String(e))
       }
     }
-    throw lastErr ?? new Error('All relay pairs failed for files MD')
+    const err = lastErr ?? new Error('All relay pairs failed for files MD')
+    const summary = order.map((p) => relayHostLabel(p.files)).join(', ')
+    sendClientTelemetry({
+      kind: 'mirror_md_failed',
+      mirrorPhase: 'files_md',
+      message: err.message.slice(0, 500),
+      mirrorResourcePath: fullPath.replace(/^\//, '').slice(0, 200),
+      attemptedHostCount: order.length,
+      attemptedHostsSummary: summary.slice(0, 200),
+    })
+    throw err
   }
 
   /**
@@ -337,7 +348,17 @@ class RemoteRelayStore {
         lastErr = e instanceof Error ? e : new Error(String(e))
       }
     }
-    throw lastErr ?? new Error('All relay pairs failed for timeline MD')
+    const err = lastErr ?? new Error('All relay pairs failed for timeline MD')
+    const summary = order.map((p) => relayHostLabel(p.timeline)).join(', ')
+    sendClientTelemetry({
+      kind: 'mirror_md_failed',
+      mirrorPhase: 'timeline_md',
+      message: err.message.slice(0, 500),
+      mirrorResourcePath: mdPath.replace(/^\//, '').slice(0, 200),
+      attemptedHostCount: order.length,
+      attemptedHostsSummary: summary.slice(0, 200),
+    })
+    throw err
   }
 }
 

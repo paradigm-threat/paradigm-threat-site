@@ -56,5 +56,13 @@ export async function fetchFromAssetMirrors (
       clearTimeout(timer)
     }
   }
+  console.error(
+    '[server-mirror]',
+    JSON.stringify({
+      repo,
+      path,
+      originCount: origins.length,
+    }),
+  )
   return null
 }

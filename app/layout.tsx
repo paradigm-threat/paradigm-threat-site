@@ -3,7 +3,7 @@
 import React, { Suspense, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { DynamicNav, FloatingDiv, ThemeToggle, Navbar, ImageGalleryProvider, DynamicIndex, FilesProvider, useFiles } from "@/components";
+import { DynamicNav, FloatingDiv, ThemeToggle, Navbar, ImageGalleryProvider, DynamicIndex, FilesProvider, useFiles, ClientErrorReporter, FilesMirrorErrorBanner } from "@/components";
 import { RelayServerToast } from "@/components/RelayServerToast";
 import { RelayFooterAttribution } from "@/components/RelayFooterAttribution";
 import PwaRedirect from "@/components/PwaRedirect";
@@ -31,7 +31,7 @@ export default function RootLayout(
 }
 
 function RootLayoutInner({ children }: { children: React.ReactNode }) {
-    const { fileList } = useFiles();
+    const { fileList, error: filesError } = useFiles();
     const pathname = usePathname();
 
     useEffect(() => {
@@ -53,7 +53,9 @@ function RootLayoutInner({ children }: { children: React.ReactNode }) {
             </head>
             <body className={`bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex min-w-0 max-w-full flex-col overflow-x-hidden transition-colors duration-300`}>
                 <PwaRedirect />
+                <ClientErrorReporter />
                 <Navbar fileList={fileList} />
+                <FilesMirrorErrorBanner key={filesError ?? 'ok'} />
 
                 <div
                     id="site-main-scroll"
