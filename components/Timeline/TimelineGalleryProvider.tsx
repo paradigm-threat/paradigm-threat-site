@@ -66,6 +66,7 @@ export function TimelineGalleryProvider({
 
     const [currentIndex, setCurrentIndex] = useState(-1)
     const [isOpen, setIsOpen] = useState(false)
+    const [overrideImages, setOverrideImages] = useState<GalleryImage[] | null>(null)
     const [imagesState, setImagesState] = useState<GalleryImage[]>([...globalImages])
 
     // Use a ref for the mutable images array to avoid re-render loops during registration.
@@ -120,6 +121,18 @@ export function TimelineGalleryProvider({
         // No-op for timeline: images are permanent
     }, [])
 
+    const clearGalleryOverride = useCallback(() => {
+        setOverrideImages(null)
+    }, [])
+
+    const openGallery = useCallback((items: GalleryImage[], startIndex = 0) => {
+        const list = items.filter((i): i is GalleryImage => Boolean(i?.src))
+        if (list.length === 0) return
+        setOverrideImages(list)
+        setCurrentIndex(Math.min(Math.max(0, startIndex), list.length - 1))
+        setIsOpen(true)
+    }, [])
+
     // When currentIndex changes while overlay is open, check if the image
     // belongs to a different event and switch accordingly.
     const prevIndexRef = useRef(currentIndex)
@@ -152,8 +165,20 @@ export function TimelineGalleryProvider({
             setCurrentIndex,
             isOpen,
             setIsOpen,
+            overrideImages,
+            openGallery,
+            clearGalleryOverride,
         }),
-        [imagesState, registerImage, unregisterImage, currentIndex, isOpen]
+        [
+            imagesState,
+            registerImage,
+            unregisterImage,
+            currentIndex,
+            isOpen,
+            overrideImages,
+            openGallery,
+            clearGalleryOverride,
+        ]
     )
 
     return (

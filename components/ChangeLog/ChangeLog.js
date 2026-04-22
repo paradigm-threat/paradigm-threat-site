@@ -90,6 +90,25 @@ function changelogPublicImageSrc(src) {
   return withSlash.replace(/\/+/g, '/')
 }
 
+const CHANGELOG_THUMB_IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg)$/i
+
+/**
+ * Changelog strip `<img>` must not use raw `/history/...` on the Next origin (404).
+ * Repo-relative images go through `/api/image` → files mirrors (same as fullscreen gallery).
+ */
+function changelogThumbSrc(src) {
+  const publicSrc = changelogPublicImageSrc(src)
+  if (!publicSrc) return ''
+  if (publicSrc.startsWith('/api/')) return publicSrc
+  if (publicSrc.startsWith('/site/')) return publicSrc
+  if (/^https?:\/\//i.test(publicSrc)) return publicSrc
+  const pathOnly = publicSrc.split('?')[0]
+  if (pathOnly.startsWith('/') && CHANGELOG_THUMB_IMAGE_EXT.test(pathOnly)) {
+    return `/api/image?path=${encodeURIComponent(pathOnly)}&w=160`
+  }
+  return publicSrc
+}
+
 /** Match #img= targets to gallery src (relative or legacy absolute bookmarks). */
 function changelogSrcMatchesHash(resolvedSrc, hashDecoded) {
   if (!hashDecoded || !resolvedSrc) return false
@@ -269,7 +288,7 @@ export default function ChangeLog({ target = '_self' }) {
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element -- remote changelog thumbnails */}
                       <img
-                        src={changelogPublicImageSrc(im.src)}
+                        src={changelogThumbSrc(im.src)}
                         alt={im.alt || ''}
                         className={`${styles.thumb}${fullscreen ? ` ${styles.thumbFs}` : ''}`}
                         loading="lazy"

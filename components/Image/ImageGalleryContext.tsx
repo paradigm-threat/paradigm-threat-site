@@ -90,6 +90,38 @@ import Link from 'next/link'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { checkFileExists } from '@/components/helpers/imageHelper'
 
+const REPO_IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg)$/i
+
+/**
+ * Fullscreen gallery `<img src>` must resolve to bytes this Next app can serve.
+ * - ChangeLog passes root-relative repo paths (`/history/...png`) with no `highResSrc`; using them
+ *   literally hits `localhost:3000/history/...` → 404.
+ * - PopImage sets `highResSrc` to https://paradigmthreat.net/files/... which can lag GitLab Pages;
+ *   on localhost prefer `/api/image` (mirrors) so new assets appear after push.
+ */
+export function galleryOverlayDisplaySrc (image: GalleryImage): string {
+    const rawSrc = typeof image.src === 'string' ? image.src : ''
+    const hi = typeof image.highResSrc === 'string' ? image.highResSrc : ''
+    if (!rawSrc) return hi
+    if (rawSrc.startsWith('/api/')) return rawSrc
+    if (rawSrc.startsWith('/site/')) return hi || rawSrc
+    if (/^https?:\/\//i.test(rawSrc)) return hi || rawSrc
+
+    const pathOnly = rawSrc.split('?')[0]
+    if (!pathOnly.startsWith('/') || !REPO_IMAGE_EXT.test(pathOnly)) {
+        return hi || rawSrc
+    }
+
+    const isLocalDev =
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+
+    if (isLocalDev || !hi) {
+        return `/api/image?path=${encodeURIComponent(pathOnly)}&w=1600`
+    }
+    return hi
+}
+
 /** Folder segments of a repo-relative path as /search links (matches path-style search URLs). */
 function GallerySrcBreadcrumb({ src }: { src: string }) {
     if (!src || src.startsWith('http://') || src.startsWith('https://')) {
@@ -205,7 +237,7 @@ function GalleryImageItem({
                 {/* eslint-disable-next-line @next/next/no-img-element -- gallery overlay: dynamic highResSrc, next/image not used here */}
                 <img
                     ref={imgRef}
-                    src={image.highResSrc || image.src}
+                    src={galleryOverlayDisplaySrc(image)}
                     className="max-w-full object-contain shadow-2xl rounded-lg pointer-events-auto cursor-grab active:cursor-grabbing transition-opacity duration-300"
                     style={{ opacity: (aspectRatio !== null || isHighResLoaded) ? 1 : 0, maxHeight: 'min(92dvh, calc(100vh - 4rem))' }}
                     alt={image.alt}
@@ -247,9 +279,12 @@ export function ImageGalleryOverlay() {
             const prevIdx = (currentIndex - 1 + galleryList.length) % galleryList.length;
 
             [galleryList[nextIdx], galleryList[prevIdx]].forEach(img => {
-                if (img && (img.highResSrc || img.src)) {
-                    const preload = new Image();
-                    preload.src = img.highResSrc || img.src;
+                if (img) {
+                    const u = galleryOverlayDisplaySrc(img)
+                    if (u) {
+                        const preload = new Image()
+                        preload.src = u
+                    }
                 }
             });
         }
