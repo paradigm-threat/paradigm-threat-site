@@ -47,7 +47,7 @@ Opens on [http://localhost:3000](http://localhost:3000).
 | `NEXT_PUBLIC_TIMELINE_BASE_URL` | `https://paradigm-threat-timeline-a77fe2.gitlab.io` | Timeline Pages origin (`/data/events.json`, `/index.json`). Multiple mirrors: separate with `\|` or newlines (no comma or semicolon). |
 | `TIMELINE_ORIGINS` | (unset) | Optional pipe- or newline-separated timeline static origins, **tried in order**, for proxying `https://paradigmthreat.net/export/...` to `origin/export/...`. If unset, uses `NEXT_PUBLIC_TIMELINE_BASE_URL` (including its multi-URL form). |
 | `NEXT_PUBLIC_FILES_BASE_URL` | `https://paradigm-threat-files-69f9dc.gitlab.io` | Static files (GitLab Pages). Multiple mirrors: `\|` or newlines. In the browser, entries are **zipped by index** with the timeline list into relay **pairs**; the fastest pair is chosen at load, with MD/index failover switching the whole pair. |
-| `PIPER_API_URLS` | (see code) | Piper TTS upstream bases: **space, pipe, or newline**-separated. If unset in the deployment env, `lib/tts/piperUpstream.ts` defaults to `https://atlanta2.relaygateway.net` and `https://atlanta3.relaygateway.net` (HTTPS :443; Caddy proxies `/tts` and `/voices` to clevertree-tts). Set in Vercel **Environment Variables** if you need overrides. |
+| `PIPER_API_URLS` | (see code) | Piper TTS upstream bases: **space, pipe, or newline**-separated. If unset in the deployment env, `lib/tts/piperUpstream.ts` defaults to `https://atlanta2.relaygateway.net`, `https://atlanta3.relaygateway.net`, and `https://jp-osa.relaygateway.net` (HTTPS :443; Caddy proxies `/tts` and `/voices` to clevertree-tts). Set in Vercel **Environment Variables** if you need overrides. |
 
 ### Scripts
 

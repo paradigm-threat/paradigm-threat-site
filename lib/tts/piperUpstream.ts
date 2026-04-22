@@ -14,7 +14,7 @@
 
 /** When env is unset (common on Vercel without dashboard vars), use relay masters on :443. */
 const DEFAULT_PIPER_API_URLS =
-    'https://atlanta2.relaygateway.net https://atlanta3.relaygateway.net'
+    'https://atlanta2.relaygateway.net https://atlanta3.relaygateway.net https://jp-osa.relaygateway.net'
 
 function normalizeBaseUrl(raw: string): string {
     return raw.trim().replace(/\/+$/, '')
