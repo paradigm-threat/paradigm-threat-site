@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useLayoutEffect, useRef, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Play, Pause, Square, ChevronUp, Settings2, X } from 'lucide-react'
 import type { TTSState, SubtitleMode, PiperVoice, TTSProvider } from '@/lib/hooks/useTTS'
 import { useBottomChrome } from '@/lib/BottomChromeContext'
@@ -74,6 +74,8 @@ export function ArticleTTSOverlay({
   onRetry,
 }: ArticleTTSOverlayProps) {
   const rootRef = useRef<HTMLDivElement>(null)
+  const transcriptScrollRef = useRef<HTMLDivElement>(null)
+  const activeTranscriptLineRef = useRef<HTMLParagraphElement>(null)
   const { isHub, setTtsDockHeightPx } = useBottomChrome()
   const [expanded, setExpanded] = useState(false)
   const [seekValue, setSeekValue] = useState<number | null>(null)
@@ -104,6 +106,20 @@ export function ArticleTTSOverlay({
   }, [isHub, setTtsDockHeightPx])
   const totalSentences = sentences.length
   const displayIndex = seekValue !== null ? seekValue : currentSentenceIndex
+  const displaySentenceIdx = clamp(displayIndex, 0, Math.max(0, totalSentences - 1))
+
+  /** Keep the active line visible inside the transcript panel only (no document scroll). */
+  useEffect(() => {
+    if (ttsState.subtitleMode !== 'scroll' || totalSentences === 0) return
+    const container = transcriptScrollRef.current
+    const el = activeTranscriptLineRef.current
+    if (!container || !el) return
+    const cr = container.getBoundingClientRect()
+    const er = el.getBoundingClientRect()
+    const elTopRelative = er.top - cr.top + container.scrollTop
+    const nextTop = elTopRelative - container.clientHeight / 2 + el.clientHeight / 2
+    container.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' })
+  }, [displaySentenceIdx, ttsState.subtitleMode, totalSentences])
 
   const filteredVoices = availableVoices
     .filter(v => ttsState.langFilter === 'all' || v.lang.startsWith(ttsState.langFilter))
@@ -120,10 +136,14 @@ export function ArticleTTSOverlay({
   const transportClusterEnd = seekOnOwnRow || (expanded && totalSentences === 0)
   const transportRowFullWidth = seekOnOwnRow || transportRowNeedsFullWidth || (expanded && totalSentences === 0)
 
+  const transcriptWidthClass = panelNeedsFullWidth
+    ? 'min-w-0 w-full max-w-full'
+    : 'mx-auto box-content w-fit max-w-[min(100%,100vw-0.5rem)] lg:mx-0'
+
   return (
     <div
       ref={rootRef}
-      className={`fixed bottom-0 z-50 box-border max-w-[100vw] px-1 sm:px-0 lg:bottom-8 lg:px-0 ${panelNeedsFullWidth
+      className={`fixed bottom-0 z-50 flex flex-col gap-1.5 box-border max-w-[100vw] px-1 sm:px-0 lg:bottom-8 lg:px-0 ${panelNeedsFullWidth
         ? 'left-0 right-0 w-full lg:left-auto lg:right-8 lg:w-full lg:max-w-md'
         : 'left-0 right-0 w-full lg:left-auto lg:right-8 lg:w-max lg:max-w-full'
         }`}
@@ -164,9 +184,43 @@ export function ArticleTTSOverlay({
         </div>
       )}
 
+      {totalSentences > 0 && (
+        <div className={transcriptWidthClass}>
+          <div className="overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900/95 shadow-xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95">
+            {ttsState.subtitleMode === 'caption' ? (
+              <div className="max-h-[min(28vh,14rem)] overflow-y-auto px-3 py-2.5 sm:px-4 sm:py-3">
+                <p className="text-sm sm:text-base leading-relaxed text-slate-100">
+                  {sentences[displaySentenceIdx] ?? ''}
+                </p>
+              </div>
+            ) : (
+              <div
+                ref={transcriptScrollRef}
+                className="max-h-[min(28vh,14rem)] overflow-y-auto px-3 py-2 sm:px-4 sm:py-2.5 scroll-smooth"
+              >
+                {sentences.map((s, i) => (
+                  <p
+                    key={i}
+                    ref={i === displaySentenceIdx ? activeTranscriptLineRef : undefined}
+                    className={`text-sm sm:text-base leading-relaxed mb-1.5 last:mb-0 transition-colors duration-200 ${i === displaySentenceIdx
+                      ? 'text-white font-semibold'
+                      : i < displaySentenceIdx
+                        ? 'text-slate-500'
+                        : 'text-slate-400'
+                      }`}
+                  >
+                    {s}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Main overlay panel — full width only when seek needs room; otherwise hug controls */}
       <div
-        className={`overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900/95 shadow-2xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95 ${panelNeedsFullWidth ? 'min-w-0 w-full max-w-full' : 'mx-auto box-content w-fit max-w-[min(100%,100vw-0.5rem)] lg:mx-0'}`}
+        className={`overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900/95 shadow-2xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95 ${transcriptWidthClass}`}
       >
         {/* Transport + seek: inline seek only when settings collapsed; when expanded, seek on its own row so flex-1 does not hollow the row. */}
         <div
@@ -179,7 +233,7 @@ export function ArticleTTSOverlay({
               {ttsState.sentences.length > 0 ? (
                 <>
                   <button
-                    onClick={ttsState.isPlaying ? onPause : () => { onScrollToTop(); onPlay(); }}
+                    onClick={ttsState.isPlaying ? onPause : () => { onPlay(); }}
                     className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg transition-all hover:scale-105 hover:bg-indigo-500 sm:h-14 sm:w-14"
                     aria-label={ttsState.isPlaying ? 'Pause' : 'Play'}
                   >
@@ -195,7 +249,7 @@ export function ArticleTTSOverlay({
                 </>
               ) : (
                 <button
-                  onClick={() => { onScrollToTop(); onPlay(); }}
+                  onClick={() => { onPlay(); }}
                   className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg transition-all hover:scale-105 hover:bg-indigo-500 sm:h-14 sm:w-14"
                   aria-label="Play article"
                 >

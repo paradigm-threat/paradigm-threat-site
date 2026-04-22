@@ -9,7 +9,6 @@ import Link from 'next/link'
 import matter from 'gray-matter'
 import { ArticleTTSProvider } from '@/components/ArticleTTS/ArticleTTSProvider'
 import { ArticleTTSOverlay } from '@/components/ArticleTTS/ArticleTTSOverlay'
-import { ArticleTTSScrollSync } from '@/components/ArticleTTS/ArticleTTSScrollSync'
 import { stripMarkdownForTTS, buildParagraphStarts } from '@/components/Timeline/ttsHelpers'
 import { SuspenseLoader } from '@client'
 import { formatIndexDateTiny } from '@/lib/indexUpdated'
@@ -363,7 +362,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
         basePath={basePath}
         persistVisit={persistVisitForArticle}
       >
-        {({ onPlay, onPause, onStop, onPlayFromSentence, isPlaying, currentSentenceIndex, sentences, onClearError, ttsState, availableVoices, availablePiperVoices, setVoice, setRate, setProvider, setPiperVoiceId, setPiperLang, setQuoteVoiceId, setSpeakerMapInput, setLangFilter, setLocalOnly, setSubtitleMode, switchToSpeechAndResume, retry }) => {
+        {({ onPlay, onPause, onStop, onPlayFromSentence, currentSentenceIndex, sentences, onClearError, ttsState, availableVoices, availablePiperVoices, setVoice, setRate, setProvider, setPiperVoiceId, setPiperLang, setQuoteVoiceId, setSpeakerMapInput, setLangFilter, setLocalOnly, setSubtitleMode, switchToSpeechAndResume, retry }) => {
           const scrollToTop = () => window.scroll({ top: 0, left: 0, behavior: 'smooth' })
           const handleArticleDoubleClick = (e: React.MouseEvent<HTMLElement>) => {
             if (sentences.length === 0) return
@@ -422,14 +421,6 @@ export const CatchAllClient = memo(function CatchAllClient() {
                   />
                 ) : null}
               </article>
-              <ArticleTTSScrollSync
-                articleRef={articleRef}
-                currentSentenceIndex={currentSentenceIndex}
-                sentences={sentences}
-                articleContent={content}
-                articleTitle={articleTitle}
-                isPlaying={isPlaying}
-              />
               <ArticleNav />
 
               {!suppressOverlay && (

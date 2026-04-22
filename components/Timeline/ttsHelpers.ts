@@ -399,13 +399,18 @@ function centuryOrdinal(n: number): string {
     return n === 90 ? 'ninetieth' : `ninety-${o[n - 90]}`
 }
 
-/**
- * Split text into speakable sentences.
- * - Handles abbreviations like B.C., A.D., c., e.g., i.e., etc. without breaking
- * - Treats each line/paragraph as at least one sentence
- * - Merges very short fragments into the previous sentence
- */
-export function splitSentences(text: string): string[] {
+interface SplitSentencesWithLinesResult {
+    sentences: string[]
+    /**
+     * For each merged sentence, the minimum newline-source line index (same line split as `splitSentences`).
+     * Used to map sentence indices → scroll blocks when short fragments merge into the previous sentence.
+     */
+    firstSourceLine: number[]
+    sourceLineCount: number
+}
+
+/** Shared implementation: same sentences as legacy `splitSentences`, plus per-sentence source line metadata. */
+function splitSentencesWithLines(text: string): SplitSentencesWithLinesResult {
     const ABBR_PLACEHOLDER = '\x00'
     const ABBREVIATIONS = /\b(B\.C|A\.D|B\.C\.E|C\.E|A\.M|P\.M|e\.g|i\.e|etc|vs|approx|ca?|Mr|Mrs|Ms|Dr|Jr|Sr|St|Prof|Gen|Gov|Sgt|Lt|Col|Capt|Rev|Vol|No|Fig|Dept|Univ|approx|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\./gi
 
@@ -414,12 +419,14 @@ export function splitSentences(text: string): string[] {
     safe = safe.replace(/(\d)\.(\d)/g, '$1' + ABBR_PLACEHOLDER + '$2')
 
     const lines = safe.split(/\n+/).filter(l => l.trim())
-    const allSentences: string[] = []
-    for (const line of lines) {
+    const lineCount = lines.length
+    const allSentences: { t: string; line: number }[] = []
+    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+        const line = lines[lineIdx]
         const raw = line.match(/[^.!?]*[.!?]+(?:\s+|$)/g)
         if (!raw) {
             const restored = line.trim().replaceAll(ABBR_PLACEHOLDER, '.')
-            if (restored) allSentences.push(restored)
+            if (restored) allSentences.push({ t: restored, line: lineIdx })
             continue
         }
         const joined = raw.join('')
@@ -427,40 +434,62 @@ export function splitSentences(text: string): string[] {
         if (leftover) raw.push(leftover)
         for (const s of raw) {
             const restored = s.trim().replaceAll(ABBR_PLACEHOLDER, '.')
-            if (restored) allSentences.push(restored)
+            if (restored) allSentences.push({ t: restored, line: lineIdx })
         }
     }
 
-    const merged: string[] = []
-    for (const s of allSentences) {
-        if (merged.length > 0 && s.length < 30) {
-            merged[merged.length - 1] += ' ' + s
+    const merged: { t: string; line: number }[] = []
+    for (const item of allSentences) {
+        if (merged.length > 0 && item.t.length < 30) {
+            merged[merged.length - 1].t += ' ' + item.t
+            merged[merged.length - 1].line = Math.min(merged[merged.length - 1].line, item.line)
         } else {
-            merged.push(s)
+            merged.push({ t: item.t, line: item.line })
         }
     }
-    let result = merged.filter(s => s.length > 0)
+    let items = merged.filter(m => m.t.length > 0)
     // Recurring bug: last two TTS entries often showed same text. Strip trailing duplicate
     // so the final two displayed sentences are never identical.
-    while (result.length >= 2 && result[result.length - 1] === result[result.length - 2]) {
-        result = result.slice(0, -1)
+    while (items.length >= 2 && items[items.length - 1].t === items[items.length - 2].t) {
+        items = items.slice(0, -1)
     }
-    return result
+    return {
+        sentences: items.map(m => m.t),
+        firstSourceLine: items.map(m => m.line),
+        sourceLineCount: lineCount,
+    }
 }
 
 /**
- * Compute paragraph start indices: paragraphStarts[i] = first sentence index of paragraph i.
- * Use: for sentence index s, paragraph index = largest i where paragraphStarts[i] <= s.
+ * Split text into speakable sentences.
+ * - Handles abbreviations like B.C., A.D., c., e.g., i.e., etc. without breaking
+ * - Treats each line/paragraph as at least one sentence
+ * - Merges very short fragments into the previous sentence
+ */
+export function splitSentences(text: string): string[] {
+    return splitSentencesWithLines(text).sentences
+}
+
+/**
+ * First sentence index per newline-separated source line (matches `splitSentences` line boundaries,
+ * not only `\n\n` markdown paragraphs). Aligns TTS sentence indices with `.mdx-content` blocks
+ * when the stripped body uses single newlines between paragraphs.
+ *
+ * `starts[i]` = first sentence whose audio should be associated with source line `i`;
+ * `starts[lineCount]` = total sentence count (exclusive upper bound).
+ * Paragraph index for sentence `s` = largest `i` where `starts[i] <= s`.
  */
 export function buildParagraphStarts(text: string): number[] {
-  const paras = text.split(/\n\n+/).map(p => p.trim()).filter(Boolean)
-  const starts: number[] = [0]
-  let idx = 0
-  for (const para of paras) {
-    idx += splitSentences(para).length
-    starts.push(idx)
-  }
-  return starts
+    const { sentences, firstSourceLine, sourceLineCount } = splitSentencesWithLines(text)
+    const n = sentences.length
+    if (sourceLineCount === 0) return [0]
+    const starts: number[] = []
+    for (let k = 0; k < sourceLineCount; k++) {
+        const first = firstSourceLine.findIndex(line => line >= k)
+        starts.push(first === -1 ? n : first)
+    }
+    starts.push(n)
+    return starts
 }
 
 /**

@@ -4,7 +4,6 @@ import React, { useRef, useState, useEffect, useMemo } from 'react'
 import { usePathname } from 'next/navigation'
 import { ArticleTTSProvider } from '@/components/ArticleTTS/ArticleTTSProvider'
 import { ArticleTTSOverlay } from '@/components/ArticleTTS/ArticleTTSOverlay'
-import { ArticleTTSScrollSync } from '@/components/ArticleTTS/ArticleTTSScrollSync'
 import { stripMarkdownForTTS, buildParagraphStarts } from '@/components/Timeline/ttsHelpers'
 import { ArticleNav, ShareLinks, ShareLinksFloating } from '@/components'
 import type { ShareExtractResult } from '@/lib/share'
@@ -69,7 +68,6 @@ export function ArticleClientShell ({
     >
       {({
         onPlayFromSentence,
-        isPlaying,
         currentSentenceIndex,
         sentences,
         onClearError,
@@ -144,14 +142,6 @@ export function ArticleClientShell ({
                 />
               )}
             </article>
-            <ArticleTTSScrollSync
-              articleRef={articleRef}
-              currentSentenceIndex={currentSentenceIndex}
-              sentences={sentences}
-              articleContent={articleContent}
-              articleTitle={articleTitle}
-              isPlaying={isPlaying}
-            />
             <ArticleNav />
             {!suppressOverlay && (
               <ArticleTTSOverlay

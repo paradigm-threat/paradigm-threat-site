@@ -12,7 +12,9 @@ function SearchContent() {
     const router = useRouter()
     const params = useParams()
     const searchParams = useSearchParams()
-    const topicFromPath = Array.isArray(params?.topic) ? params.topic[0] : (params?.topic as string)
+    const topicFromPath = Array.isArray(params?.topic)
+        ? (params.topic as string[]).join('/')
+        : ((params?.topic as string) || '')
     const queryFromPath = topicFromPath ? decodeURIComponent(topicFromPath) : ''
     const queryFromSearch = searchParams.get('q') || ''
     const urlQuery = queryFromPath || queryFromSearch
