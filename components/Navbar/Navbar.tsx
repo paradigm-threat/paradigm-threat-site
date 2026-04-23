@@ -7,6 +7,8 @@ import { Menu, X, Search, Home, MessageSquare, Video, Clock, Heart } from 'lucid
 import { ThemeToggle, FontToggle, DynamicNav } from '@/components'
 import { FeelingLuckyButton } from '@/components/FeelingLucky/FeelingLuckyButton'
 import { ResumeInvestigationPanel } from '@/components/ResumeInvestigationPanel'
+import { useArticleHeadingToc } from '@/hooks/useArticleHeadingToc'
+import { scrollToHeadingById } from '@/lib/tocScroll'
 
 interface NavbarProps {
     fileList: any
@@ -20,6 +22,7 @@ const HEADER_MARK_SRC = '/site/favicon.svg'
 const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
     const [isOpen, setIsOpen] = useState(false)
     const pathname = usePathname()
+    const { entries: tocEntries } = useArticleHeadingToc()
 
     // Close menu when path changes
     useEffect(() => {
@@ -36,7 +39,7 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
     ]
 
     return (
-        <header className="w-full bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 select-none sticky top-0 z-[100] backdrop-blur-md bg-opacity-80 dark:bg-opacity-80">
+        <header className="sticky top-0 z-[100] w-full border-b border-slate-200 bg-slate-100/95 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95">
             <div className="max-w-7xl mx-auto px-4">
                 <div className="flex min-w-0 justify-between items-center gap-3 h-16 md:h-20">
                     <div className="flex min-w-0 flex-1 items-center gap-8 lg:flex-initial">
@@ -97,7 +100,7 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
 
             {/* Mobile Navigation Dropdown */}
             {isOpen && (
-                <div className="lg:hidden absolute top-full left-0 right-0 bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-xl animate-in slide-in-from-top-4 duration-200 max-h-[80vh] overflow-y-auto">
+                <div className="absolute left-0 right-0 top-full z-10 max-h-[80vh] overflow-y-auto border-b border-slate-200 bg-slate-100 shadow-xl animate-in slide-in-from-top-4 duration-200 dark:border-slate-800 dark:bg-slate-900 lg:hidden">
                     <nav className="flex flex-col p-4 gap-4">
                         <div className="flex items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-slate-800">
                             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -125,6 +128,30 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
                                 </Link>
                             ))}
                         </div>
+
+                        {tocEntries.length > 0 ? (
+                            <div className="border-t border-slate-200 dark:border-slate-800 pt-4">
+                                <div className="px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                                    On this page
+                                </div>
+                                <nav className="flex max-h-[40vh] flex-col gap-0.5 overflow-y-auto px-2" aria-label="On this page">
+                                    {tocEntries.map((e) => (
+                                        <button
+                                            key={e.id}
+                                            type="button"
+                                            style={{ paddingLeft: `${12 + Math.max(0, e.level - 1) * 12}px` }}
+                                            className="rounded-xl py-2 pr-3 text-left text-sm text-slate-600 transition-colors hover:bg-slate-200/80 dark:text-slate-300 dark:hover:bg-slate-800/80"
+                                            onClick={() => {
+                                                scrollToHeadingById(e.id)
+                                                setIsOpen(false)
+                                            }}
+                                        >
+                                            {e.title}
+                                        </button>
+                                    ))}
+                                </nav>
+                            </div>
+                        ) : null}
 
                         <div className="border-t border-slate-200 dark:border-slate-800 pt-4">
                             <div className="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">

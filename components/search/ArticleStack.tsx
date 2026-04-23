@@ -60,16 +60,20 @@ export function ArticleStack({ renderedMds, contentLoading, totalArticles }: Art
                                             props: { basePath }
                                         },
                                         DynamicIndex: {
-                                            component: components.DynamicIndex,
-                                            props: { mode: 'inline', currentPath: basePath }
+                                            component: components.AutoIndex,
+                                            props: { currentPath: basePath, sort: 'name-asc' }
                                         },
                                         AutoContent: {
-                                            component: components.DynamicIndex,
-                                            props: { mode: 'inline', currentPath: basePath }
+                                            component: components.AutoIndex,
+                                            props: { currentPath: basePath, sort: 'name-asc' }
                                         },
                                         autocontent: {
-                                            component: components.DynamicIndex,
-                                            props: { mode: 'inline', currentPath: basePath }
+                                            component: components.AutoIndex,
+                                            props: { currentPath: basePath, sort: 'name-asc' }
+                                        },
+                                        AutoIndex: {
+                                            component: components.AutoIndex,
+                                            props: { currentPath: basePath }
                                         },
                                         ChangeLog: components.ChangeLog,
                                         ChatRoom: components.ChatRoom,

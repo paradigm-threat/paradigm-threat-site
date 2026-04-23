@@ -51,14 +51,6 @@ export function ArticleClientShell ({
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  // Notify DynamicIndex (sidebar TOC) to re-scan headers after SSR content is in the DOM
-  useEffect(() => {
-    const id = setTimeout(() => {
-      window.dispatchEvent(new Event('dynamic-index-update'))
-    }, 200)
-    return () => clearTimeout(id)
-  }, [])
-
   return (
     <ArticleTTSProvider
       articleTitle={articleTitle}

@@ -3,7 +3,7 @@
 import React, { Suspense, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { DynamicNav, FloatingDiv, ThemeToggle, Navbar, ImageGalleryProvider, DynamicIndex, FilesProvider, useFiles, ClientErrorReporter, FilesMirrorErrorBanner } from "@/components";
+import { DynamicNav, FloatingDiv, ThemeToggle, Navbar, ImageGalleryProvider, FilesProvider, useFiles, ClientErrorReporter, FilesMirrorErrorBanner } from "@/components";
 import { RelayServerToast } from "@/components/RelayServerToast";
 import { RelayFooterAttribution } from "@/components/RelayFooterAttribution";
 import PwaRedirect from "@/components/PwaRedirect";
@@ -59,7 +59,7 @@ function RootLayoutInner({ children }: { children: React.ReactNode }) {
 
                 <div
                     id="site-main-scroll"
-                    className={`flex-1 min-h-0 min-w-0 flex flex-col overflow-x-hidden overflow-y-auto scroll-smooth`}
+                    className={`relative z-0 flex-1 min-h-0 min-w-0 flex flex-col overflow-x-hidden overflow-y-auto scroll-smooth`}
                 >
                     <ImageGalleryProvider>
                         {children}

@@ -2,7 +2,17 @@
 
 import React, { useEffect, useState } from 'react'
 import Markdown from 'markdown-to-jsx'
-import { PopImage, DynamicIndex } from '@/components'
+import { PopImage, AutoIndex } from '@/components'
+import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
+
+function filesIndexPathFromRemoteBase (baseUrl: string): string {
+  const b = baseUrl.replace(/\/$/, '')
+  const filesBase = getPrimaryFilesBaseUrl().replace(/\/$/, '')
+  if (b.startsWith(filesBase)) {
+    return b.slice(filesBase.length).replace(/^\//, '')
+  }
+  return ''
+}
 import { MarkdownLink } from '@/components/MarkdownLink'
 import { transformImageCaptions } from '@/components/Timeline/markdownTransform'
 
@@ -90,8 +100,16 @@ export function RemoteMarkdown({ src, baseUrl, title, className = '' }: RemoteMa
               </PopImage>
             ),
             a: (props: { href?: string; children?: React.ReactNode; [key: string]: unknown }) => <MarkdownLink {...props} />,
-            DynamicIndex: (props: { [key: string]: unknown }) => <DynamicIndex {...props} mode="inline" currentPath={baseUrl} />,
-            dynamicindex: (props: { [key: string]: unknown }) => <DynamicIndex {...props} mode="inline" currentPath={baseUrl} />,
+            DynamicIndex: (props: { [key: string]: unknown }) => {
+              const path = filesIndexPathFromRemoteBase(baseUrl)
+              if (!path) return null
+              return <AutoIndex {...props} currentPath={path} sort="name-asc" />
+            },
+            dynamicindex: (props: { [key: string]: unknown }) => {
+              const path = filesIndexPathFromRemoteBase(baseUrl)
+              if (!path) return null
+              return <AutoIndex {...props} currentPath={path} sort="name-asc" />
+            },
           },
         }}
       >

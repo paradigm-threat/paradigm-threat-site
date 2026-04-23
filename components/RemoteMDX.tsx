@@ -1,4 +1,4 @@
-import React, { useMemo, memo, useEffect } from 'react';
+import React, { useMemo, memo } from 'react';
 import { MDXRemote } from 'next-mdx-remote';
 import * as componentsNamespace from '@/components';
 import { MarkdownLink } from './MarkdownLink';
@@ -10,7 +10,6 @@ const {
     OptimizedImage,
     ChatRoom,
     ChangeLog,
-    DynamicIndex,
     DynamicNav,
     EmbedFile,
     ImageGalleryProvider,
@@ -43,7 +42,7 @@ const mdxComponents = (basePath: string) => ({
     OptimizedImage: (props: any) => <OptimizedImage {...props} basePath={basePath} />,
     ChatRoom,
     ChangeLog,
-    DynamicIndex: (props: any) => <DynamicIndex {...props} mode="inline" currentPath={basePath} />,
+    DynamicIndex: (props: any) => <AutoIndex {...props} currentPath={basePath} sort="name-asc" />,
     DynamicNav: (props: any) => <DynamicNav {...props} currentPath={basePath} />,
     EmbedFile: (props: any) => {
         let src = props.src;
@@ -61,8 +60,8 @@ const mdxComponents = (basePath: string) => ({
     ThemeToggle,
     Navbar,
     img: (props: any) => <ImageWithLqip {...props} basePath={basePath} />,
-    AutoContent: (props: any) => <DynamicIndex {...props} mode="inline" currentPath={basePath} />,
-    Auto: (props: any) => <DynamicIndex {...props} mode="inline" currentPath={basePath} />,
+    AutoContent: (props: any) => <AutoIndex {...props} currentPath={basePath} sort="name-asc" />,
+    Auto: (props: any) => <AutoIndex {...props} currentPath={basePath} sort="name-asc" />,
     AutoIndex: (props: any) => <AutoIndex {...props} currentPath={basePath} />,
     a: (props: any) => {
         let href = props.href || '';
@@ -82,15 +81,6 @@ export interface RemoteMDXProps {
 
 export const RemoteMDX = memo(function RemoteMDX({ compiled, basePath = '' }: RemoteMDXProps) {
     const components = useMemo(() => mdxComponents(basePath), [basePath]);
-
-    // Notify DynamicIndex (sidebar TOC) to re-scan headers after this content is in the DOM
-    useEffect(() => {
-        if (!compiled?.compiledSource) return;
-        const id = setTimeout(() => {
-            window.dispatchEvent(new Event('dynamic-index-update'));
-        }, 150);
-        return () => clearTimeout(id);
-    }, [compiled]);
 
     return (
         <div className="mdx-content">
