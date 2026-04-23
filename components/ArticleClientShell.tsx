@@ -51,6 +51,13 @@ export function ArticleClientShell ({
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      window.dispatchEvent(new Event('dynamic-index-update'))
+    }, 200)
+    return () => window.clearTimeout(id)
+  }, [])
+
   return (
     <ArticleTTSProvider
       articleTitle={articleTitle}

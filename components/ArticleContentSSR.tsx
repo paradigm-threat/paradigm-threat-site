@@ -16,6 +16,7 @@ const {
   OptimizedImage,
   ChatRoom,
   ChangeLog,
+  DynamicIndex,
   DynamicNav,
   EmbedFile,
   ThemeToggle,
@@ -29,7 +30,7 @@ function mdxComponents (basePath: string): Record<string, React.ComponentType<an
     OptimizedImage: (props: any) => <OptimizedImage {...props} basePath={basePath} />,
     ChatRoom,
     ChangeLog,
-    DynamicIndex: (props: any) => <AutoIndex {...props} currentPath={basePath} sort="name-asc" />,
+    DynamicIndex: (props: any) => <DynamicIndex {...props} mode="inline" currentPath={basePath} />,
     DynamicNav: (props: any) => <DynamicNav {...props} currentPath={basePath} />,
     EmbedFile: (props: any) => {
       let src = props.src
@@ -43,8 +44,8 @@ function mdxComponents (basePath: string): Record<string, React.ComponentType<an
       return <EmbedFile {...props} src={src} currentPath={basePath} />
     },
     img: (props: any) => <PopImage {...props} basePath={basePath} />,
-    AutoContent: (props: any) => <AutoIndex {...props} currentPath={basePath} sort="name-asc" />,
-    Auto: (props: any) => <AutoIndex {...props} currentPath={basePath} sort="name-asc" />,
+    AutoContent: (props: any) => <DynamicIndex {...props} mode="inline" currentPath={basePath} />,
+    Auto: (props: any) => <DynamicIndex {...props} mode="inline" currentPath={basePath} />,
     AutoIndex: (props: any) => <AutoIndex {...props} currentPath={basePath} />,
     a: (props: any) => {
       let href = props.href || ''

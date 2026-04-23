@@ -1,9 +1,8 @@
 'use client'
 
-import React, { Suspense, useMemo } from "react";
+import React, { Suspense } from "react";
 import { usePathname } from "next/navigation";
-import { DynamicNav, FloatingDiv, AutoIndex, useFiles } from "@/components";
-import { filesDirectoryFromPathname } from "@/lib/filesPathFromPathname";
+import { DynamicNav, FloatingDiv, DynamicIndex, useFiles } from "@/components";
 import { FeelingLuckyButton } from "@/components/FeelingLucky/FeelingLuckyButton";
 import { ResumeInvestigationPanel } from "@/components/ResumeInvestigationPanel";
 import { RemoteFileIndexBanner } from "@/components/RemoteFileIndexBanner";
@@ -18,10 +17,6 @@ export default function MainLayout({
 }) {
     const pathname = usePathname();
     const { fileList } = useFiles();
-    const sidebarIndexPath = useMemo(
-        () => (pathname ? filesDirectoryFromPathname(pathname, fileList) : ''),
-        [pathname, fileList]
-    );
     // Hide FloatingDiv's Back to top on article pages (2+ path segments) and markdown hubs where TTS dock handles chrome
     const hideFloatingButtons = pathname
         ? pathname.split('/').filter(Boolean).length >= 2 || isMarkdownHubPath(pathname)
@@ -55,14 +50,14 @@ export default function MainLayout({
                     </Suspense>
                 </main>
 
-                {/* Right sidebar: folder index (AutoIndex) — hidden on chat page below `toc` breakpoint */}
-                {!isChatPage && sidebarIndexPath ? (
-                <aside id="sidebar-right" className="hidden toc:block w-80 flex-shrink-0 p-4" aria-label="Folder contents">
+                {/* Right sidebar: heading TOC (DynamicIndex) — hidden on chat page below `toc` breakpoint */}
+                {!isChatPage && (
+                <aside id="sidebar-right" className="hidden toc:block w-80 flex-shrink-0 p-4" aria-label="Table of contents">
                     <div className="toc:fixed toc:right-8 toc:top-24 toc:w-72 toc:max-h-[calc(100vh-8rem)] toc:overflow-y-auto">
-                        <AutoIndex currentPath={sidebarIndexPath} sort="name-asc" maxHeight="calc(100vh-10rem)" />
+                        <DynamicIndex mode="sidebar" />
                     </div>
                 </aside>
-                ) : null}
+                )}
             </div>
         </div>
         </BottomChromeProvider>

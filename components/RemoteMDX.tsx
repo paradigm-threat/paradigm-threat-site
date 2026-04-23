@@ -1,15 +1,16 @@
-import React, { useMemo, memo } from 'react';
+import React, { useMemo, memo, useEffect } from 'react';
 import { MDXRemote } from 'next-mdx-remote';
 import * as componentsNamespace from '@/components';
 import { MarkdownLink } from './MarkdownLink';
 import { useFiles } from './FilesContext';
-import { getLqipFromIndex, getDimensionsFromIndex, resolveImagePath } from './helpers/imageHelper';
+import { getDimensionsFromIndex, resolveImagePath } from './helpers/imageHelper';
 
 const {
     PopImage,
     OptimizedImage,
     ChatRoom,
     ChangeLog,
+    DynamicIndex,
     DynamicNav,
     EmbedFile,
     ImageGalleryProvider,
@@ -19,18 +20,16 @@ const {
     AutoIndex
 } = componentsNamespace;
 
-/** Renders img with LQIP looked up from index before image loads */
-function ImageWithLqip({ basePath, ...props }: { basePath: string; [k: string]: any }) {
+/** Renders img with intrinsic dimensions from index when available */
+function ImageWithIndexDims({ basePath, ...props }: { basePath: string; [k: string]: any }) {
     const { fileList } = useFiles();
     const src = props.src;
     const resolvedPath = typeof src === 'string' ? resolveImagePath(src, basePath).split('?')[0] : '';
-    const lqip = fileList && resolvedPath ? getLqipFromIndex(fileList, resolvedPath) : undefined;
     const dims = fileList && resolvedPath ? getDimensionsFromIndex(fileList, resolvedPath) : undefined;
     return (
         <PopImage
             {...props}
             basePath={basePath}
-            lqip={lqip}
             intrinsicWidth={dims?.width}
             intrinsicHeight={dims?.height}
         />
@@ -42,7 +41,7 @@ const mdxComponents = (basePath: string) => ({
     OptimizedImage: (props: any) => <OptimizedImage {...props} basePath={basePath} />,
     ChatRoom,
     ChangeLog,
-    DynamicIndex: (props: any) => <AutoIndex {...props} currentPath={basePath} sort="name-asc" />,
+    DynamicIndex: (props: any) => <DynamicIndex {...props} mode="inline" currentPath={basePath} />,
     DynamicNav: (props: any) => <DynamicNav {...props} currentPath={basePath} />,
     EmbedFile: (props: any) => {
         let src = props.src;
@@ -59,9 +58,9 @@ const mdxComponents = (basePath: string) => ({
     FloatingDiv,
     ThemeToggle,
     Navbar,
-    img: (props: any) => <ImageWithLqip {...props} basePath={basePath} />,
-    AutoContent: (props: any) => <AutoIndex {...props} currentPath={basePath} sort="name-asc" />,
-    Auto: (props: any) => <AutoIndex {...props} currentPath={basePath} sort="name-asc" />,
+    img: (props: any) => <ImageWithIndexDims {...props} basePath={basePath} />,
+    AutoContent: (props: any) => <DynamicIndex {...props} mode="inline" currentPath={basePath} />,
+    Auto: (props: any) => <DynamicIndex {...props} mode="inline" currentPath={basePath} />,
     AutoIndex: (props: any) => <AutoIndex {...props} currentPath={basePath} />,
     a: (props: any) => {
         let href = props.href || '';
@@ -81,6 +80,14 @@ export interface RemoteMDXProps {
 
 export const RemoteMDX = memo(function RemoteMDX({ compiled, basePath = '' }: RemoteMDXProps) {
     const components = useMemo(() => mdxComponents(basePath), [basePath]);
+
+    useEffect(() => {
+        if (!compiled?.compiledSource) return;
+        const id = window.setTimeout(() => {
+            window.dispatchEvent(new Event('dynamic-index-update'));
+        }, 150);
+        return () => window.clearTimeout(id);
+    }, [compiled]);
 
     return (
         <div className="mdx-content">

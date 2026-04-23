@@ -46,33 +46,8 @@ export async function checkFileExists(path: string): Promise<boolean> {
 }
 
 /**
- * Look up LQIP (blur placeholder) from the index tree by image path.
- * Index structure: index.media["01.before-creation"]["before-creation.png"]._lqip
- * Path can be "/media/01.before-creation/before-creation.png", "media/01.before-creation/before-creation.png", or full URL
- */
-export function getLqipFromIndex(index: any, imagePath: string): string | undefined {
-    if (!index || typeof imagePath !== 'string') return undefined
-    let clean = imagePath.split('?')[0]
-    if (clean.startsWith('http')) {
-        try {
-            clean = new URL(clean).pathname
-        } catch {
-            return undefined
-        }
-    }
-    clean = clean.replace(/^\//, '')
-    if (!clean) return undefined
-    const parts = clean.split('/').filter(Boolean)
-    let curr: any = index
-    for (let i = 0; i < parts.length && curr; i++) {
-        curr = curr[parts[i]]
-    }
-    return curr && typeof curr === 'object' && typeof curr._lqip === 'string' ? curr._lqip : undefined
-}
-
-/**
  * Look up intrinsic dimensions (width, height) from the index tree by image path.
- * Same path resolution as getLqipFromIndex. Used to reserve aspect ratio for LQIP placeholder.
+ * Used to reserve aspect ratio for the image container before the optimized image loads.
  */
 export function getDimensionsFromIndex(index: any, imagePath: string): { width: number; height: number } | undefined {
     if (!index || typeof imagePath !== 'string') return undefined
@@ -179,9 +154,11 @@ export function processImageProps(props: any, basePath?: string, filesRootUrl?: 
         delete (finalProps as any).w;
     }
 
-    if (props.lqip) {
-        finalProps.blurDataURL = props.lqip;
+    const fp = finalProps as Record<string, unknown>
+    if (typeof fp.lqip === 'string' && fp.blurDataURL == null) {
+        fp.blurDataURL = fp.lqip
     }
+    delete fp.lqip
 
     // If optimizedSrc is already provided, we assume the props are already processed
     if (props.optimizedSrc && typeof src === 'string') {

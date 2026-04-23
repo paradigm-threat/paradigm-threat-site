@@ -386,7 +386,6 @@ export default function AutoIndex({
             {imgFiles.map((img) => {
               const imgNode = node?.[img]
               const imgTitle = imgNode?._title
-              const lqip = imgNode?._lqip
               const intrinsicWidth = imgNode?._width
               const intrinsicHeight = imgNode?._height
               const imgDateTiny = formatIndexDateTiny(imgNode?._updated)
@@ -396,7 +395,6 @@ export default function AutoIndex({
                     <PopImage
                       src={img}
                       basePath={path}
-                      lqip={lqip}
                       intrinsicWidth={intrinsicWidth}
                       intrinsicHeight={intrinsicHeight}
                       w={200}

@@ -4,11 +4,9 @@ import React, { useState, useEffect, memo } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Menu, X, Search, Home, MessageSquare, Video, Clock, Heart } from 'lucide-react'
-import { ThemeToggle, FontToggle, DynamicNav } from '@/components'
+import { ThemeToggle, FontToggle, DynamicNav, DynamicIndex } from '@/components'
 import { FeelingLuckyButton } from '@/components/FeelingLucky/FeelingLuckyButton'
 import { ResumeInvestigationPanel } from '@/components/ResumeInvestigationPanel'
-import { useArticleHeadingToc } from '@/hooks/useArticleHeadingToc'
-import { scrollToHeadingById } from '@/lib/tocScroll'
 
 interface NavbarProps {
     fileList: any
@@ -22,7 +20,6 @@ const HEADER_MARK_SRC = '/site/favicon.svg'
 const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
     const [isOpen, setIsOpen] = useState(false)
     const pathname = usePathname()
-    const { entries: tocEntries } = useArticleHeadingToc()
 
     // Close menu when path changes
     useEffect(() => {
@@ -129,29 +126,10 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
                             ))}
                         </div>
 
-                        {tocEntries.length > 0 ? (
-                            <div className="border-t border-slate-200 dark:border-slate-800 pt-4">
-                                <div className="px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                                    On this page
-                                </div>
-                                <nav className="flex max-h-[40vh] flex-col gap-0.5 overflow-y-auto px-2" aria-label="On this page">
-                                    {tocEntries.map((e) => (
-                                        <button
-                                            key={e.id}
-                                            type="button"
-                                            style={{ paddingLeft: `${12 + Math.max(0, e.level - 1) * 12}px` }}
-                                            className="rounded-xl py-2 pr-3 text-left text-sm text-slate-600 transition-colors hover:bg-slate-200/80 dark:text-slate-300 dark:hover:bg-slate-800/80"
-                                            onClick={() => {
-                                                scrollToHeadingById(e.id)
-                                                setIsOpen(false)
-                                            }}
-                                        >
-                                            {e.title}
-                                        </button>
-                                    ))}
-                                </nav>
-                            </div>
-                        ) : null}
+                        <DynamicIndex
+                            mode="menu"
+                            onAfterNavigate={() => setIsOpen(false)}
+                        />
 
                         <div className="border-t border-slate-200 dark:border-slate-800 pt-4">
                             <div className="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">

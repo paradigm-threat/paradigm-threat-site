@@ -26,7 +26,6 @@ const DIRECT_IMAGE_EXT = /\.(jpg|jpeg|png|gif|svg|webp|avif|ico)$/i
 type DirectImageLeaf = {
   basePath: string
   fileName: string
-  lqip?: string
   intrinsicWidth?: number
   intrinsicHeight?: number
   displayTitle: string
@@ -249,7 +248,6 @@ export const CatchAllClient = memo(function CatchAllClient() {
               setDirectImageLeaf({
                 basePath: calcBasePath,
                 fileName: lastSeg,
-                lqip: typeof meta._lqip === 'string' ? meta._lqip : undefined,
                 intrinsicWidth: typeof meta._width === 'number' ? meta._width : undefined,
                 intrinsicHeight: typeof meta._height === 'number' ? meta._height : undefined,
                 displayTitle: titled,
@@ -424,7 +422,6 @@ export const CatchAllClient = memo(function CatchAllClient() {
             <PopImage
               src={directImageLeaf.fileName}
               basePath={directImageLeaf.basePath}
-              lqip={directImageLeaf.lqip}
               intrinsicWidth={directImageLeaf.intrinsicWidth}
               intrinsicHeight={directImageLeaf.intrinsicHeight}
               w={1600}
@@ -555,7 +552,6 @@ export const CatchAllClient = memo(function CatchAllClient() {
                         if (curr) curr = curr[p]
                       }
                       const imgNode = curr?.[img]
-                      const lqip = imgNode?._lqip
                       const intrinsicWidth = imgNode?._width
                       const intrinsicHeight = imgNode?._height
 
@@ -564,7 +560,6 @@ export const CatchAllClient = memo(function CatchAllClient() {
                           <PopImage
                             src={img}
                             basePath={basePath}
-                            lqip={lqip}
                             intrinsicWidth={intrinsicWidth}
                             intrinsicHeight={intrinsicHeight}
                             w={400}

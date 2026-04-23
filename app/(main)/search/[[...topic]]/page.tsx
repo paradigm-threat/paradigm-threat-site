@@ -59,6 +59,14 @@ function SearchContent() {
             })
     }, [])
 
+    useEffect(() => {
+        if (!loading && !contentLoading) {
+            window.setTimeout(() => {
+                window.dispatchEvent(new Event('dynamic-index-update'))
+            }, 500)
+        }
+    }, [loading, contentLoading, renderedMds])
+
     const searchResults = useMemo(() => {
         if (!filesIndex || !Array.isArray(filesIndex)) return []
         const cleanQuery = debouncedSearch.trim().toLowerCase()

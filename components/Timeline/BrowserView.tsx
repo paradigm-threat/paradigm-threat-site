@@ -7,7 +7,7 @@ import { useTimeline } from '@/components/TimelineContext'
 import { PopImage } from '@/components'
 import { TimelineAwareLink } from '@/components/Timeline/TimelineAwareLink'
 import { transformImageCaptions } from './markdownTransform'
-import { getLqipFromIndex, getDimensionsFromIndex, resolveImagePath } from '@/components/helpers/imageHelper'
+import { getDimensionsFromIndex, resolveImagePath } from '@/components/helpers/imageHelper'
 import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
 
 /* ── Types ──────────────────────────────────────────────────────── */
@@ -389,13 +389,11 @@ export function BrowserView({ initialPath }: BrowserViewProps) {
                         const contentDir = selectedPath?.includes('/') ? selectedPath.replace(/\/[^/]+$/, '') : ''
                         const base = contentDir ? `${baseUrl.replace(/\/$/, '')}/${contentDir}` : baseUrl
                         const resolved = typeof props.src === 'string' ? resolveImagePath(props.src, base).split('?')[0] : ''
-                        const lqip = index && resolved ? getLqipFromIndex(index, resolved) : undefined
                         const dims = index && resolved ? getDimensionsFromIndex(index, resolved) : undefined
                         return (
                           <PopImage
                             {...props}
                             basePath={base}
-                            lqip={lqip}
                             intrinsicWidth={dims?.width}
                             intrinsicHeight={dims?.height}
                             className={props.className}
@@ -407,13 +405,11 @@ export function BrowserView({ initialPath }: BrowserViewProps) {
                         const contentDir = selectedPath?.includes('/') ? selectedPath.replace(/\/[^/]+$/, '') : ''
                         const base = contentDir ? `${baseUrl.replace(/\/$/, '')}/${contentDir}` : baseUrl
                         const resolved = typeof props.src === 'string' ? resolveImagePath(props.src as string, base).split('?')[0] : ''
-                        const lqip = index && resolved ? getLqipFromIndex(index, resolved) : undefined
                         const dims = index && resolved ? getDimensionsFromIndex(index, resolved) : undefined
                         return (
                           <PopImage
                             {...props}
                             basePath={base}
-                            lqip={lqip}
                             intrinsicWidth={dims?.width}
                             intrinsicHeight={dims?.height}
                             className={props.className as string}

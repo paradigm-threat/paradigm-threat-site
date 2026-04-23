@@ -36,6 +36,9 @@ export async function fetchFromAssetMirrors (
   const origins = getOriginsForRepo(repo)
   if (!origins.length) return null
 
+  /** HTTP status per origin attempt, or -1 if fetch threw (e.g. network). */
+  const attemptOutcomes: number[] = []
+
   for (const origin of origins) {
     const url = `${origin.replace(/\/$/, '')}${path}${search}`
     const ac = new AbortController()
@@ -49,20 +52,27 @@ export async function fetchFromAssetMirrors (
         cache: init.cache ?? 'no-store',
         ...(init.next !== undefined ? { next: init.next } : {}),
       })
+      attemptOutcomes.push(res.status)
       if (res.ok) return res
     } catch {
-      /* try next mirror */
+      attemptOutcomes.push(-1)
     } finally {
       clearTimeout(timer)
     }
   }
-  console.error(
-    '[server-mirror]',
-    JSON.stringify({
-      repo,
-      path,
-      originCount: origins.length,
-    }),
-  )
+
+  const allMissing =
+    attemptOutcomes.length > 0 && attemptOutcomes.every((s) => s === 404)
+  if (!allMissing) {
+    console.warn(
+      '[server-mirror]',
+      JSON.stringify({
+        repo,
+        path,
+        originCount: origins.length,
+        attempts: attemptOutcomes,
+      }),
+    )
+  }
   return null
 }

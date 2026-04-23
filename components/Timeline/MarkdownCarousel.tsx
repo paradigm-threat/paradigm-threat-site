@@ -5,7 +5,7 @@ import Markdown from 'markdown-to-jsx'
 import type { TimelineEntry } from '@/components/TimelineContext'
 import { PopImage, ShareLinks } from '@/components'
 import { TimelineAwareLink } from '@/components/Timeline/TimelineAwareLink'
-import { getLqipFromIndex, getDimensionsFromIndex, resolveImagePath } from '@/components/helpers/imageHelper'
+import { getDimensionsFromIndex, resolveImagePath } from '@/components/helpers/imageHelper'
 import { transformImageCaptions } from './markdownTransform'
 import { formatDateRange, formatElapsedSinceStart } from './utils'
 import { useClientClock } from './useClientClock'
@@ -182,13 +182,11 @@ export function MarkdownCarousel({
                     overrides: {
                       img: (props) => {
                         const resolved = typeof props.src === 'string' ? resolveImagePath(props.src, baseUrl).split('?')[0] : ''
-                        const lqip = index && resolved ? getLqipFromIndex(index, resolved) : undefined
                         const dims = index && resolved ? getDimensionsFromIndex(index, resolved) : undefined
                         return (
                           <PopImage
                             {...props}
                             basePath={baseUrl}
-                            lqip={lqip}
                             intrinsicWidth={dims?.width}
                             intrinsicHeight={dims?.height}
                             className={props.className}
@@ -198,13 +196,11 @@ export function MarkdownCarousel({
                       PopImage: (props: { children?: React.ReactNode;[key: string]: unknown }) => {
                         const captionText = typeof props.children === 'string' ? props.children : null
                         const resolved = typeof props.src === 'string' ? resolveImagePath(props.src as string, baseUrl).split('?')[0] : ''
-                        const lqip = index && resolved ? getLqipFromIndex(index, resolved) : undefined
                         const dims = index && resolved ? getDimensionsFromIndex(index, resolved) : undefined
                         return (
                           <PopImage
                             {...props}
                             basePath={baseUrl}
-                            lqip={lqip}
                             intrinsicWidth={dims?.width}
                             intrinsicHeight={dims?.height}
                             className={props.className as string}
