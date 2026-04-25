@@ -10,6 +10,7 @@ export type SharePlatformId =
   | 'reddit'
   | 'bluesky'
   | 'instagram'
+  | 'substack'
   | 'threads'
   | 'truthsocial'
 
@@ -54,6 +55,9 @@ export function platformCopyLimit (platform: SharePlatformId): number {
       return REDDIT_COPY_MAX
     case 'instagram':
       return INSTAGRAM_CAPTION_MAX
+    case 'substack':
+      // Notes has a soft-ish limit that changes; keep generous but bounded.
+      return LINKEDIN_MAX
     case 'threads':
       return THREADS_MAX
     case 'truthsocial':

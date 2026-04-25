@@ -2,7 +2,6 @@
 
 import React, { useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { X_URL_WEIGHT } from '@/lib/share/platformLimits'
 import type { SharePlatformId } from '@/lib/share'
 
 export interface ShareCopyPlatformAction {
@@ -24,6 +23,8 @@ export interface ShareCopyModalProps {
   xComposerWeight?: number
   platformActions: ShareCopyPlatformAction[]
   ogImageUrl?: string
+  copyFormatPlatform: SharePlatformId
+  onCopyFormatPlatformChange: (platform: SharePlatformId) => void
 }
 
 function getFocusableList (root: HTMLElement): HTMLElement[] {
@@ -60,6 +61,8 @@ export function ShareCopyModal ({
   xComposerWeight,
   platformActions,
   ogImageUrl,
+  copyFormatPlatform,
+  onCopyFormatPlatformChange,
 }: ShareCopyModalProps) {
   const [copied, setCopied] = React.useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -115,8 +118,6 @@ export function ShareCopyModal ({
       }
     })()
 
-  const anyShortDraft = platformActions.some((a) => a.outboundOpenUsesShortDraft)
-
   /** Body portal: main scroll wrapper uses z-0, which trapped fixed content below the sticky header (z-100). */
   const overlay = (
     <div
@@ -148,24 +149,6 @@ export function ShareCopyModal ({
         </div>
 
         <div className="overflow-y-auto px-4 py-3 space-y-3">
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            {charCount} characters (full text; trim in the app if a network imposes a limit)
-            {xComposerWeight != null ? (
-              <span className="block mt-1 text-xs text-slate-500">
-                X and Threads count each URL as {X_URL_WEIGHT} characters in the composer (~{xComposerWeight}{' '}
-                weighted for this text).
-              </span>
-            ) : null}
-          </p>
-
-          {anyShortDraft ? (
-            <p className="text-xs text-amber-800/90 dark:text-amber-200/90 bg-amber-500/10 dark:bg-amber-500/15 rounded-lg px-2 py-1.5">
-              Some &quot;Open …&quot; links use a shortened draft so the prefilled post fits that network&apos;s
-              compose limit. The text area below is always the full article. See per-network notes next to each
-              link where trimming applies.
-            </p>
-          ) : null}
-
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -184,6 +167,31 @@ export function ShareCopyModal ({
             className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm p-3 font-mono resize-y min-h-[120px]"
             onFocus={(e) => e.target.select()}
           />
+
+          <div className="flex flex-wrap items-center gap-2">
+            <label
+              htmlFor="share-copy-format"
+              className="text-xs font-medium text-slate-500 dark:text-slate-400"
+            >
+              Format for
+            </label>
+            <select
+              id="share-copy-format"
+              value={copyFormatPlatform}
+              onChange={(e) => onCopyFormatPlatformChange(e.target.value as SharePlatformId)}
+              className="rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm px-2 py-1"
+            >
+              <option value="x">X</option>
+              <option value="facebook">Facebook</option>
+              <option value="linkedin">LinkedIn</option>
+              <option value="reddit">Reddit</option>
+              <option value="bluesky">Bluesky</option>
+              <option value="instagram">Instagram</option>
+              <option value="substack">Substack</option>
+              <option value="threads">Threads</option>
+              <option value="truthsocial">Truth Social</option>
+            </select>
+          </div>
 
           {ogImageUrl ? (
             <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
@@ -213,40 +221,27 @@ export function ShareCopyModal ({
 
           <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-1.5">
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Open in app or site</p>
-            <ul className="flex flex-col gap-0 list-none m-0 p-0 rounded-md border border-slate-200 dark:border-slate-700 divide-y divide-slate-200 dark:divide-slate-700 overflow-hidden">
+            <div className="flex flex-wrap gap-2">
               {platformActions.map((a) => (
-                <li
-                  key={a.platformId}
-                  className="px-2 py-1.5 bg-slate-50/80 dark:bg-slate-800/40"
-                >
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                    <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300 shrink-0 min-w-[4.5rem]">
-                      {a.platformLabel}
-                    </span>
-                    {a.href ? (
-                      <a
-                        href={a.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center rounded-md border border-slate-300 dark:border-slate-600 px-2 py-0.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 leading-tight"
-                      >
-                        {a.openLabel}
-                      </a>
-                    ) : (
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400">No web open link — copy above</span>
-                    )}
-                  </div>
-                  {a.outboundOpenUsesShortDraft && a.intentCharCount != null ? (
-                    <p className="text-[11px] leading-snug text-amber-800/90 dark:text-amber-200/90 mt-0.5">
-                      Shortened draft in link ({a.intentCharCount} chars).
-                    </p>
+                <React.Fragment key={a.platformId}>
+                  {a.href ? (
+                    <a
+                      href={a.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center rounded-md border border-slate-300 dark:border-slate-600 px-2 py-1 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 leading-tight"
+                    >
+                      {a.openLabel}
+                    </a>
                   ) : null}
                   {a.copyOnlyNote ? (
-                    <p className="text-[11px] leading-snug text-slate-500 dark:text-slate-400 mt-0.5">{a.copyOnlyNote}</p>
+                    <span className="text-[11px] leading-snug text-slate-500 dark:text-slate-400">
+                      {a.platformLabel}: {a.copyOnlyNote}
+                    </span>
                   ) : null}
-                </li>
+                </React.Fragment>
               ))}
-            </ul>
+            </div>
           </div>
         </div>
       </div>

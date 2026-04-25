@@ -65,6 +65,13 @@ function buildOutboundHref(
         copyOnlyNote:
           'Instagram has no web link that opens the new-post screen with a filled caption. Copy the text here, then create a post in the app and paste.',
       }
+    case 'substack':
+      return {
+        href: 'https://substack.com/notes',
+        label: 'Open Substack Notes',
+        copyOnlyNote:
+          'Substack does not provide a stable web link that opens a new Note with prefilled text. Copy the text here, then create a Note and paste.',
+      }
     case 'threads':
       return {
         href: `https://www.threads.net/intent/post?text=${encodeURIComponent(intentText)}`,
@@ -89,6 +96,7 @@ export const SHARE_PLATFORMS: { id: SharePlatformId; label: string }[] = [
   { id: 'reddit', label: 'Reddit' },
   { id: 'bluesky', label: 'Bluesky' },
   { id: 'instagram', label: 'Instagram' },
+  { id: 'substack', label: 'Substack' },
   { id: 'threads', label: 'Threads' },
   { id: 'truthsocial', label: 'Truth Social' },
 ]
@@ -128,8 +136,21 @@ export function useShareLinksModel({
   )
 
   const [modalOpen, setModalOpen] = useState(false)
+  const [copyFormatPlatform, setCopyFormatPlatform] = useState<SharePlatformId>('x')
 
-  const activeCopyText = useMemo(() => composeShareText('x', composeInput), [composeInput])
+  const activeCopyText = useMemo(() => {
+    const p = copyFormatPlatform
+    const t = composeInput.title.trim()
+    const u = composeInput.canonicalUrl.trim()
+    const tags = composeInput.hashtagsLine.trim()
+    const snippet = composeInput.snippetPlain.trim()
+    const isXMinimal = p === 'x'
+
+    const parts: string[] = [t, '', u]
+    if (tags) parts.push('', tags)
+    if (!isXMinimal && snippet) parts.push('', snippet)
+    return parts.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+  }, [copyFormatPlatform, composeInput])
 
   const charCount = useMemo(() => shareTextCharCount(activeCopyText), [activeCopyText])
 
@@ -173,5 +194,7 @@ export function useShareLinksModel({
     xComposerWeight,
     platformOutbounds,
     ogImageUrl,
+    copyFormatPlatform,
+    setCopyFormatPlatform,
   }
 }

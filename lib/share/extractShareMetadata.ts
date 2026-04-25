@@ -22,6 +22,30 @@ function stripLeadingH1 (md: string): string {
   return md.replace(/^#\s+.+\n+/, '')
 }
 
+function extractKeywordsSectionFromMarkdownBody (md: string): string {
+  // Common in paradigm-threat-files investigations:
+  //   ## Keywords
+  //   #tag #tag
+  //   #tag2 ...
+  const lines = md.split('\n')
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const header = lines[i].trim().replace(/\*\*/g, '')
+    if (!/^#{1,6}\s+Keywords\s*$/i.test(header)) continue
+    const collected: string[] = []
+    for (let j = i + 1; j < lines.length; j++) {
+      const t = lines[j].trim()
+      if (!t) continue
+      // Stop if we hit a new heading (or a horizontal rule)
+      if (/^#{1,6}\s+/.test(t) || /^---\s*$/.test(t)) break
+      const found = t.match(/#[A-Za-z0-9_]+/g)
+      if (found?.length) collected.push(...found)
+    }
+    if (!collected.length) return ''
+    return Array.from(new Set(collected)).join(' ')
+  }
+  return ''
+}
+
 /** Blockquote starting with TL;DR (case-insensitive), including continuation lines with `>`. */
 function extractTldrBlock (md: string): string | null {
   const body = stripFrontmatter(md)
@@ -176,7 +200,8 @@ export function extractShareMetadata (input: ShareExtractInput): ShareExtractRes
   const snippetPlain = desc || tldr || firstPara || ''
   const fromFm = keywordsToHashtagLine(frontmatter)
   const fromBody = extractKeywordsLineFromMarkdownBody(rawMarkdown)
-  const hashtagsLine = mergeHashtagLines(fromFm, fromBody)
+  const fromSection = extractKeywordsSectionFromMarkdownBody(rawMarkdown)
+  const hashtagsLine = mergeHashtagLines(mergeHashtagLines(fromFm, fromBody), fromSection)
   const articleBodyPlain = markdownToPlainBody(rawMarkdown)
 
   return { snippetPlain, hashtagsLine, articleBodyPlain }

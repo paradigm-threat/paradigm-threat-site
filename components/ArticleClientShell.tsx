@@ -6,6 +6,7 @@ import { ArticleTTSProvider } from '@/components/ArticleTTS/ArticleTTSProvider'
 import { ArticleTTSOverlay } from '@/components/ArticleTTS/ArticleTTSOverlay'
 import { stripMarkdownForTTS, buildParagraphStarts } from '@/components/Timeline/ttsHelpers'
 import { ArticleNav, ShareLinks, ShareLinksFloating } from '@/components'
+import { MdxRuntimeErrorBoundary } from '@/components/MdxRuntimeErrorBoundary'
 import type { ShareExtractResult } from '@/lib/share'
 import { shouldPersistVisit } from '@/lib/visitResumeStorage'
 import { useMobileHubTtsChrome } from '@/lib/hooks/useMobileHubTtsChrome'
@@ -128,7 +129,9 @@ export function ArticleClientShell ({
                   />
                 </div>
               ) : null}
-              {children}
+              <MdxRuntimeErrorBoundary key={articlePath ?? 'article'} sourcePath={articlePath ? `/${articlePath}` : undefined}>
+                {children}
+              </MdxRuntimeErrorBoundary>
               {articlePath && (
                 <ShareLinks
                   url={`/${articlePath}`}

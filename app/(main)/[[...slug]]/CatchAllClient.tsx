@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, memo, useRef, useSyncExternalStore } from 'react'
 import { useParams, usePathname } from 'next/navigation'
 import { RemoteMDX } from '@/components/RemoteMDX'
+import { MdxRuntimeErrorBoundary } from '@/components/MdxRuntimeErrorBoundary'
 import { PopImage, useFiles, ArticleNav } from '@/components'
 import { ArticleRemote404Notice } from '@/components/ArticleRemote404Notice'
 import Link from 'next/link'
@@ -486,14 +487,16 @@ export const CatchAllClient = memo(function CatchAllClient() {
                   </div>
                 ) : null}
                 {compiledMdx ? (
-                  <RemoteMDX
-                    compiled={{
-                      compiledSource: compiledMdx.compiledSource,
-                      frontmatter: compiledMdx.frontmatter,
-                      scope: compiledMdx.scope,
-                    }}
-                    basePath={basePath}
-                  />
+                  <MdxRuntimeErrorBoundary key={path ?? ''} sourcePath={path ? `/${path}` : undefined}>
+                    <RemoteMDX
+                      compiled={{
+                        compiledSource: compiledMdx.compiledSource,
+                        frontmatter: compiledMdx.frontmatter,
+                        scope: compiledMdx.scope,
+                      }}
+                      basePath={basePath}
+                    />
+                  </MdxRuntimeErrorBoundary>
                 ) : (
                   <div className="animate-pulse h-32 bg-slate-200/50 dark:bg-slate-800/50 rounded-xl" />
                 )}

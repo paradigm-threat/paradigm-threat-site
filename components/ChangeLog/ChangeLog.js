@@ -245,14 +245,20 @@ export default function ChangeLog({ target = '_self' }) {
   }, [changeLog, openGallery])
 
   if (loading) {
-    return <div className="animate-pulse flex space-x-4 p-4"><div className="flex-1 space-y-4 py-1"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div></div></div>
+    return (
+      <div className="not-prose w-full min-w-0 max-w-none animate-pulse flex space-x-4 py-2">
+        <div className="flex-1 space-y-4 py-1 min-w-0">
+          <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
+        </div>
+      </div>
+    )
   }
 
   const wrapClass = fullscreen ? styles.wrapFullscreen : styles.wrap
   const listClass = `${styles.changelog}${fullscreen ? ` ${styles.changelogFullscreen}` : ''}`
 
   return (
-    <div className={wrapClass}>
+    <div className={`not-prose w-full min-w-0 max-w-none ${wrapClass}`}>
       <div className={styles.toolbar}>
         <button
           type="button"

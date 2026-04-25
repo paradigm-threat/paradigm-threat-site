@@ -7,6 +7,14 @@ import { isNonArticlePath } from '@/lib/isNonArticlePath'
 import { resolveOgImageUrl } from '@/lib/share/resolveOgImageUrl'
 import { fetchFilesTextFromMirrors } from '@/lib/serverFilesMirror'
 
+function extractFirstMarkdownH1 (md: string): string {
+  // Look for the first ATX H1 in the document body (frontmatter already stripped by `matter()`).
+  const m = md.match(/^\s*#\s+(.+?)\s*$/m)
+  if (!m?.[1]) return ''
+  // Avoid returning inline link markup verbatim as a title if it exists.
+  return m[1].replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim()
+}
+
 /**
  * Fetch a remote MD/MDX file and return it compiled.
  * GET /api/article?path=influence/stolen_credit/nintendo-sony-breakup.md&v=...
@@ -68,7 +76,12 @@ export async function GET(req: NextRequest) {
     const titleFromPath = basePath
       ? basePath.split('/').pop()?.replace(/_/g, ' ')
       : 'Article'
-    const title = (frontMatter?.title as string) || titleFromPath || 'Article'
+    const titleFromH1 = extractFirstMarkdownH1(rawContent)
+    const title =
+      (frontMatter?.title as string) ||
+      titleFromH1 ||
+      titleFromPath ||
+      'Article'
 
     try {
       const { compiledSource, frontmatter, scope } = await serialize(mdxSource, {

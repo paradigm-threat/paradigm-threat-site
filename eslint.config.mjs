@@ -2,5 +2,6 @@
 // Use this config so "eslint ." works; pre-commit runs eslint instead of next lint.
 import nextConfig from 'eslint-config-next/core-web-vitals';
 
-const config = [...nextConfig];
+/** Playwright specs use @playwright/test globals; lint via `npx playwright test` instead. */
+const config = [{ ignores: ['e2e/**'] }, ...nextConfig];
 export default config;

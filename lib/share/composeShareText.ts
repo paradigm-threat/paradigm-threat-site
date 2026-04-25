@@ -53,7 +53,7 @@ export function effectiveLengthX (text: string): number {
 }
 
 /**
- * Full share text, no truncation. Order: title → hashtags → URL → snippet → article body.
+ * Full share text, no truncation. Order: title → URL → hashtags → snippet → article body.
  * `platform` is ignored; kept for call-site stability.
  */
 export function composeShareText (_platform: SharePlatformId, input: ComposeShareInput): string {
@@ -64,8 +64,8 @@ export function composeShareText (_platform: SharePlatformId, input: ComposeShar
   const article = input.articleBodyPlain.trim()
 
   const parts: string[] = [title]
-  if (hashtags) parts.push('', hashtags)
   parts.push('', url)
+  if (hashtags) parts.push('', hashtags)
   if (snippet) parts.push('', snippet)
   if (article) parts.push('', article)
   return parts.join('\n').replace(/\n{3,}/g, '\n\n').trim()
@@ -86,8 +86,8 @@ function joinShareParts (
 ): string {
   const includeUrl = opts?.includeCanonicalUrl !== false
   const parts: string[] = [title]
-  if (hashtags) parts.push('', hashtags)
   if (includeUrl) parts.push('', url)
+  if (hashtags) parts.push('', hashtags)
   if (snippet) parts.push('', snippet)
   if (article) parts.push('', article)
   return parts.join('\n').replace(/\n{3,}/g, '\n\n').trim()
