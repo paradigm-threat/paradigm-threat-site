@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
 
 export interface GalleryImage {
@@ -286,16 +287,16 @@ function GalleryImageItem({
                 else if (swipe > 100) goPrev()
             }}
             onClick={(e) => e.stopPropagation()}
-            className={`relative z-10 max-w-[99vw] ${aspectRatio && aspectRatio < 1 ? 'lg:max-w-[92vw]' : 'lg:max-w-[88vw]'} flex ${aspectRatio && aspectRatio < 1 ? 'flex-col lg:flex-row' : 'flex-col'} items-center justify-center gap-4 lg:gap-6 pointer-events-none`}
-            style={{ willChange: 'transform, opacity', maxHeight: 'min(92dvh, calc(100vh - 4rem))' }}
+            className={`relative z-10 flex h-full max-h-full min-h-0 w-full max-w-[99vw] ${aspectRatio && aspectRatio < 1 ? 'lg:max-w-[92vw]' : 'lg:max-w-[88vw]'} ${aspectRatio && aspectRatio < 1 ? 'flex-col lg:flex-row' : 'flex-col'} items-center justify-center gap-4 lg:gap-6 overflow-y-auto pointer-events-none`}
+            style={{ willChange: 'transform, opacity' }}
         >
-            <div className="relative flex items-center justify-center min-h-[200px] w-full" style={{ maxHeight: 'min(92dvh, calc(100vh - 4rem))' }}>
+            <div className="relative flex min-h-0 max-h-full min-w-0 w-full flex-1 items-center justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element -- gallery overlay: dynamic highResSrc, next/image not used here */}
                 <img
                     ref={imgRef}
                     src={galleryOverlayDisplaySrc(image)}
-                    className="max-w-full object-contain shadow-2xl rounded-lg pointer-events-auto cursor-grab active:cursor-grabbing transition-opacity duration-300"
-                    style={{ opacity: (aspectRatio !== null || isHighResLoaded) ? 1 : 0, maxHeight: 'min(92dvh, calc(100vh - 4rem))' }}
+                    className="max-h-full max-w-full object-contain shadow-2xl rounded-lg pointer-events-auto cursor-grab active:cursor-grabbing transition-opacity duration-300"
+                    style={{ opacity: (aspectRatio !== null || isHighResLoaded) ? 1 : 0 }}
                     alt={image.alt}
                     onDragStart={(e) => e.preventDefault()}
                     onLoad={(e) => {
@@ -308,7 +309,7 @@ function GalleryImageItem({
                 />
             </div>
             {displayCaption && (
-                <div className={`text-white/90 font-medium px-4 ${aspectRatio && aspectRatio < 1 ? 'lg:max-w-xs lg:text-left' : 'max-w-2xl text-center'} text-shadow-lg pointer-events-auto max-h-[20vh] lg:max-h-full overflow-y-auto`}>
+                <div className={`shrink-0 text-white/90 font-medium px-4 ${aspectRatio && aspectRatio < 1 ? 'lg:max-w-xs lg:max-h-full lg:text-left' : 'max-w-2xl text-center'} text-shadow-lg pointer-events-auto max-h-[min(28dvh,12rem)] overflow-y-auto lg:max-h-[40vh]`}>
                     {displayCaption}
                 </div>
             )}
@@ -320,6 +321,14 @@ export function ImageGalleryOverlay() {
     const { images, currentIndex, setCurrentIndex, isOpen, setIsOpen, overrideImages, clearGalleryOverride } = useImageGallery()
     const [direction, setDirection] = useState(0)
     const [remoteCaption, setRemoteCaption] = useState<string | null>(null)
+    /** Avoid SSR/client mismatch; portal must mount after hydrate so overlay stacks above site chrome. */
+    const [portalReady, setPortalReady] = useState(false)
+    useEffect(() => {
+        const id = requestAnimationFrame(() => {
+            setPortalReady(true)
+        })
+        return () => cancelAnimationFrame(id)
+    }, [])
 
     const galleryList = useMemo(
         () => (overrideImages && overrideImages.length > 0 ? overrideImages : images),
@@ -437,20 +446,20 @@ export function ImageGalleryOverlay() {
             ? currentImage.children
             : remoteCaption || currentImage.alt || fallbackCaption;
 
-    return (
+    const overlayTree = (
         <AnimatePresence>
             {isOpen && (
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-[250] bg-black/95 flex items-center justify-center pt-16 pb-4 px-2 md:px-12 select-none"
+                    className="fixed inset-0 z-[500] flex flex-col bg-black/95 pt-[env(safe-area-inset-top,0px)] select-none"
                     onClick={closeFullscreen}
                 >
-                    {/* Header Controls */}
-                    <div className="absolute top-0 inset-x-0 p-4 flex justify-between items-center z-50 gap-3">
-                        <div className="flex items-baseline gap-2 min-w-0 flex-1 mr-2 pointer-events-auto">
-                            <div className="text-white/50 text-sm font-mono min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+                    {/* Header: in document flow so image/caption never sit underneath it */}
+                    <div className="z-50 flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-black/70 px-3 py-3 backdrop-blur-sm md:px-4 md:py-3.5">
+                        <div className="pointer-events-auto flex min-w-0 flex-1 items-baseline gap-2">
+                            <div className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-sm text-white/50">
                                 {currentIndex + 1} / {galleryList.length} —{' '}
                                 {typeof currentImage.src === 'string' ? (
                                     <GallerySrcBreadcrumb src={currentImage.src} />
@@ -463,7 +472,7 @@ export function ImageGalleryOverlay() {
                                     href={directCdnUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="shrink-0 text-xs font-sans text-sky-400/90 hover:text-sky-300 underline-offset-2 hover:underline"
+                                    className="shrink-0 font-sans text-xs text-sky-400/90 underline-offset-2 hover:text-sky-300 hover:underline"
                                     title={directCdnUrl}
                                     onClick={(e) => e.stopPropagation()}
                                 >
@@ -472,15 +481,19 @@ export function ImageGalleryOverlay() {
                             )}
                         </div>
                         <button
+                            type="button"
                             onClick={closeFullscreen}
-                            className="text-white/60 hover:text-white transition-colors p-4 -m-4 z-50 pointer-events-auto"
+                            className="pointer-events-auto z-50 -m-2 shrink-0 p-2 text-white/60 transition-colors hover:text-white md:-m-3 md:p-3"
+                            aria-label="Close gallery"
                         >
-                            <X size={32} />
+                            <X size={28} className="md:h-8 md:w-8" />
                         </button>
                     </div>
 
+                    {/* Image stage: bounded height below header and above mobile chrome */}
+                    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                     {/* Navigation Previews */}
-                    <div className="absolute inset-x-0 inset-y-0 pointer-events-none flex items-center justify-between px-4 z-40">
+                    <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-between px-4">
                         {/* Prev Preview */}
                         <div className="w-1/4 h-full flex items-center justify-start overflow-hidden">
                             <AnimatePresence initial={false} custom={direction}>
@@ -559,23 +572,26 @@ export function ImageGalleryOverlay() {
                     </div>
 
                     {/* Main Image */}
-                    <AnimatePresence mode="popLayout" initial={false} custom={direction}>
-                        <GalleryImageItem
-                            key={currentImage.src}
-                            image={currentImage}
-                            direction={direction}
-                            displayCaption={displayCaption}
-                            goNext={goNext}
-                            goPrev={goPrev}
-                        />
-                    </AnimatePresence>
+                    <div className="relative z-10 flex h-full min-h-0 w-full items-center justify-center py-2">
+                        <AnimatePresence mode="popLayout" initial={false} custom={direction}>
+                            <GalleryImageItem
+                                key={currentImage.src}
+                                image={currentImage}
+                                direction={direction}
+                                displayCaption={displayCaption}
+                                goNext={goNext}
+                                goPrev={goPrev}
+                            />
+                        </AnimatePresence>
+                    </div>
+                    </div>
 
-                    {/* Mobile Controls */}
-                    <div className="absolute bottom-10 left-0 right-0 md:hidden flex justify-center gap-12 pointer-events-none z-50">
-                        <button onClick={(e) => { e.stopPropagation(); goPrev(); }} className={`p-4 rounded-full bg-white/10 backdrop-blur-md text-white pointer-events-auto ${!prevImage && 'opacity-20'}`} disabled={!prevImage}>
+                    {/* Mobile Controls — in flow so they do not cover caption */}
+                    <div className="pointer-events-none z-50 flex shrink-0 justify-center gap-12 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] md:hidden">
+                        <button type="button" onClick={(e) => { e.stopPropagation(); goPrev(); }} className={`pointer-events-auto rounded-full bg-white/10 p-4 text-white backdrop-blur-md ${!prevImage && 'opacity-20'}`} disabled={!prevImage} aria-label="Previous image">
                             <ChevronLeft size={32} />
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); goNext(); }} className={`p-4 rounded-full bg-white/10 backdrop-blur-md text-white pointer-events-auto ${!nextImage && 'opacity-20'}`} disabled={!nextImage}>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); goNext(); }} className={`pointer-events-auto rounded-full bg-white/10 p-4 text-white backdrop-blur-md ${!nextImage && 'opacity-20'}`} disabled={!nextImage} aria-label="Next image">
                             <ChevronRight size={32} />
                         </button>
                     </div>
@@ -583,6 +599,11 @@ export function ImageGalleryOverlay() {
             )}
         </AnimatePresence>
     )
+
+    if (portalReady && typeof document !== 'undefined') {
+        return createPortal(overlayTree, document.body)
+    }
+    return overlayTree
 }
 
 export function useImageGallery() {

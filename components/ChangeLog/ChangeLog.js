@@ -80,6 +80,16 @@ function getFileLabel(filePath) {
   return parts[parts.length - 1] || normalized
 }
 
+/** Image assets are already opened from the thumbnail strip; omit duplicate links. */
+function isDirectImageFilePath(filePath) {
+  return IMAGE_EXT.test(String(filePath || ''))
+}
+
+function linkFilesForEntry(files) {
+  if (!Array.isArray(files)) return []
+  return files.filter((f) => f && !isDirectImageFilePath(f.path))
+}
+
 /** Root-relative path for same-origin / #img=; pass through external http(s) only. */
 function changelogPublicImageSrc(src) {
   if (!src) return ''
@@ -275,6 +285,7 @@ export default function ChangeLog({ target = '_self' }) {
         {Array.isArray(changeLog) && changeLog.map((entry, entryIdx) => {
           const imgs = Array.isArray(entry.images) ? entry.images.filter((x) => x && x.src) : []
           const galleryItems = buildGalleryItemsForEntry(entry)
+          const linkedFiles = linkFilesForEntry(entry.files)
 
           const openAt = (i) => {
             openGallery(galleryItems, i)
@@ -327,9 +338,9 @@ export default function ChangeLog({ target = '_self' }) {
                 <div>
                   {new Date(entry.date).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })} - {entry.message} ({entry.repo})
                 </div>
-                {Array.isArray(entry.files) && entry.files.length > 0 && (
+                {linkedFiles.length > 0 && (
                   <div>
-                    {entry.files.map((file, idx) => (
+                    {linkedFiles.map((file, idx) => (
                       <React.Fragment key={`${entryKey(entry, entryIdx)}:${file.path}:${idx}`}>
                         {idx > 0 ? ' | ' : ''}
                         <a href={file.href} target={target} title={file.path}>{getFileLabel(file.path)}</a>
