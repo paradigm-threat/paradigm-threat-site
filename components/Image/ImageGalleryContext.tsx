@@ -89,8 +89,64 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { checkFileExists } from '@/components/helpers/imageHelper'
+import {
+    CANONICAL_SITE_ORIGIN,
+    publicFilesAssetUrl,
+    publicTimelineAssetUrl,
+} from '@/lib/canonicalPublicSite'
 
 const REPO_IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg)$/i
+
+/** Same-origin public URL for the asset (GitLab Pages /files mirror), not `/api/image`. */
+function pathToCanonicalFilesOrTimelineUrl(pathForAPI: string): string {
+    const norm = pathForAPI.replace(/^\//, '').replace(/\/+/g, '/')
+    if (norm.startsWith('media/')) {
+        return publicTimelineAssetUrl(norm)
+    }
+    return publicFilesAssetUrl(norm)
+}
+
+/**
+ * Direct CDN / canonical site URL for opening or sharing the image bytes outside the image API.
+ */
+export function galleryDirectPublicAssetUrl(image: GalleryImage): string | null {
+    const hi = typeof image.highResSrc === 'string' ? image.highResSrc.trim() : ''
+    if (hi && /^https?:\/\//i.test(hi)) return hi
+
+    const rawSrc = typeof image.src === 'string' ? image.src : ''
+    if (!rawSrc) return null
+
+    if (rawSrc.startsWith('/api/image')) {
+        try {
+            const u = new URL(rawSrc, `${CANONICAL_SITE_ORIGIN}/`)
+            const path = u.searchParams.get('path')
+            if (path) return pathToCanonicalFilesOrTimelineUrl(path)
+        } catch {
+            return null
+        }
+    }
+
+    if (/^https?:\/\//i.test(rawSrc)) {
+        try {
+            const u = new URL(rawSrc)
+            if (u.origin === CANONICAL_SITE_ORIGIN) return rawSrc
+        } catch {
+            /* ignore */
+        }
+        return null
+    }
+
+    const pathOnly = rawSrc.split('?')[0]
+
+    if (pathOnly.startsWith('/site/')) {
+        return `${CANONICAL_SITE_ORIGIN}${pathOnly.replace(/\/+/g, '/')}`
+    }
+
+    if (!pathOnly.startsWith('/') || !REPO_IMAGE_EXT.test(pathOnly)) {
+        return null
+    }
+    return pathToCanonicalFilesOrTimelineUrl(pathOnly)
+}
 
 /**
  * Fullscreen gallery `<img src>` must resolve to bytes this Next app can serve.
@@ -272,6 +328,11 @@ export function ImageGalleryOverlay() {
 
     const currentImage = galleryList[currentIndex] || null
 
+    const directCdnUrl = useMemo(
+        () => (currentImage ? galleryDirectPublicAssetUrl(currentImage) : null),
+        [currentImage],
+    )
+
     useEffect(() => {
         // Preload next and previous images
         if (isOpen && galleryList.length > 1) {
@@ -366,6 +427,7 @@ export function ImageGalleryOverlay() {
 
     const prevImage = galleryList.length > 1 ? galleryList[(currentIndex - 1 + galleryList.length) % galleryList.length] : null;
     const nextImage = galleryList.length > 1 ? galleryList[(currentIndex + 1) % galleryList.length] : null;
+
     const fallbackCaption =
         typeof currentImage.src === 'string'
             ? currentImage.src.split('/').pop()?.split('.')[0]?.replace(/_/g, ' ')
@@ -386,13 +448,27 @@ export function ImageGalleryOverlay() {
                     onClick={closeFullscreen}
                 >
                     {/* Header Controls */}
-                    <div className="absolute top-0 inset-x-0 p-4 flex justify-between items-center z-50">
-                        <div className="text-white/50 text-sm font-mono whitespace-nowrap overflow-hidden text-ellipsis mr-4 pointer-events-auto">
-                            {currentIndex + 1} / {galleryList.length} —{' '}
-                            {typeof currentImage.src === 'string' ? (
-                                <GallerySrcBreadcrumb src={currentImage.src} />
-                            ) : (
-                                currentImage.src
+                    <div className="absolute top-0 inset-x-0 p-4 flex justify-between items-center z-50 gap-3">
+                        <div className="flex items-baseline gap-2 min-w-0 flex-1 mr-2 pointer-events-auto">
+                            <div className="text-white/50 text-sm font-mono min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+                                {currentIndex + 1} / {galleryList.length} —{' '}
+                                {typeof currentImage.src === 'string' ? (
+                                    <GallerySrcBreadcrumb src={currentImage.src} />
+                                ) : (
+                                    currentImage.src
+                                )}
+                            </div>
+                            {directCdnUrl && (
+                                <a
+                                    href={directCdnUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="shrink-0 text-xs font-sans text-sky-400/90 hover:text-sky-300 underline-offset-2 hover:underline"
+                                    title={directCdnUrl}
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    CDN
+                                </a>
                             )}
                         </div>
                         <button
