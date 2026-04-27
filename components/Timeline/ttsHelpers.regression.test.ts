@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
     buildParagraphStarts,
+    expandInitialismsForTTS,
     expandUnicodeSymbolsForTTS,
     preprocessSpeechText,
     splitSentences,
@@ -90,5 +91,36 @@ describe('stripMarkdownForTTS + preprocessSpeechText', () => {
         const out = preprocessSpeechText('Q→Z')
         assert.ok(!out.includes('\u2192'))
         assert.match(out, /to/)
+    })
+})
+
+describe('expandInitialismsForTTS + preprocessSpeechText', () => {
+    it('rewrites CIA to dotted initialism', () => {
+        const dotted = expandInitialismsForTTS('The CIA reviewed it.')
+        assert.match(dotted, /C\.I\.A\./)
+        assert.ok(!/\bCIA\b/.test(dotted))
+        const full = preprocessSpeechText('Report from CIA on file.')
+        assert.match(full, /C\.I\.A\./)
+    })
+
+    it('runs after arrow expansion so OSS to CIA gets both dotted', () => {
+        const out = preprocessSpeechText(expandUnicodeSymbolsForTTS('OSS→CIA'))
+        assert.match(out, /C\.I\.A\./)
+        assert.match(out, /O\.S\.S\./)
+        assert.ok(!/\bCIA\b/.test(out))
+        assert.ok(!/\bOSS\b/.test(out))
+    })
+
+    it('does not rewrite lowercase cia in URLs', () => {
+        const s = 'See https://www.cia.gov/readingroom for context.'
+        assert.equal(expandInitialismsForTTS(s), s)
+        const full = preprocessSpeechText(s)
+        assert.ok(full.includes('cia.gov'), full)
+        assert.ok(!full.includes('C.I.A.'), full)
+    })
+
+    it('stripMarkdownForTTS end-to-end mentions CIA dotted', () => {
+        const out = stripMarkdownForTTS('The **CIA** document.', '')
+        assert.match(out, /C\.I\.A\./)
     })
 })

@@ -368,12 +368,42 @@ export function expandUnicodeSymbolsForTTS(text: string): string {
         .trim()
 }
 
+/**
+ * Curated all-caps agency / intel initialisms → dotted spelling so engines read letters
+ * (e.g. CIA not misread as "sigh"). Uppercase-only so `cia.gov` in prose stays unchanged.
+ * Runs after `expandUnicodeSymbolsForTTS` so `OSS to CIA` becomes `OSS to C.I.A.` then dotted.
+ */
+export function expandInitialismsForTTS(text: string): string {
+    let s = text
+    /** Longer or more specific patterns first. */
+    const pairs: Array<[RegExp, string]> = [
+        [/\bMI6\b/g, 'M.I.6.'],
+        [/\bMI5\b/g, 'M.I.5.'],
+        [/\bNRO\b/g, 'N.R.O.'],
+        [/\bNSC\b/g, 'N.S.C.'],
+        [/\bNGA\b/g, 'N.G.A.'],
+        [/\bNSA\b/g, 'N.S.A.'],
+        [/\bONI\b/g, 'O.N.I.'],
+        [/\bOSS\b/g, 'O.S.S.'],
+        [/\bDHS\b/g, 'D.H.S.'],
+        [/\bDIA\b/g, 'D.I.A.'],
+        [/\bFBI\b/g, 'F.B.I.'],
+        [/\bCIA\b/g, 'C.I.A.'],
+    ]
+    for (const [re, rep] of pairs) {
+        s = s.replace(re, rep)
+    }
+    return s
+}
+
 /** Dates then Latin — single entry point for TTS preprocessing. */
 export function preprocessSpeechText(text: string): string {
     return normalizeLatinForTTS(
         expandDatesForTTS(
             expandMathNotationForTTS(
-                expandWorldWarsForTTS(expandUnicodeSymbolsForTTS(text)),
+                expandWorldWarsForTTS(
+                    expandInitialismsForTTS(expandUnicodeSymbolsForTTS(text)),
+                ),
             ),
         ),
     )
