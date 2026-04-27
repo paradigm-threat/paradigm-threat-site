@@ -1,8 +1,9 @@
 import React, { Suspense } from 'react'
 import { extractShareMetadata } from '@/lib/share'
-import { fetchArticle } from '@/lib/articleServer'
+import { fetchArticle, fetchTextLeaf } from '@/lib/articleServer'
 import { ArticleContentSSR } from '@/components/ArticleContentSSR'
 import { ArticleClientShell } from '@/components/ArticleClientShell'
+import { TextLeafClientShell } from '@/components/TextLeafClientShell'
 import { CatchAllClient } from './CatchAllClient'
 import { SuspenseLoader } from '@client'
 import type { Metadata } from 'next'
@@ -18,6 +19,11 @@ function truncateForOgDescription (plain: string): string {
   const cut = t.slice(0, OG_DESCRIPTION_MAX - 1)
   const lastSpace = cut.lastIndexOf(' ')
   return (lastSpace > 40 ? cut.slice(0, lastSpace) : cut) + '…'
+}
+
+function firstNonEmptyLine (plain: string): string {
+  const line = plain.trim().split(/\r?\n/).find((l) => l.trim()) || ''
+  return line.trim()
 }
 
 interface PageProps {
@@ -36,35 +42,61 @@ export async function generateMetadata ({ params }: PageProps): Promise<Metadata
   if (!path) return { title: 'Paradigm Threat' }
 
   const article = await fetchArticle(path)
-  if (!article) return { title: 'Paradigm Threat' }
+  if (article) {
+    const title = `${article.title} | Paradigm Threat`
+    const shareExtract = extractShareMetadata({
+      rawMarkdown: article.mdxSource,
+      frontmatter: article.frontmatter,
+    })
+    const descriptionPlain =
+      shareExtract.snippetPlain.trim() || `Read ${article.title} on Paradigm Threat`
+    const description = truncateForOgDescription(descriptionPlain)
+    const canonicalUrl = `${SITE_URL.replace(/\/$/, '')}/${path}`
 
-  const title = `${article.title} | Paradigm Threat`
-  const shareExtract = extractShareMetadata({
-    rawMarkdown: article.mdxSource,
-    frontmatter: article.frontmatter,
-  })
-  const descriptionPlain =
-    shareExtract.snippetPlain.trim() || `Read ${article.title} on Paradigm Threat`
-  const description = truncateForOgDescription(descriptionPlain)
-  const canonicalUrl = `${SITE_URL.replace(/\/$/, '')}/${path}`
-
-  return {
-    title,
-    description,
-    openGraph: {
+    return {
       title,
       description,
-      url: canonicalUrl,
-      siteName: 'Paradigm Threat',
-      ...(article.ogImageUrl && { images: [{ url: article.ogImageUrl }] })
-    },
-    twitter: {
-      card: article.ogImageUrl ? 'summary_large_image' : 'summary',
-      title,
-      description,
-      ...(article.ogImageUrl && { images: [article.ogImageUrl] })
+      openGraph: {
+        title,
+        description,
+        url: canonicalUrl,
+        siteName: 'Paradigm Threat',
+        ...(article.ogImageUrl && { images: [{ url: article.ogImageUrl }] })
+      },
+      twitter: {
+        card: article.ogImageUrl ? 'summary_large_image' : 'summary',
+        title,
+        description,
+        ...(article.ogImageUrl && { images: [article.ogImageUrl] })
+      }
     }
   }
+
+  const textLeaf = await fetchTextLeaf(path)
+  if (textLeaf) {
+    const title = `${textLeaf.title} | Paradigm Threat`
+    const descriptionPlain =
+      firstNonEmptyLine(textLeaf.text) || `Read ${textLeaf.title} on Paradigm Threat`
+    const description = truncateForOgDescription(descriptionPlain)
+    const canonicalUrl = `${SITE_URL.replace(/\/$/, '')}/${path}`
+    return {
+      title,
+      description,
+      openGraph: {
+        title,
+        description,
+        url: canonicalUrl,
+        siteName: 'Paradigm Threat',
+      },
+      twitter: {
+        card: 'summary',
+        title,
+        description,
+      },
+    }
+  }
+
+  return { title: 'Paradigm Threat' }
 }
 
 export default async function CatchAllPage ({ params }: PageProps) {
@@ -99,6 +131,13 @@ export default async function CatchAllPage ({ params }: PageProps) {
           />
         </Suspense>
       </ArticleClientShell>
+    )
+  }
+
+  const textLeaf = path ? await fetchTextLeaf(path) : null
+  if (textLeaf) {
+    return (
+      <TextLeafClientShell articlePath={path} title={textLeaf.title} body={textLeaf.text} />
     )
   }
 

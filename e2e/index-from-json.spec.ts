@@ -17,7 +17,7 @@ function buildUrlsFromIndex (index: unknown): string[] {
   for (const { path: p } of entries) {
     if (!p || p === 'index.json') continue
     const slug = p.replace(/^\/+/, '')
-    if (isNonArticlePath(slug)) continue
+    if (isNonArticlePath(slug) && !slug.toLowerCase().endsWith('.txt')) continue
     const pathname = `/${slug}`.replace(/\/+/g, '/')
     urls.add(pathname)
   }

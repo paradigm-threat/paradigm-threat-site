@@ -14,7 +14,7 @@ import { stripMarkdownForTTS, buildParagraphStarts } from '@/components/Timeline
 import { SuspenseLoader } from '@client'
 import { formatIndexDateTiny } from '@/lib/indexUpdated'
 import { shouldPersistVisit } from '@/lib/visitResumeStorage'
-import { ShareLinks, ShareLinksFloating } from '@/components'
+import { ShareLinks, ShareLinksFloating, TextLeafClientShell } from '@/components'
 import { useMobileHubTtsChrome } from '@/lib/hooks/useMobileHubTtsChrome'
 import { resolveOgImageUrl } from '@/lib/share/resolveOgImageUrl'
 import { remoteRelay } from '@/lib/remoteRelayStore'
@@ -23,6 +23,7 @@ import type { MdxCompileDiagnostics } from '@/lib/mdxCompileDiagnostics'
 import { MdxCompileErrorPanel } from '@/components/MdxCompileErrorPanel'
 
 const DIRECT_IMAGE_EXT = /\.(jpg|jpeg|png|gif|svg|webp|avif|ico)$/i
+const DIRECT_TXT_EXT = /\.txt$/i
 
 type DirectImageLeaf = {
   basePath: string
@@ -30,6 +31,11 @@ type DirectImageLeaf = {
   intrinsicWidth?: number
   intrinsicHeight?: number
   displayTitle: string
+}
+
+type DirectTextLeaf = {
+  displayTitle: string
+  body: string
 }
 
 export const CatchAllClient = memo(function CatchAllClient() {
@@ -69,6 +75,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
   const [articleRetryKey, setArticleRetryKey] = useState(0)
   const [isScrolled, setIsScrolled] = useState(false)
   const [directImageLeaf, setDirectImageLeaf] = useState<DirectImageLeaf | null>(null)
+  const [directTextLeaf, setDirectTextLeaf] = useState<DirectTextLeaf | null>(null)
 
   const slugArray = useMemo(() => {
     if (!params.slug) return []
@@ -122,6 +129,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
         setError(null)
         setMdxCompileFailure(null)
         setDirectImageLeaf(null)
+        setDirectTextLeaf(null)
 
         const articleUrl = `/api/article?path=${encodeURIComponent(requestPath)}${version ? `&v=${encodeURIComponent(version)}` : ''}`
         const articleRes = await fetch(articleUrl, { signal: abortController.signal })
@@ -146,6 +154,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
           if (isMounted && loadingPathRef.current === requestPath) {
             setRemoteArticle404(false)
             setDirectImageLeaf(null)
+            setDirectTextLeaf(null)
             setBasePath(calcBasePath || '')
             setContent(mdxSource)
             setCompiledMdx({ compiledSource, frontmatter, scope, ogImageUrl: apiOg as string | undefined })
@@ -199,6 +208,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
             setMdxCompileFailure({ path: requestPath, title: failTitle, diagnostics: diag })
             setRemoteArticle404(false)
             setDirectImageLeaf(null)
+            setDirectTextLeaf(null)
             setContent(null)
             setCompiledMdx(null)
             setArticleTitle(failTitle)
@@ -253,6 +263,50 @@ export const CatchAllClient = memo(function CatchAllClient() {
                 intrinsicHeight: typeof meta._height === 'number' ? meta._height : undefined,
                 displayTitle: titled,
               })
+              setDirectTextLeaf(null)
+            }
+          } else if (
+            current &&
+            typeof current === 'object' &&
+            !('_count' in current) &&
+            DIRECT_TXT_EXT.test(lastSeg)
+          ) {
+            const meta = current as Record<string, unknown>
+            const titled =
+              typeof meta._title === 'string' && meta._title.trim()
+                ? meta._title.trim()
+                : lastSeg.replace(/_/g, ' ').replace(/\.txt$/i, '')
+            try {
+              const response = await remoteRelay.fetchFilesMd(requestPath, vParam, abortController.signal)
+              if (!response.ok) throw new Error('txt_fetch_failed')
+              const body = await response.text()
+              if (isMounted && loadingPathRef.current === requestPath) {
+                setRemoteArticle404(false)
+                setContent(null)
+                setCompiledMdx(null)
+                setArticleTitle(titled)
+                setDirectFiles([])
+                setSubDirs([])
+                setImages([])
+                setMds([])
+                setMdContents({})
+                setDirectImageLeaf(null)
+                setDirectTextLeaf({ displayTitle: titled, body })
+              }
+            } catch {
+              if (isMounted && loadingPathRef.current === requestPath) {
+                setDirectTextLeaf(null)
+                setDirectImageLeaf(null)
+                setContent(null)
+                setCompiledMdx(null)
+                setArticleTitle('')
+                setDirectFiles([])
+                setSubDirs([])
+                setImages([])
+                setMds([])
+                setMdContents({})
+                setRemoteArticle404(true)
+              }
             }
           } else if (current && typeof current === 'object' && '_count' in current) {
             const dirs: string[] = []
@@ -272,6 +326,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
             if (isMounted && loadingPathRef.current === requestPath) {
               setRemoteArticle404(false)
               setDirectImageLeaf(null)
+              setDirectTextLeaf(null)
               setContent(null)
               setCompiledMdx(null)
               setArticleTitle('')
@@ -280,8 +335,9 @@ export const CatchAllClient = memo(function CatchAllClient() {
 
               const imgFiles = files.filter((f: string) => /\.(jpg|jpeg|png|gif|svg|webp)$/i.test(f))
               const mdFiles = files.filter((f: string) => f.endsWith('.md') && f !== 'page.md' && !f.endsWith('.auto.md'))
+              const txtFiles = files.filter((f: string) => f.toLowerCase().endsWith('.txt'))
               setImages(imgFiles)
-              setMds([...mdFiles].sort((a, b) => -a.localeCompare(b)))
+              setMds([...mdFiles, ...txtFiles].sort((a, b) => -a.localeCompare(b)))
 
               const contents: Record<string, { title: string; content: string }> = {}
 
@@ -309,6 +365,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
             }
           } else if (isMounted && loadingPathRef.current === requestPath) {
             setDirectImageLeaf(null)
+            setDirectTextLeaf(null)
             setContent(null)
             setCompiledMdx(null)
             setArticleTitle('')
@@ -438,6 +495,16 @@ export const CatchAllClient = memo(function CatchAllClient() {
           />
         </div>
       </div>
+    )
+  }
+
+  if (directTextLeaf) {
+    return (
+      <TextLeafClientShell
+        articlePath={path}
+        title={directTextLeaf.displayTitle}
+        body={directTextLeaf.body}
+      />
     )
   }
 
@@ -672,8 +739,11 @@ export const CatchAllClient = memo(function CatchAllClient() {
                     }
                     const fileNode = cur?.[file]
                     const updatedTiny = formatIndexDateTiny(fileNode?._updated)
-                    const docTitle =
-                      mdContents[file]?.title || file.replace(/_/g, ' ').replace(/\.md$/, '')
+                    const docTitle = file.toLowerCase().endsWith('.txt')
+                      ? (typeof fileNode?._title === 'string' && fileNode._title.trim()
+                        ? fileNode._title.trim()
+                        : file.replace(/_/g, ' ').replace(/\.txt$/i, ''))
+                      : (mdContents[file]?.title || file.replace(/_/g, ' ').replace(/\.md$/, ''))
                     return (
                       <Link
                         key={file}

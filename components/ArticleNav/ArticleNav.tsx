@@ -29,6 +29,11 @@ export function flattenArticlePaths(tree: Record<string, unknown> | null, prefix
                 const title = (val as Record<string, unknown>)?._title as string | undefined
                 result.push({ path: articlePath, title: title || baseName.replace(/_/g, ' ') })
             }
+        } else if (typeof val === 'object' && key.toLowerCase().endsWith('.txt')) {
+            const articlePath = prefix ? `${prefix}/${key}` : key
+            const title = (val as Record<string, unknown>)?._title as string | undefined
+            const baseTitle = key.replace(/_/g, ' ').replace(/\.txt$/i, '')
+            result.push({ path: articlePath, title: title || baseTitle })
         }
     }
     return result
@@ -41,7 +46,7 @@ export function useArticleNav() {
         if (!fileList || pathname.startsWith('/timeline')) return { prev: null, next: null }
         const articles = flattenArticlePaths(fileList)
         let currentPath = pathname === '/' ? '' : pathname.slice(1).replace(/\/$/, '')
-        currentPath = currentPath.replace(/\.(md|mdx)$/, '') // match both /foo and /foo.md
+        currentPath = currentPath.replace(/\.(md|mdx)$/, '') // match both /foo and /foo.md (.txt keeps extension)
         const idx = articles.findIndex(a => a.path === currentPath)
         if (idx < 0) return { prev: null, next: null }
         return {

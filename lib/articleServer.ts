@@ -3,6 +3,7 @@
  * Mirrors logic from app/api/article/route.ts.
  */
 
+import { cache } from 'react'
 import { isNonArticlePath } from '@/lib/isNonArticlePath'
 import { resolveOgImageUrl } from '@/lib/share/resolveOgImageUrl'
 import { fetchFilesTextFromMirrors } from '@/lib/serverFilesMirror'
@@ -16,6 +17,35 @@ export interface ArticleData {
   /** Absolute URL for OG image, or undefined */
   ogImageUrl?: string
 }
+
+export interface TextLeafData {
+  text: string
+  title: string
+  basePath: string
+  targetPath: string
+}
+
+function titleFromTextFilePath (filePath: string): string {
+  const seg = filePath.split('/').filter(Boolean).pop() || filePath
+  return seg.replace(/_/g, ' ').replace(/\.txt$/i, '').trim() || 'Document'
+}
+
+/** Plain `.txt` leaves from the files repo (not MDX). Cached for generateMetadata + page. */
+export const fetchTextLeaf = cache(async function fetchTextLeaf (
+  path: string,
+): Promise<TextLeafData | null> {
+  if (!path || !path.toLowerCase().endsWith('.txt')) return null
+  const fileContent = await fetchFilesTextFromMirrors(path, '')
+  if (fileContent == null) return null
+
+  const basePath = path.includes('/') ? path.split('/').slice(0, -1).join('/') : ''
+  return {
+    text: fileContent,
+    title: titleFromTextFilePath(path),
+    basePath,
+    targetPath: path,
+  }
+})
 
 /** First # heading in body (after frontmatter strip), for OG title when YAML has no title */
 function extractFirstHeading (md: string): string | undefined {

@@ -40,7 +40,7 @@ export interface AutoIndexProps {
   sort?: AutoIndexSort
   /** Show subdirectories. Default: true */
   showSubdirs?: boolean
-  /** Show .md documents. Default: true */
+  /** Show .md and .txt documents. Default: true */
   showDocs?: boolean
   /** Show images. Default: true */
   showImages?: boolean
@@ -76,19 +76,37 @@ export default function AutoIndex({
   const indexFormat: AutoIndexFormat = formatProp === 'blog' ? 'blog' : 'default'
 
   // Resolve directory node from index
-  const { dirs, mdFiles, imgFiles, node } = React.useMemo(() => {
+  const { dirs, mdFiles, docFiles, imgFiles, node } = React.useMemo(() => {
     if (!fileList || !path) {
-      return { dirs: [] as string[], mdFiles: [] as string[], imgFiles: [] as string[], node: null }
+      return {
+        dirs: [] as string[],
+        mdFiles: [] as string[],
+        docFiles: [] as string[],
+        imgFiles: [] as string[],
+        node: null,
+      }
     }
     let current: any = fileList
     for (const segment of path.split('/').filter(Boolean)) {
       if (!current?.[segment]) {
-        return { dirs: [] as string[], mdFiles: [] as string[], imgFiles: [] as string[], node: null }
+        return {
+          dirs: [] as string[],
+          mdFiles: [] as string[],
+          docFiles: [] as string[],
+          imgFiles: [] as string[],
+          node: null,
+        }
       }
       current = current[segment]
     }
     if (!current || typeof current !== 'object') {
-      return { dirs: [] as string[], mdFiles: [] as string[], imgFiles: [] as string[], node: null }
+      return {
+        dirs: [] as string[],
+        mdFiles: [] as string[],
+        docFiles: [] as string[],
+        imgFiles: [] as string[],
+        node: null,
+      }
     }
 
     const dirs: string[] = []
@@ -108,9 +126,10 @@ export default function AutoIndex({
     const mdFiles = files.filter(
       (f) => f.endsWith('.md') && f !== 'page.md' && !f.endsWith('.auto.md')
     )
+    const txtFiles = files.filter((f) => f.toLowerCase().endsWith('.txt'))
     const imgFiles = files.filter((f) => /\.(jpg|jpeg|png|gif|svg|webp)$/i.test(f))
 
-    let sorted = [...mdFiles]
+    let sorted = [...mdFiles, ...txtFiles]
     if (indexFormat === 'blog') {
       sorted.sort((a, b) => {
         const tb = getIndexUpdatedTime(current[b]?._updated)
@@ -126,26 +145,36 @@ export default function AutoIndex({
       })
     }
 
-    return { dirs: dirs.sort(), mdFiles: sorted, imgFiles, node: current }
+    return { dirs: dirs.sort(), mdFiles, docFiles: sorted, imgFiles, node: current }
   }, [fileList, path, sort, indexFormat])
 
-  // Fetch titles for .md files (index may have _title, but fetch for reliability)
+  // Fetch titles for .md files (index may have _title, but fetch for reliability); .txt uses index/filename only
   const mdFilesKey = mdFiles.join(',')
   const fileVersion = typeof fileList?._version === 'string' ? fileList._version : ''
   useEffect(() => {
-    if (!path || mdFiles.length === 0) return
+    if (!path || docFiles.length === 0) return
     const baseUrl = getPrimaryFilesBaseUrl()
     const vParam = fileVersion ? `?v=${fileVersion}` : ''
 
     const initial: Record<string, { title: string }> = {}
-    mdFiles.forEach((f) => {
+    docFiles.forEach((f) => {
       const fileData = node?.[f]
       const fromIndex = fileData?._title
-      initial[f] = { title: fromIndex || f.replace(/_/g, ' ').replace(/\.md$/, '') }
+      if (f.toLowerCase().endsWith('.txt')) {
+        initial[f] = {
+          title: fromIndex || f.replace(/_/g, ' ').replace(/\.txt$/i, ''),
+        }
+      } else {
+        initial[f] = { title: fromIndex || f.replace(/_/g, ' ').replace(/\.md$/, '') }
+      }
     })
     setMdContents(initial)
 
     const fetchAll = async () => {
+      if (mdFiles.length === 0) {
+        setMdContents(initial)
+        return
+      }
       const matter = (await import('gray-matter')).default
       const results: Record<string, { title: string }> = { ...initial }
       await Promise.all(
@@ -168,7 +197,7 @@ export default function AutoIndex({
     }
     fetchAll()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mdFilesKey captures mdFiles identity
-  }, [path, mdFilesKey, node, fileVersion])
+  }, [path, mdFilesKey, docFiles, node, fileVersion])
 
   if (loading) {
     if (showPanelTitle) {
@@ -184,7 +213,7 @@ export default function AutoIndex({
     )
   }
 
-  if (error || (!dirs.length && !mdFiles.length && !imgFiles.length)) {
+  if (error || (!dirs.length && !docFiles.length && !imgFiles.length)) {
     if (showPanelTitle) {
       return (
         <div className={AUTO_INDEX_SHELL} style={{ maxHeight }}>
@@ -272,11 +301,13 @@ export default function AutoIndex({
         </div>
       )}
 
-      {showDocs && mdFiles.length > 0 && (
+      {showDocs && docFiles.length > 0 && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 gap-4">
-            {mdFiles.map((file) => {
-              const fileName = file.replace(/_/g, ' ').replace(/\.md$/, '')
+            {docFiles.map((file) => {
+              const fileName = file.toLowerCase().endsWith('.txt')
+                ? file.replace(/_/g, ' ').replace(/\.txt$/i, '')
+                : file.replace(/_/g, ' ').replace(/\.md$/, '')
               const docTitle = mdContents[file]?.title || fileName
               const updatedRaw = node?.[file]?._updated
               const dateTiny = formatIndexDateTiny(updatedRaw)
