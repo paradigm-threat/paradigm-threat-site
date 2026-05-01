@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
-import { ErrorBoundary, SuspenseLoader } from '@client'
+import ErrorBoundary from '../ErrorBoundary/ErrorBoundary'
+import SuspenseLoader from '../atoms/SuspenseLoader/SuspenseLoader'
 import Markdown, { MarkdownToJSX } from 'markdown-to-jsx'
 import { Send, User, MessageSquare, AlertCircle, RefreshCcw, Maximize2, Minimize2, ArrowLeft } from 'lucide-react'
 

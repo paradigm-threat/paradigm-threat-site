@@ -3,7 +3,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
-import { getMergedSearchIndex } from '@/server/remoteFiles'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
 import { filterEntriesByPathQueries, hrefForSearchQuery } from '@/lib/pathSearchQuery'
 import { indexedFilesDirectlyUnderDirectory, parentDirectoryFromContentPath } from '@/lib/indexSiblingEntries'
@@ -47,11 +46,15 @@ function PathSearchSuggestions({ path }: { path: string }) {
         setLoadErr(null)
       }
     })
-    getMergedSearchIndex()
-      .then((e) => {
+    fetch('/api/search-index')
+      .then(async (res) => {
+        if (!res.ok) throw new Error('search index unavailable')
+        return res.json() as Promise<IndexedPathEntry[] | { error?: string }>
+      })
+      .then((payload) => {
         if (cancelled) return
-        if (e === null) setLoadErr('Could not load search index')
-        else setEntries(e)
+        if (!Array.isArray(payload)) setLoadErr('Could not load search index')
+        else setEntries(payload)
       })
       .catch(() => {
         if (!cancelled) setLoadErr('Could not load search index')

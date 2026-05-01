@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, memo, useSyncExternalStore } from 'react'
 import { Maximize2 } from 'lucide-react'
-import { ErrorBoundary } from '@/components/client'
-import { OptimizedImage } from '@/components'
+import ErrorBoundary from '../ErrorBoundary/ErrorBoundary'
+import OptimizedImage from './OptimizedImage'
 import { processImageProps } from '@/components/helpers/imageHelper'
 import { remoteRelay } from '@/lib/remoteRelayStore'
 import { onToggle } from '@/components/helpers/inputHelper'

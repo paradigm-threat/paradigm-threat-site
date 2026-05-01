@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useMemo } from 'react'
 import { Search, Loader2 } from 'lucide-react'
-import { getMergedSearchIndex } from '@/server/remoteFiles'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
 import { filterIndexedEntriesByQuery } from '@/lib/searchIndexFilter'
 import { SearchResultLinks } from '@/components/search'
@@ -21,8 +20,10 @@ export default function FileSearchForm({ keywords = "" }: FileSearchFormProps) {
         const fetchIndex = async () => {
             try {
                 setLoading(true)
-                const entries = await getMergedSearchIndex()
-                setFileIndex(entries ?? [])
+                const res = await fetch('/api/search-index')
+                if (!res.ok) throw new Error('search index unavailable')
+                const payload = await res.json() as IndexedPathEntry[] | { error?: string }
+                setFileIndex(Array.isArray(payload) ? payload : [])
                 setError(null)
             } catch (err: any) {
                 console.error('Failed to fetch file index:', err)

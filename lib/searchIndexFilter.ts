@@ -28,7 +28,7 @@ export function rankIndexedEntriesByPathTokenOverlap(
 ): IndexedPathEntry[] {
   if (!entries?.length || !pathTokens.length) return []
 
-  const terms = [...new Set(pathTokens.map((t) => t.trim().toLowerCase()).filter((t) => t.length >= 2))]
+  const terms = Array.from(new Set(pathTokens.map((t) => t.trim().toLowerCase()).filter((t) => t.length >= 2)))
   if (terms.length === 0) return []
 
   const scored: { entry: IndexedPathEntry; score: number }[] = []

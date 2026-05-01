@@ -42,15 +42,15 @@ export function suggestedNarrowQueryFromPath(path: string): string {
     .map((s) => s.trim())
     .filter(Boolean)
   const last = parts[parts.length - 1]?.replace(/\.(md|mdx)$/i, '') ?? ''
-  const lastTerms = [
-    ...new Set(
+  const lastTerms = Array.from(
+    new Set(
       last
         .replace(/[_-]+/g, ' ')
         .split(/\s+/)
         .map((t) => t.trim().toLowerCase())
         .filter((t) => t.length >= 2)
-    ),
-  ]
+    )
+  )
   const pick = (candidates: string[]): string => {
     const sorted = [...candidates].sort((a, b) => b.length - a.length)
     const best = sorted.find((t) => !NARROW_QUERY_STOPWORDS.has(t))
@@ -64,7 +64,7 @@ export function suggestedNarrowQueryFromPath(path: string): string {
     .split(/\s+/)
     .map((t) => t.toLowerCase())
     .filter((t) => t.length >= 2)
-  return pick([...new Set(all)])
+  return pick(Array.from(new Set(all)))
 }
 
 /**
@@ -131,8 +131,8 @@ export function filterEntriesByPathQueries(
     if (orRanked.length > 0) {
       return {
         results: orRanked,
-        queryUsed: [...new Set(pathTokens)].join(' '),
-        linkQuery: linkBase || [...new Set(pathTokens)].join(' '),
+        queryUsed: Array.from(new Set(pathTokens)).join(' '),
+        linkQuery: linkBase || Array.from(new Set(pathTokens)).join(' '),
       }
     }
   }

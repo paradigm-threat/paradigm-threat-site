@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from 'react'
 import Markdown from 'markdown-to-jsx'
-import { PopImage, DynamicIndex } from '@/components'
+import PopImage from '@/components/Image/PopImage'
+import DynamicIndex from '@/components/DynamicIndex/DynamicIndex'
 import { MarkdownLink } from '@/components/MarkdownLink'
 import { transformImageCaptions } from '@/components/Timeline/markdownTransform'
 
