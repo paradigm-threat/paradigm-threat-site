@@ -1,10 +1,11 @@
 'use client'
 
 import React, { useEffect, useState, useMemo } from 'react'
-import Link from 'next/link'
-import { Search, FileText, Image as ImageIcon, Loader2 } from 'lucide-react'
+import { Search, Loader2 } from 'lucide-react'
 import { getMergedSearchIndex } from '@/server/remoteFiles'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
+import { filterIndexedEntriesByQuery } from '@/lib/searchIndexFilter'
+import { SearchResultLinks } from '@/components/search'
 
 interface FileSearchFormProps {
     keywords?: string,
@@ -34,16 +35,8 @@ export default function FileSearchForm({ keywords = "" }: FileSearchFormProps) {
     }, [])
 
     const searchResults = useMemo(() => {
-        if (!keywordString || keywordString.length < 2) return []
-
-        const searchTerms = keywordString.toLowerCase().split(/\s+/).filter(Boolean)
-        return fileIndex.filter((entry) => {
-            const haystack = entry.searchText.toLowerCase()
-            return searchTerms.every((term) => haystack.includes(term))
-        })
+        return filterIndexedEntriesByQuery(fileIndex, keywordString)
     }, [keywordString, fileIndex])
-
-    const isImage = (path: string) => /\.(jpg|jpeg|png|gif|svg|webp)$/i.test(path)
 
     return (
         <div className="max-w-4xl mx-auto space-y-8">
@@ -73,32 +66,14 @@ export default function FileSearchForm({ keywords = "" }: FileSearchFormProps) {
                         </div>
 
                         {searchResults.length > 0 ? (
-                            <div className="grid gap-2">
-                                {searchResults.slice(0, 100).map((entry) => (
-                                    <Link
-                                        key={entry.path}
-                                        href={`/${entry.path}`}
-                                        className="flex items-center gap-4 p-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-md transition-all group"
-                                    >
-                                        <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-900 group-hover:bg-blue-600/10 group-hover:text-blue-500 transition-colors">
-                                            {isImage(entry.path) ? <ImageIcon size={20} /> : <FileText size={20} />}
-                                        </div>
-                                        <div className="flex-grow min-w-0">
-                                            <div className="font-semibold text-slate-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                                {entry.path.split('/').pop()?.replace(/_/g, ' ')}
-                                            </div>
-                                            <div className="text-xs text-slate-400 truncate">
-                                                {entry.path}
-                                            </div>
-                                        </div>
-                                    </Link>
-                                ))}
+                            <>
+                                <SearchResultLinks entries={searchResults} maxItems={100} />
                                 {searchResults.length > 100 && (
                                     <div className="text-center py-4 text-slate-500 text-sm italic">
                                         Showing first 100 results...
                                     </div>
                                 )}
-                            </div>
+                            </>
                         ) : (
                             <div className="text-center py-20 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
                                 <div className="text-slate-400 dark:text-slate-600 mb-2">No matching files found</div>

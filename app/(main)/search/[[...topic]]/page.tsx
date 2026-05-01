@@ -7,6 +7,7 @@ import matter from 'gray-matter'
 import { Loader2, Search } from 'lucide-react'
 import { useRouter, useSearchParams, useParams } from 'next/navigation'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
+import { filterIndexedEntriesByQuery } from '@/lib/searchIndexFilter'
 
 function SearchContent() {
     const router = useRouter()
@@ -68,17 +69,7 @@ function SearchContent() {
     }, [loading, contentLoading, renderedMds])
 
     const searchResults = useMemo(() => {
-        if (!filesIndex || !Array.isArray(filesIndex)) return []
-        const cleanQuery = debouncedSearch.trim().toLowerCase()
-        if (cleanQuery.length < 2) return []
-
-        const searchTerms = cleanQuery.split(/\s+/).filter(Boolean)
-        return filesIndex.filter((entry) => {
-            if (!entry || typeof entry.path !== 'string') return false
-            if (entry.path.includes('.auto.md')) return false
-            const haystack = entry.searchText.toLowerCase()
-            return searchTerms.every((term) => haystack.includes(term))
-        })
+        return filterIndexedEntriesByQuery(filesIndex, debouncedSearch)
     }, [debouncedSearch, filesIndex])
 
     // Fetch MD content for the top results when search results change

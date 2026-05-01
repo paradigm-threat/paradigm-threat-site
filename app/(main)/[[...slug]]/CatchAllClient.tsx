@@ -72,6 +72,8 @@ export const CatchAllClient = memo(function CatchAllClient() {
     diagnostics: MdxCompileDiagnostics
   } | null>(null)
   const [remoteArticle404, setRemoteArticle404] = useState(false)
+  /** True when 404 is shown and the URL path does not appear in index.json (vs indexed .txt CDN miss, etc.). */
+  const [article404PathMissingFromIndex, setArticle404PathMissingFromIndex] = useState(false)
   const [articleRetryKey, setArticleRetryKey] = useState(0)
   const [isScrolled, setIsScrolled] = useState(false)
   const [directImageLeaf, setDirectImageLeaf] = useState<DirectImageLeaf | null>(null)
@@ -126,6 +128,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
       try {
         setLoading(true)
         setRemoteArticle404(false)
+        setArticle404PathMissingFromIndex(false)
         setError(null)
         setMdxCompileFailure(null)
         setDirectImageLeaf(null)
@@ -153,6 +156,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
 
           if (isMounted && loadingPathRef.current === requestPath) {
             setRemoteArticle404(false)
+            setArticle404PathMissingFromIndex(false)
             setDirectImageLeaf(null)
             setDirectTextLeaf(null)
             setBasePath(calcBasePath || '')
@@ -207,6 +211,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
                 : requestPath.replace(/_/g, ' ')
             setMdxCompileFailure({ path: requestPath, title: failTitle, diagnostics: diag })
             setRemoteArticle404(false)
+            setArticle404PathMissingFromIndex(false)
             setDirectImageLeaf(null)
             setDirectTextLeaf(null)
             setContent(null)
@@ -230,6 +235,8 @@ export const CatchAllClient = memo(function CatchAllClient() {
             current = null
           }
 
+          const pathMissingFromIndex = current === null
+
           const lastSeg = slugArray.length ? slugArray[slugArray.length - 1] : ''
           const looksLikeRasterImage = DIRECT_IMAGE_EXT.test(lastSeg)
           const isImageFileLeaf =
@@ -248,6 +255,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
                 : lastSeg.replace(/_/g, ' ').replace(/\.[^.]+$/, '')
             if (isMounted && loadingPathRef.current === requestPath) {
               setRemoteArticle404(false)
+              setArticle404PathMissingFromIndex(false)
               setContent(null)
               setCompiledMdx(null)
               setArticleTitle(titled)
@@ -282,6 +290,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
               const body = await response.text()
               if (isMounted && loadingPathRef.current === requestPath) {
                 setRemoteArticle404(false)
+                setArticle404PathMissingFromIndex(false)
                 setContent(null)
                 setCompiledMdx(null)
                 setArticleTitle(titled)
@@ -306,6 +315,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
                 setMds([])
                 setMdContents({})
                 setRemoteArticle404(true)
+                setArticle404PathMissingFromIndex(false)
               }
             }
           } else if (current && typeof current === 'object' && '_count' in current) {
@@ -325,6 +335,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
 
             if (isMounted && loadingPathRef.current === requestPath) {
               setRemoteArticle404(false)
+              setArticle404PathMissingFromIndex(false)
               setDirectImageLeaf(null)
               setDirectTextLeaf(null)
               setContent(null)
@@ -376,8 +387,10 @@ export const CatchAllClient = memo(function CatchAllClient() {
             setMdContents({})
             if (articleRes.status === 404) {
               setRemoteArticle404(true)
+              setArticle404PathMissingFromIndex(pathMissingFromIndex)
             } else {
               setRemoteArticle404(false)
+              setArticle404PathMissingFromIndex(false)
               const msg =
                 errJson && typeof errJson.error === 'string'
                   ? errJson.error
@@ -391,6 +404,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
         if ((e as Error).name !== 'AbortError' && isMounted && loadingPathRef.current === requestPath) {
           setError(String(e))
           setRemoteArticle404(false)
+          setArticle404PathMissingFromIndex(false)
         }
       } finally {
         if (loadingPathRef.current === requestPath) setLoading(false)
@@ -666,7 +680,11 @@ export const CatchAllClient = memo(function CatchAllClient() {
 
         {directFiles.length === 0 && subDirs.length === 0 ? (
           remoteArticle404 ? (
-            <ArticleRemote404Notice onRetry={() => setArticleRetryKey((k) => k + 1)} />
+            <ArticleRemote404Notice
+              notInIndex={article404PathMissingFromIndex}
+              path={path}
+              onRetry={() => setArticleRetryKey((k) => k + 1)}
+            />
           ) : (
             <div className="text-center py-20">
               <p className="text-slate-500 mb-4">No content found for this path</p>
