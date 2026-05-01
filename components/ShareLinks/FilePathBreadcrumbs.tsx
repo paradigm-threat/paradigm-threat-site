@@ -69,7 +69,10 @@ export function FilePathBreadcrumbs({ url, title, className = '' }: FilePathBrea
   }, [url])
 
   return (
-    <nav className={`min-w-0 ${className}`} aria-label="Breadcrumb">
+    <nav
+      className={`min-w-0 select-none [&_*]:select-none ${className}`}
+      aria-label="Breadcrumb"
+    >
       <ol className="m-0 list-none flex flex-wrap items-center gap-x-1 gap-y-0.5 p-0 pl-0 text-xs sm:text-sm">
         {items.map((item, i) => (
           <li key={`${item.href}-${i}`} className="flex min-w-0 max-w-full items-center gap-1">

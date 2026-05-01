@@ -221,7 +221,7 @@ export function ShareCopyModal ({
 
           <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-1.5">
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Open in app or site</p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 select-none [&_*]:select-none">
               {platformActions.map((a) => (
                 <React.Fragment key={a.platformId}>
                   {a.href ? (

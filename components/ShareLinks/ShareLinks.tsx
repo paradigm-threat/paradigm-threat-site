@@ -9,8 +9,8 @@ import { useShareLinksModel, SHARE_PLATFORMS } from '@/components/ShareLinks/use
 
 export type { ShareLinksProps } from '@/components/ShareLinks/types'
 
-const platformButtonClass =
-  'inline-flex w-full items-center justify-center rounded border border-slate-300 dark:border-slate-600 px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors'
+/** Keeps chrome out of plain-text selection/copy on the article (`user-select` is not inherited). */
+const noSelectSubtree = 'select-none [&_*]:select-none'
 
 export function ShareLinks(props: ShareLinksProps) {
   const {
@@ -27,7 +27,7 @@ export function ShareLinks(props: ShareLinksProps) {
   } = useShareLinksModel(props)
 
   return (
-    <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
+    <div className={`mt-8 pt-6 border-t border-slate-200 dark:border-slate-700 ${noSelectSubtree}`}>
       <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">Share</p>
       <div className="flex flex-wrap gap-2">
         {SHARE_PLATFORMS.map(({ id, label }) => (
@@ -81,7 +81,7 @@ export function ShareLinksFloating(props: ShareLinksProps) {
   return (
     <>
       <div
-        className="flex w-full min-w-0 items-start justify-between gap-4"
+        className={`flex w-full min-w-0 items-start justify-between gap-4 ${noSelectSubtree}`}
       >
         <FilePathBreadcrumbs url={url} title={title} className="min-w-0 flex-1 pr-2" />
         <div className="relative shrink-0">
