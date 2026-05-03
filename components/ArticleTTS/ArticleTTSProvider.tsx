@@ -67,6 +67,26 @@ export function ArticleTTSProvider({
   }), [articleTitle, articleContent])
 
   const handlePlay = useCallback(() => {
+    const {
+      isPlaying,
+      currentSegmentIndex,
+      currentSentenceIndex,
+      sentences,
+      segments: loadedSegments,
+    } = tts.state
+    const loadedText = loadedSegments[0]?.text
+    const sameArticle =
+      loadedText !== undefined && loadedText === segment.text && loadedSegments[0]?.id === segment.id
+
+    if (
+      !isPlaying &&
+      sentences.length > 0 &&
+      currentSegmentIndex >= 0 &&
+      sameArticle
+    ) {
+      tts.playFromSentence([segment], 0, Math.max(0, currentSentenceIndex))
+      return
+    }
     tts.play([segment], 0)
   }, [tts, segment])
 

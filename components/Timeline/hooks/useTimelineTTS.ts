@@ -21,6 +21,10 @@ export function useTimelineTTS({
   setShowContentDrawer,
 }: UseTimelineTTSOptions) {
   const tts = useTTS()
+  const ttsRef = useRef(tts)
+  useEffect(() => {
+    ttsRef.current = tts
+  }, [tts])
   const [slideshowOpen, setSlideshowOpen] = useState(false)
   const slideshowOpenRef = useRef(false)
   useEffect(() => {
@@ -51,8 +55,22 @@ export function useTimelineTTS({
 
   const handlePlayEvent = useCallback(
     (entry: TimelineEntry) => {
-      const idx = events.findIndex((e) => e.id === entry.id)
-      ttsStartIndexRef.current = idx >= 0 ? idx : 0
+      const t = ttsRef.current
+      const { isPlaying, currentSegmentIndex, sentences, segments } = t.state
+      const baseId = segments[0]?.id
+      if (
+        !isPlaying &&
+        currentSegmentIndex >= 0 &&
+        sentences.length > 0 &&
+        baseId === entry.id
+      ) {
+        const idx = Math.max(0, Math.min(t.state.currentSentenceIndex, sentences.length - 1))
+        t.playFromSentence(segments, currentSegmentIndex, idx)
+        setSlideshowOpen(true)
+        return
+      }
+      const eventIdx = events.findIndex((e) => e.id === entry.id)
+      ttsStartIndexRef.current = eventIdx >= 0 ? eventIdx : 0
       tts.play(buildSegments(entry), 0)
       setSlideshowOpen(true)
       window.history.pushState({ slideshowOpen: true }, '')
@@ -66,10 +84,6 @@ export function useTimelineTTS({
     setSlideshowOpen(false)
   }, [tts])
 
-  const ttsRef = useRef(tts)
-  useEffect(() => {
-    ttsRef.current = tts
-  }, [tts])
   useEffect(() => {
     const onPopState = (_e: PopStateEvent) => {
       if (slideshowOpenRef.current) {

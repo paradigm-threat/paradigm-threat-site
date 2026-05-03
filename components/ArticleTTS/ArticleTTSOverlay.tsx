@@ -7,6 +7,17 @@ import { useBottomChrome } from '@/lib/BottomChromeContext'
 
 const RATES = [0.75, 1.0, 1.25, 1.5, 2.0]
 
+/** Range styling: larger thumb/track for touch; used with onInput + onChange for live preview while dragging. */
+const seekRangeClassName =
+  'h-4 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-white/15 accent-indigo-500 ' +
+  '[&::-webkit-slider-runnable-track]:h-2 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-white/10 ' +
+  '[&::-webkit-slider-thumb]:mt-[-6px] [&::-webkit-slider-thumb]:h-7 [&::-webkit-slider-thumb]:w-7 [&::-webkit-slider-thumb]:cursor-pointer ' +
+  '[&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-500 ' +
+  '[&::-webkit-slider-thumb]:shadow-md ' +
+  '[&::-moz-range-track]:h-2 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-white/10 ' +
+  '[&::-moz-range-thumb]:h-7 [&::-moz-range-thumb]:w-7 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:rounded-full ' +
+  '[&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-indigo-500'
+
 function getPiperVoiceOptionLabel(voice: PiperVoice): string {
   if (voice.name?.trim()) return voice.name.trim()
   if (voice.voice && (voice.lang || voice.language)) {
@@ -79,6 +90,10 @@ export function ArticleTTSOverlay({
   const { isHub, setTtsDockHeightPx } = useBottomChrome()
   const [expanded, setExpanded] = useState(false)
   const [seekValue, setSeekValue] = useState<number | null>(null)
+
+  const onSeekSliderMove = (e: React.SyntheticEvent<HTMLInputElement>) => {
+    setSeekValue(parseInt(e.currentTarget.value, 10))
+  }
 
   useLayoutEffect(() => {
     if (!isHub) {
@@ -268,14 +283,15 @@ export function ArticleTTSOverlay({
             </div>
 
             {totalSentences > 0 && !seekOnOwnRow && (
-              <div className="flex min-w-0 flex-1 items-center gap-2">
+              <div className="flex min-h-[44px] min-w-0 flex-1 items-center gap-2">
                 <input
                   type="range"
                   min={0}
                   max={totalSentences - 1}
                   step={1}
                   value={clamp(displayIndex, 0, totalSentences - 1)}
-                  onChange={(e) => setSeekValue(parseInt(e.target.value, 10))}
+                  onChange={onSeekSliderMove}
+                  onInput={onSeekSliderMove}
                   onPointerDown={() => setSeekValue(displayIndex)}
                   onPointerUp={() => {
                     if (seekValue !== null) {
@@ -289,7 +305,7 @@ export function ArticleTTSOverlay({
                       setSeekValue(null)
                     }
                   }}
-                  className="h-2 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-white/10 accent-indigo-500 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-500 [&::-webkit-slider-thumb]:shadow"
+                  className={seekRangeClassName}
                   aria-label="Seek position in article"
                 />
                 <span className="shrink-0 text-xs tabular-nums text-slate-400">
@@ -308,14 +324,15 @@ export function ArticleTTSOverlay({
             </button>
           </div>
           {seekOnOwnRow && (
-            <div className="flex min-w-0 w-full items-center gap-2 px-0">
+            <div className="flex min-h-[44px] min-w-0 w-full items-center gap-2 px-0">
               <input
                 type="range"
                 min={0}
                 max={totalSentences - 1}
                 step={1}
                 value={clamp(displayIndex, 0, totalSentences - 1)}
-                onChange={(e) => setSeekValue(parseInt(e.target.value, 10))}
+                onChange={onSeekSliderMove}
+                onInput={onSeekSliderMove}
                 onPointerDown={() => setSeekValue(displayIndex)}
                 onPointerUp={() => {
                   if (seekValue !== null) {
@@ -329,7 +346,7 @@ export function ArticleTTSOverlay({
                     setSeekValue(null)
                   }
                 }}
-                className="h-2 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-white/10 accent-indigo-500 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-500 [&::-webkit-slider-thumb]:shadow"
+                className={seekRangeClassName}
                 aria-label="Seek position in article"
               />
               <span className="shrink-0 text-xs tabular-nums text-slate-400">
