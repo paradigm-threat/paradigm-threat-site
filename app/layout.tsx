@@ -76,6 +76,7 @@ function RootLayoutInner({ children }: { children: React.ReactNode }) {
                             <Link href="/" className="shrink-0 hover:text-slate-900 dark:hover:text-white transition-colors">Home</Link>
                             <Link href="/timeline" className="shrink-0 hover:text-slate-900 dark:hover:text-white transition-colors">Timeline</Link>
                             <Link href="/chat" className="shrink-0 hover:text-slate-900 dark:hover:text-white transition-colors">Chat</Link>
+                            <Link href="https://paradigmthreat2.substack.com/" target="_blank" rel="noopener noreferrer" className="shrink-0 hover:text-slate-900 dark:hover:text-white transition-colors">Substack</Link>
                             <Link href="https://www.bitchute.com/channel/paradigmthreat" target="_blank" rel="noopener noreferrer" className="shrink-0 hover:text-slate-900 dark:hover:text-white transition-colors">Videos</Link>
                         </nav>
                         <div className="text-slate-500 text-sm">
@@ -83,6 +84,7 @@ function RootLayoutInner({ children }: { children: React.ReactNode }) {
                         </div>
                         <div className="flex flex-col items-center gap-3 text-xs text-slate-400">
                             <RelayFooterAttribution />
+                            <a href="https://paradigmthreat2.substack.com/" target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:underline font-semibold">Subscribe on Substack</a>
                             <a href="https://www.patreon.com/c/ahsctimeline" target="_blank" rel="noopener noreferrer" className="text-pink-500 hover:underline font-semibold">♥ Patreon</a>
                         </div>
                     </div>
