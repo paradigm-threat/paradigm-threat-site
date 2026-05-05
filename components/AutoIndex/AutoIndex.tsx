@@ -17,6 +17,12 @@ export type AutoIndexFormat = 'default' | 'blog'
 const AUTO_INDEX_SHELL =
   'my-10 overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-xl border border-slate-200/90 dark:border-slate-700/90 bg-slate-50/40 dark:bg-slate-900/40 px-3 py-4 sm:px-5 sm:py-6 shadow-inner scroll-smooth [scrollbar-gutter:stable]'
 
+function isPlainLeafDocFilename (name: string): boolean {
+  const lower = name.toLowerCase()
+  return lower.endsWith('.txt') || lower.endsWith('.cs')
+}
+
+
 function AutoIndexPanelHeading({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-3 mb-4 border-b border-slate-200 dark:border-slate-600 shrink-0 pb-0">
@@ -40,7 +46,7 @@ export interface AutoIndexProps {
   sort?: AutoIndexSort
   /** Show subdirectories. Default: true */
   showSubdirs?: boolean
-  /** Show .md and .txt documents. Default: true */
+  /** Show Markdown, plain .txt, and hook .cs (under hooks/). Default: true */
   showDocs?: boolean
   /** Show images. Default: true */
   showImages?: boolean
@@ -126,10 +132,10 @@ export default function AutoIndex({
     const mdFiles = files.filter(
       (f) => f.endsWith('.md') && f !== 'page.md' && !f.endsWith('.auto.md')
     )
-    const txtFiles = files.filter((f) => f.toLowerCase().endsWith('.txt'))
+    const txtCsFiles = files.filter((f) => isPlainLeafDocFilename(f))
     const imgFiles = files.filter((f) => /\.(jpg|jpeg|png|gif|svg|webp)$/i.test(f))
 
-    let sorted = [...mdFiles, ...txtFiles]
+    let sorted = [...mdFiles, ...txtCsFiles]
     if (indexFormat === 'blog') {
       sorted.sort((a, b) => {
         const tb = getIndexUpdatedTime(current[b]?._updated)
@@ -160,9 +166,9 @@ export default function AutoIndex({
     docFiles.forEach((f) => {
       const fileData = node?.[f]
       const fromIndex = fileData?._title
-      if (f.toLowerCase().endsWith('.txt')) {
+      if (isPlainLeafDocFilename(f)) {
         initial[f] = {
-          title: fromIndex || f.replace(/_/g, ' ').replace(/\.txt$/i, ''),
+          title: fromIndex || f.replace(/_/g, ' ').replace(/\.(txt|cs)$/i, ''),
         }
       } else {
         initial[f] = { title: fromIndex || f.replace(/_/g, ' ').replace(/\.md$/, '') }
@@ -305,8 +311,8 @@ export default function AutoIndex({
         <div className="space-y-6">
           <div className="grid grid-cols-1 gap-4">
             {docFiles.map((file) => {
-              const fileName = file.toLowerCase().endsWith('.txt')
-                ? file.replace(/_/g, ' ').replace(/\.txt$/i, '')
+              const fileName = isPlainLeafDocFilename(file)
+                ? file.replace(/_/g, ' ').replace(/\.(txt|cs)$/i, '')
                 : file.replace(/_/g, ' ').replace(/\.md$/, '')
               const docTitle = mdContents[file]?.title || fileName
               const updatedRaw = node?.[file]?._updated

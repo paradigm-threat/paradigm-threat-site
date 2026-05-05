@@ -63,7 +63,8 @@ export async function GET (request: NextRequest) {
     const rel = path.replace(/^\//, '')
     const pathname = '/' + rel.split('?')[0]
     const search = path.includes('?') ? '?' + path.split('?').slice(1).join('?') : ''
-    response = await fetchFromAssetMirrors('files', pathname, { search })
+    const repoKey = pathname.replace(/^\//, '').startsWith('media/') ? 'timeline' : 'files'
+    response = await fetchFromAssetMirrors(repoKey, pathname, { search })
     fetchUrl = path
   }
 

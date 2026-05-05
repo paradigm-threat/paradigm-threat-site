@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Maximize2, Minimize2 } from 'lucide-react'
 import { useImageGallery } from '@/components/Image/ImageGalleryContext'
+import { buildOptimizedAssetUrl } from '@/lib/relayOptimizedAssetUrl'
 import { getPrimaryFilesBaseUrl, getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
 import styles from './ChangeLog.module.css'
 
@@ -94,7 +95,7 @@ const CHANGELOG_THUMB_IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg)$/i
 
 /**
  * Changelog strip `<img>` must not use raw `/history/...` on the Next origin (404).
- * Repo-relative images go through `/api/image` → files mirrors (same as fullscreen gallery).
+ * Uses Relay ?w= when primary mirrors are Relay, else `/api/image` + mirrors.
  */
 function changelogThumbSrc(src) {
   const publicSrc = changelogPublicImageSrc(src)
@@ -104,7 +105,7 @@ function changelogThumbSrc(src) {
   if (/^https?:\/\//i.test(publicSrc)) return publicSrc
   const pathOnly = publicSrc.split('?')[0]
   if (pathOnly.startsWith('/') && CHANGELOG_THUMB_IMAGE_EXT.test(pathOnly)) {
-    return `/api/image?path=${encodeURIComponent(pathOnly)}&w=160`
+    return buildOptimizedAssetUrl(pathOnly, 160)
   }
   return publicSrc
 }

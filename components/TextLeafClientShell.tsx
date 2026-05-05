@@ -26,7 +26,8 @@ function splitPlainTextIntoDisplayParagraphs (raw: string): string[] {
 }
 
 /**
- * Readable view for repo `.txt` leaves (pretty URL). Raw bytes: `/files/<path>`.
+ * Readable view for repo .txt leaves and Relay hook sources (.cs).
+ * Pretty site URL mirrors the article path; raw bytes use the public files asset URL.
  */
 export function TextLeafClientShell ({ articlePath, title, body }: TextLeafClientShellProps) {
   const pathname = usePathname() || ''

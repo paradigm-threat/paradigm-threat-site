@@ -23,7 +23,7 @@ import type { MdxCompileDiagnostics } from '@/lib/mdxCompileDiagnostics'
 import { MdxCompileErrorPanel } from '@/components/MdxCompileErrorPanel'
 
 const DIRECT_IMAGE_EXT = /\.(jpg|jpeg|png|gif|svg|webp|avif|ico)$/i
-const DIRECT_TXT_EXT = /\.txt$/i
+const DIRECT_PLAINTEXT_LEAF_EXT = /\.(txt|cs)$/i
 
 type DirectImageLeaf = {
   basePath: string
@@ -277,13 +277,13 @@ export const CatchAllClient = memo(function CatchAllClient() {
             current &&
             typeof current === 'object' &&
             !('_count' in current) &&
-            DIRECT_TXT_EXT.test(lastSeg)
+            DIRECT_PLAINTEXT_LEAF_EXT.test(lastSeg)
           ) {
             const meta = current as Record<string, unknown>
             const titled =
               typeof meta._title === 'string' && meta._title.trim()
                 ? meta._title.trim()
-                : lastSeg.replace(/_/g, ' ').replace(/\.txt$/i, '')
+                : lastSeg.replace(/_/g, ' ').replace(/\.(txt|cs)$/i, '')
             try {
               const response = await remoteRelay.fetchFilesMd(requestPath, vParam, abortController.signal)
               if (!response.ok) throw new Error('txt_fetch_failed')
@@ -346,9 +346,9 @@ export const CatchAllClient = memo(function CatchAllClient() {
 
               const imgFiles = files.filter((f: string) => /\.(jpg|jpeg|png|gif|svg|webp)$/i.test(f))
               const mdFiles = files.filter((f: string) => f.endsWith('.md') && f !== 'page.md' && !f.endsWith('.auto.md'))
-              const txtFiles = files.filter((f: string) => f.toLowerCase().endsWith('.txt'))
+              const plainLeafFiles = files.filter((f: string) => DIRECT_PLAINTEXT_LEAF_EXT.test(f))
               setImages(imgFiles)
-              setMds([...mdFiles, ...txtFiles].sort((a, b) => -a.localeCompare(b)))
+              setMds([...mdFiles, ...plainLeafFiles].sort((a, b) => -a.localeCompare(b)))
 
               const contents: Record<string, { title: string; content: string }> = {}
 
@@ -757,10 +757,10 @@ export const CatchAllClient = memo(function CatchAllClient() {
                     }
                     const fileNode = cur?.[file]
                     const updatedTiny = formatIndexDateTiny(fileNode?._updated)
-                    const docTitle = file.toLowerCase().endsWith('.txt')
+                    const docTitle = DIRECT_PLAINTEXT_LEAF_EXT.test(file)
                       ? (typeof fileNode?._title === 'string' && fileNode._title.trim()
                         ? fileNode._title.trim()
-                        : file.replace(/_/g, ' ').replace(/\.txt$/i, ''))
+                        : file.replace(/_/g, ' ').replace(/\.(txt|cs)$/i, ''))
                       : (mdContents[file]?.title || file.replace(/_/g, ' ').replace(/\.md$/, ''))
                     return (
                       <Link

@@ -25,23 +25,28 @@ export interface TextLeafData {
   targetPath: string
 }
 
-function titleFromTextFilePath (filePath: string): string {
+function titleFromPlainLeafPath (filePath: string): string {
   const seg = filePath.split('/').filter(Boolean).pop() || filePath
-  return seg.replace(/_/g, ' ').replace(/\.txt$/i, '').trim() || 'Document'
+  return (
+    seg
+      .replace(/_/g, ' ')
+      .replace(/\.(txt|cs)$/i, '')
+      .trim() || 'Document'
+  )
 }
 
-/** Plain `.txt` leaves from the files repo (not MDX). Cached for generateMetadata + page. */
+/** Plain .txt and Relay hook .cs leaves (not MDX). Cached for generateMetadata + page. */
 export const fetchTextLeaf = cache(async function fetchTextLeaf (
   path: string,
 ): Promise<TextLeafData | null> {
-  if (!path || !path.toLowerCase().endsWith('.txt')) return null
+  if (!path || (!path.toLowerCase().endsWith('.txt') && !path.toLowerCase().endsWith('.cs'))) return null
   const fileContent = await fetchFilesTextFromMirrors(path, '')
   if (fileContent == null) return null
 
   const basePath = path.includes('/') ? path.split('/').slice(0, -1).join('/') : ''
   return {
     text: fileContent,
-    title: titleFromTextFilePath(path),
+    title: titleFromPlainLeafPath(path),
     basePath,
     targetPath: path,
   }

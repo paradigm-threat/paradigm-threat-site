@@ -19,6 +19,8 @@ const EMPTY_SRC_PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH
 export default function OptimizedImage({ children, className, ...props }: OptimizedImageProps) {
     const srcProps: OptimizedImageProps = processImageProps({ ...props, className }, props.basePath)
     const [isVisible, setIsVisible] = useState(false)
+    /** Full-size decode finished — hide Relay LQIP underlay */
+    const [lqipDismissed, setLqipDismissed] = useState(false)
     const ref = useRef<HTMLImageElement>(null)
 
     const {
@@ -26,6 +28,7 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
         priority,
         blurDataURL,
         optimizedSrc,
+        lqipOptimizedSrc,
         highResSrc,
         basePath,
         className: processedClassName,
@@ -67,6 +70,12 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
     // Wide book diagrams often have index/API dimensions that do not match the decoded bitmap;
     // a forced aspect-ratio box then leaves a large empty band above the caption (especially on mobile).
     const isBookIllustration = /\bbook-illustration\b/.test(processedClassName || '')
+    const imageIntrinsicKey = `${String(optimizedSrc ?? '')}:${String(lqipOptimizedSrc ?? '')}`
+    const useRelayLqipUnderlay =
+        typeof lqipOptimizedSrc === 'string' &&
+        lqipOptimizedSrc.length > 0 &&
+        !blurDataURL
+
     const containerStyle: React.CSSProperties = {}
     if (isBookIllustration) {
         if (blurDataURL) {
@@ -97,18 +106,38 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
             style={finalProps.width ? { maxWidth: `${finalProps.width}px` } : {}}
         >
             <div
+                key={imageIntrinsicKey}
                 className={`relative w-full bg-slate-100 dark:bg-slate-900 overflow-hidden ${!isVisible ? 'animate-pulse' : ''} ${isBookIllustration && !isVisible ? 'min-h-12' : ''}`}
                 style={containerStyle}
             >
+                {useRelayLqipUnderlay && isVisible ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                        loading="lazy"
+                        aria-hidden
+                        alt=""
+                        src={lqipOptimizedSrc}
+                        className={`pointer-events-none absolute inset-0 h-full w-full transition-opacity duration-500 ease-out ${
+                            lqipDismissed ? 'opacity-0' : 'opacity-100'
+                        } ${
+                            isBookIllustration
+                                ? 'object-contain object-top scale-105 blur-md'
+                                : 'object-cover scale-105 blur-md'
+                        }`}
+                    />
+                ) : null}
                 {/* next/image not used: dynamic src/placeholder and aspect ratio from props */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                     ref={ref}
                     loading='lazy'
                     alt={alt}
-                    className={`block w-full max-w-full h-auto transition-opacity duration-700 ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+                    className={`relative z-[1] block w-full max-w-full h-auto transition-opacity duration-700 ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0'}`}
                     {...finalProps}
                     src={isVisible && finalProps.src ? (finalProps.src as string) : EMPTY_SRC_PLACEHOLDER}
+                    onLoad={() => {
+                        setLqipDismissed(true)
+                    }}
                 />
             </div>
             {children

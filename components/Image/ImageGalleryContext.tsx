@@ -95,6 +95,7 @@ import {
     publicFilesAssetUrl,
     publicTimelineAssetUrl,
 } from '@/lib/canonicalPublicSite'
+import { buildOptimizedAssetUrl, isRelayOrigin } from '@/lib/relayOptimizedAssetUrl'
 
 const REPO_IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg)$/i
 
@@ -131,6 +132,12 @@ export function galleryDirectPublicAssetUrl(image: GalleryImage): string | null 
         try {
             const u = new URL(rawSrc)
             if (u.origin === CANONICAL_SITE_ORIGIN) return rawSrc
+            if (isRelayOrigin(rawSrc)) {
+                const pathOnly = u.pathname.replace(/\/+/g, '/').split('?')[0]
+                if (pathOnly.startsWith('/') && REPO_IMAGE_EXT.test(pathOnly)) {
+                    return pathToCanonicalFilesOrTimelineUrl(pathOnly)
+                }
+            }
         } catch {
             /* ignore */
         }
@@ -150,11 +157,8 @@ export function galleryDirectPublicAssetUrl(image: GalleryImage): string | null 
 }
 
 /**
- * Fullscreen gallery `<img src>` must resolve to bytes this Next app can serve.
- * - ChangeLog passes root-relative repo paths (`/history/...png`) with no `highResSrc`; using them
- *   literally hits `localhost:3000/history/...` → 404.
- * - PopImage sets `highResSrc` to https://paradigmthreat.net/files/... which can lag GitLab Pages;
- *   on localhost prefer `/api/image` (mirrors) so new assets appear after push.
+ * Fullscreen gallery `<img src>`: optimized bytes via Relay ?w= when primary mirrors are Relay,
+ * else `/api/image` (GitLab / multi-mirror fallback).
  */
 export function galleryOverlayDisplaySrc (image: GalleryImage): string {
     const rawSrc = typeof image.src === 'string' ? image.src : ''
@@ -169,14 +173,7 @@ export function galleryOverlayDisplaySrc (image: GalleryImage): string {
         return hi || rawSrc
     }
 
-    const isLocalDev =
-        typeof window !== 'undefined' &&
-        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-
-    if (isLocalDev || !hi) {
-        return `/api/image?path=${encodeURIComponent(pathOnly)}&w=1600`
-    }
-    return hi
+    return buildOptimizedAssetUrl(pathOnly, 1600)
 }
 
 /** Folder segments of a repo-relative path as /search links (matches path-style search URLs). */
@@ -518,7 +515,10 @@ export function ImageGalleryOverlay() {
                                         >
                                             {/* eslint-disable-next-line @next/next/no-img-element -- nav thumbnail: API proxy path */}
                                             <img
-                                                src={`/api/image?path=${encodeURIComponent(prevImage.src)}&w=400`}
+                                                src={buildOptimizedAssetUrl(
+                                                    (prevImage.src || '').split('?')[0],
+                                                    400,
+                                                )}
                                                 className="absolute inset-0 w-full h-full object-cover"
                                                 alt="prev"
                                                 loading="lazy"
@@ -556,7 +556,10 @@ export function ImageGalleryOverlay() {
                                         >
                                             {/* eslint-disable-next-line @next/next/no-img-element -- nav thumbnail: API proxy path */}
                                             <img
-                                                src={`/api/image?path=${encodeURIComponent(nextImage.src)}&w=400`}
+                                                src={buildOptimizedAssetUrl(
+                                                    (nextImage.src || '').split('?')[0],
+                                                    400,
+                                                )}
                                                 className="absolute inset-0 w-full h-full object-cover"
                                                 alt="next"
                                                 loading="lazy"

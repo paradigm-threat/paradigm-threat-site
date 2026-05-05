@@ -5,6 +5,10 @@ interface ImagePropsFormatted {
 
 import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
 import { publicFilesAssetUrl, publicTimelineAssetUrl } from '@/lib/canonicalPublicSite'
+import {
+    buildLqipOptimizedAssetUrl,
+    buildOptimizedAssetUrl,
+} from '@/lib/relayOptimizedAssetUrl'
 
 const DEFAULT_FILES_BASE_URL = getPrimaryFilesBaseUrl()
 
@@ -202,21 +206,34 @@ export function processImageProps(props: any, basePath?: string, filesRootUrl?: 
                     }
                 })());
 
-        // SVG: proxy only — sharp/WebP destroys fonts/text; do not pass w= to the image API
-        if (isSvg) {
-            finalProps.optimizedSrc = `/api/image?path=${encodeURIComponent(pathForAPI)}`;
-            finalProps.width = w
+        const displayWidth =
+            w != null && w !== ''
                 ? typeof w === 'string'
-                    ? parseInt(w, 10)
+                    ? parseInt(w, 10) || 800
                     : w
-                : 800;
+                : 800
+
+        // SVG: Relay or /api/image passthrough — no raster resize
+        if (isSvg) {
+            finalProps.optimizedSrc = buildOptimizedAssetUrl(pathForAPI)
+            finalProps.width = Number.isFinite(displayWidth) ? displayWidth : 800
         } else if (w) {
-            finalProps.optimizedSrc = `/api/image?path=${encodeURIComponent(pathForAPI)}&w=${w}`;
-            finalProps.width = typeof w === 'string' ? parseInt(w) : w;
+            finalProps.optimizedSrc = buildOptimizedAssetUrl(pathForAPI, displayWidth)
+            finalProps.width = typeof w === 'string' ? parseInt(w, 10) : displayWidth
         } else {
-            // Default optimization width
-            finalProps.optimizedSrc = `/api/image?path=${encodeURIComponent(pathForAPI)}&w=800`;
-            finalProps.width = 800;
+            finalProps.optimizedSrc = buildOptimizedAssetUrl(pathForAPI, 800)
+            finalProps.width = 800
+        }
+
+        const hasAuthorBlur =
+            typeof (finalProps as { blurDataURL?: string }).blurDataURL === 'string' &&
+            (finalProps as { blurDataURL?: string }).blurDataURL!.length > 0
+
+        if (!isSvg && !hasAuthorBlur) {
+            const lqipSrc = buildLqipOptimizedAssetUrl(pathForAPI, finalProps.width as number)
+            if (lqipSrc) {
+                ;(finalProps as Record<string, unknown>).lqipOptimizedSrc = lqipSrc
+            }
         }
 
         // Reserve correct aspect ratio for LQIP placeholder when intrinsic dimensions available
