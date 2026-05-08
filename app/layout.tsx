@@ -55,6 +55,9 @@ function RootLayoutInner({ children }: { children: React.ReactNode }) {
                 <PwaRedirect />
                 <ClientErrorReporter />
                 <Navbar fileList={fileList} />
+                <header className="w-full border-b border-amber-300/70 bg-amber-100/90 px-4 py-3 text-center text-sm font-medium text-amber-950 dark:border-amber-700/60 dark:bg-amber-950/60 dark:text-amber-100">
+                    We&apos;re moving fully to a relay-powered experience, so check back soon. Sorry about the MDX errors (cloud meter limits).
+                </header>
                 <FilesMirrorErrorBanner key={filesError ?? 'ok'} />
 
                 <div
