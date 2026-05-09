@@ -56,7 +56,16 @@ function RootLayoutInner({ children }: { children: React.ReactNode }) {
                 <ClientErrorReporter />
                 <Navbar fileList={fileList} />
                 <header className="w-full border-b border-amber-300/70 bg-amber-100/90 px-4 py-3 text-center text-sm font-medium text-amber-950 dark:border-amber-700/60 dark:bg-amber-950/60 dark:text-amber-100">
-                    We&apos;re moving fully to a relay-powered experience, so check back soon. Sorry about the MDX errors (cloud meter limits).
+                    We&apos;re moving fully to a relay-powered experience, so check back soon. Sorry about the MDX errors (cloud meter limits). Meanwhile, all my articles are being published{' '}
+                    <Link
+                        href="https://paradigmthreat2.substack.com/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold text-amber-900 underline decoration-amber-800/60 underline-offset-2 hover:text-amber-950 hover:decoration-amber-950 dark:text-amber-50 dark:decoration-amber-300/50 dark:hover:text-white dark:hover:decoration-white"
+                    >
+                        here
+                    </Link>
+                    .
                 </header>
                 <FilesMirrorErrorBanner key={filesError ?? 'ok'} />
 
