@@ -5,6 +5,8 @@ import {
   THREADS_MAX,
   X_MAX,
   X_URL_WEIGHT,
+  limitHashtagsLine,
+  platformHashtagLimit,
 } from '@/lib/share/platformLimits'
 
 /**
@@ -35,6 +37,8 @@ export interface ComposeShareInput {
   snippetPlain: string
   hashtagsLine: string
   articleBodyPlain: string
+  /** Optional published Substack mirror URL; rendered on its own line below the canonical URL. */
+  substackUrl?: string
 }
 
 /** X counts every http(s) URL as 23 chars (t.co) — informational only. */
@@ -53,18 +57,21 @@ export function effectiveLengthX (text: string): number {
 }
 
 /**
- * Full share text, no truncation. Order: title → URL → hashtags → snippet → article body.
- * `platform` is ignored; kept for call-site stability.
+ * Full share text, no truncation.
+ * Order: title → canonical URL → (optional Substack URL) → hashtags → snippet → article body.
+ * Per-platform hashtag caps (e.g. Instagram's 30) are honored.
  */
-export function composeShareText (_platform: SharePlatformId, input: ComposeShareInput): string {
+export function composeShareText (platform: SharePlatformId, input: ComposeShareInput): string {
   const title = input.title.trim()
-  const hashtags = input.hashtagsLine.trim()
+  const hashtags = limitHashtagsLine(input.hashtagsLine.trim(), platformHashtagLimit(platform))
   const url = input.canonicalUrl.trim()
+  const substack = (input.substackUrl || '').trim()
   const snippet = input.snippetPlain.trim()
   const article = input.articleBodyPlain.trim()
 
   const parts: string[] = [title]
   parts.push('', url)
+  if (substack && substack !== url) parts.push(substack)
   if (hashtags) parts.push('', hashtags)
   if (snippet) parts.push('', snippet)
   if (article) parts.push('', article)
@@ -82,11 +89,16 @@ function joinShareParts (
   url: string,
   snippet: string,
   article: string,
-  opts?: { includeCanonicalUrl?: boolean }
+  opts?: { includeCanonicalUrl?: boolean; substackUrl?: string }
 ): string {
   const includeUrl = opts?.includeCanonicalUrl !== false
+  const substack = (opts?.substackUrl || '').trim()
   const parts: string[] = [title]
   if (includeUrl) parts.push('', url)
+  if (substack && substack !== url) {
+    if (!includeUrl) parts.push('')
+    parts.push(substack)
+  }
   if (hashtags) parts.push('', hashtags)
   if (snippet) parts.push('', snippet)
   if (article) parts.push('', article)
@@ -120,7 +132,7 @@ function outboundIntentLimit (platform: SharePlatformId): number | null {
 
 /**
  * Shortened text for intent URLs only (X, Threads, Bluesky, Truth Social).
- * Same block order as composeShareText; trims article → snippet → hashtags → title last resort.
+ * Same block order as composeShareText; trims article → snippet → substack URL → hashtags → title last resort.
  */
 export function truncateShareTextForOutbound (
   platform: SharePlatformId,
@@ -128,8 +140,9 @@ export function truncateShareTextForOutbound (
 ): string {
   const limit = outboundIntentLimit(platform)
   let title = input.title.trim()
-  let hashtags = input.hashtagsLine.trim()
+  let hashtags = limitHashtagsLine(input.hashtagsLine.trim(), platformHashtagLimit(platform))
   let url = input.canonicalUrl.trim()
+  let substackUrl = (input.substackUrl || '').trim()
   let snippet = input.snippetPlain.trim()
   let article = input.articleBodyPlain.trim()
 
@@ -138,15 +151,18 @@ export function truncateShareTextForOutbound (
     snippet = dedupeCanonicalUrlInPlainText(snippet, url)
     article = dedupeCanonicalUrlInPlainText(article, url)
   }
-  const joinOpts = omitUrlInBody ? { includeCanonicalUrl: false as const } : undefined
+  const buildOpts = () => ({
+    includeCanonicalUrl: !omitUrlInBody,
+    substackUrl,
+  })
 
   if (limit == null) {
-    return joinShareParts(title, hashtags, url, snippet, article, joinOpts)
+    return joinShareParts(title, hashtags, url, snippet, article, buildOpts())
   }
 
   const measure = (s: string) => effectiveLengthPlatform(platform, s)
 
-  let text = joinShareParts(title, hashtags, url, snippet, article, joinOpts)
+  let text = joinShareParts(title, hashtags, url, snippet, article, buildOpts())
   let guard = 0
   while (measure(text) > limit && guard < 500) {
     guard++
@@ -159,6 +175,9 @@ export function truncateShareTextForOutbound (
       snippet = snippet.slice(0, Math.max(0, Math.floor(snippet.length * 0.65))).trim() + '…'
     } else if (snippet.length > 0) {
       snippet = ''
+    } else if (substackUrl) {
+      // Drop the substack mirror URL before sacrificing tags or title — canonical URL stays.
+      substackUrl = ''
     } else if (hashtags) {
       const tags = hashtags.split(/\s+/).filter(Boolean)
       if (tags.length > 1) hashtags = tags.slice(0, -1).join(' ')
@@ -169,7 +188,7 @@ export function truncateShareTextForOutbound (
       const titleMax = Math.max(12, Math.floor(t.length * 0.85))
       title = `${t.slice(0, titleMax).trim()}…`
     }
-    text = joinShareParts(title, hashtags, url, snippet, article, joinOpts)
+    text = joinShareParts(title, hashtags, url, snippet, article, buildOpts())
   }
 
   return text

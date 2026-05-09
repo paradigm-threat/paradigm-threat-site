@@ -10,7 +10,11 @@ import {
   truncateShareTextForOutbound,
   type SharePlatformId,
 } from '@/lib/share'
-import { REDDIT_TITLE_MAX } from '@/lib/share/platformLimits'
+import {
+  REDDIT_TITLE_MAX,
+  limitHashtagsLine,
+  platformHashtagLimit,
+} from '@/lib/share/platformLimits'
 import type { ShareLinksProps } from '@/components/ShareLinks/types'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://paradigmthreat.net'
@@ -131,6 +135,7 @@ export function useShareLinksModel({
       snippetPlain: shareExtract.snippetPlain,
       hashtagsLine: shareExtract.hashtagsLine,
       articleBodyPlain: shareExtract.articleBodyPlain,
+      substackUrl: shareExtract.substackUrl,
     }),
     [title, absUrl, shareExtract]
   )
@@ -142,11 +147,13 @@ export function useShareLinksModel({
     const p = copyFormatPlatform
     const t = composeInput.title.trim()
     const u = composeInput.canonicalUrl.trim()
-    const tags = composeInput.hashtagsLine.trim()
+    const substack = (composeInput.substackUrl || '').trim()
+    const tags = limitHashtagsLine(composeInput.hashtagsLine.trim(), platformHashtagLimit(p))
     const snippet = composeInput.snippetPlain.trim()
     const isXMinimal = p === 'x'
 
     const parts: string[] = [t, '', u]
+    if (substack && substack !== u) parts.push(substack)
     if (tags) parts.push('', tags)
     if (!isXMinimal && snippet) parts.push('', snippet)
     return parts.join('\n').replace(/\n{3,}/g, '\n\n').trim()

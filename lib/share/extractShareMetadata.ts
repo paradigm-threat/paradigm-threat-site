@@ -12,6 +12,12 @@ export interface ShareExtractResult {
   hashtagsLine: string
   /** Plain article body for long platforms (excludes TL;DR block text when possible) */
   articleBodyPlain: string
+  /**
+   * If the article declares a published Substack mirror, this is its absolute URL.
+   * Detected from (in order): `frontmatter.substack`, then a `**Substack:**` marker line,
+   * then any `https?://*.substack.com/p/<slug>` URL in the body.
+   */
+  substackUrl?: string
 }
 
 function stripFrontmatter (md: string): string {
@@ -188,6 +194,39 @@ function markdownToPlainBody (md: string): string {
   return s.replace(/\s+/g, ' ').trim()
 }
 
+/**
+ * Find a published Substack mirror URL for this article, if any.
+ *
+ * Resolution order:
+ *   1. `frontmatter.substack` (string).
+ *   2. The first `**Substack:** [...](https://*.substack.com/p/<slug>)` marker line.
+ *   3. The first bare `https://*.substack.com/p/<slug>` URL found anywhere in the body.
+ *
+ * Returns `undefined` if none is found.
+ */
+function extractSubstackUrl (
+  rawMarkdown: string,
+  frontmatter: Record<string, unknown>,
+): string | undefined {
+  const fmRaw = frontmatter?.substack
+  if (typeof fmRaw === 'string' && /^https?:\/\/[^\s/]+\/[^\s]*$/i.test(fmRaw.trim())) {
+    return fmRaw.trim()
+  }
+  const body = stripFrontmatter(rawMarkdown)
+  // Marker-line form first (most explicit / most reliable when authors add it).
+  const markerRe =
+    /\*\*Substack:\*\*\s*(?:\[[^\]]+\]\((https?:\/\/[^\s)]*substack\.com\/[^\s)]+)\)|<?(https?:\/\/[^\s>]*substack\.com\/[^\s>]+)>?)/i
+  const marker = body.match(markerRe)
+  if (marker) {
+    const found = (marker[1] || marker[2] || '').trim()
+    if (found) return found
+  }
+  const looseRe = /https?:\/\/[^\s)]*substack\.com\/p\/[A-Za-z0-9_\-]+/i
+  const loose = body.match(looseRe)
+  if (loose) return loose[0].trim()
+  return undefined
+}
+
 export function extractShareMetadata (input: ShareExtractInput): ShareExtractResult {
   const { rawMarkdown, frontmatter = {} } = input
   const desc =
@@ -203,6 +242,7 @@ export function extractShareMetadata (input: ShareExtractInput): ShareExtractRes
   const fromSection = extractKeywordsSectionFromMarkdownBody(rawMarkdown)
   const hashtagsLine = mergeHashtagLines(mergeHashtagLines(fromFm, fromBody), fromSection)
   const articleBodyPlain = markdownToPlainBody(rawMarkdown)
+  const substackUrl = extractSubstackUrl(rawMarkdown, frontmatter)
 
-  return { snippetPlain, hashtagsLine, articleBodyPlain }
+  return { snippetPlain, hashtagsLine, articleBodyPlain, substackUrl }
 }

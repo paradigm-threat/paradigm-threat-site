@@ -70,3 +70,30 @@ export function platformCopyLimit (platform: SharePlatformId): number {
       return FACEBOOK_MAX
   }
 }
+
+/**
+ * Per-platform recommended cap on the number of `#hashtag` tokens in a copy block.
+ * `null` means "no per-platform tag count cap" (still subject to overall character limits).
+ *
+ * Instagram: the platform allows up to 30 tags per post; beyond that the post fails to publish
+ * or the extra tags are dropped. We treat 30 as a hard ceiling on the search-copy text.
+ */
+export function platformHashtagLimit (platform: SharePlatformId): number | null {
+  switch (platform) {
+    case 'instagram':
+      return INSTAGRAM_HASHTAG_MAX
+    default:
+      return null
+  }
+}
+
+/**
+ * Trim a space-separated hashtag line down to the first `max` `#tokens`, preserving order
+ * and ignoring non-tag whitespace. Returns the original string if it already fits or has no cap.
+ */
+export function limitHashtagsLine (line: string, max: number | null): string {
+  if (!line || max == null) return line
+  const tokens = line.split(/\s+/).filter(Boolean)
+  if (tokens.length <= max) return line
+  return tokens.slice(0, max).join(' ')
+}
