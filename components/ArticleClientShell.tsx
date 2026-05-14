@@ -6,7 +6,6 @@ import { ArticleTTSProvider } from '@/components/ArticleTTS/ArticleTTSProvider'
 import { ArticleTTSOverlay } from '@/components/ArticleTTS/ArticleTTSOverlay'
 import { stripMarkdownForTTS, buildParagraphStarts } from '@/components/Timeline/ttsHelpers'
 import { ArticleNav, ShareLinks, ShareLinksFloating } from '@/components'
-import { MdxRuntimeErrorBoundary } from '@/components/MdxRuntimeErrorBoundary'
 import type { ShareExtractResult } from '@/lib/share'
 import { shouldPersistVisit } from '@/lib/visitResumeStorage'
 import { useMobileHubTtsChrome } from '@/lib/hooks/useMobileHubTtsChrome'
@@ -18,7 +17,6 @@ export interface ArticleClientShellProps {
   articlePath?: string
   /** @deprecated superseded by mdSource + shareExtract */
   articleDescription?: string
-  articleFrontmatter?: Record<string, unknown>
   ogImageUrl?: string
   shareExtract?: ShareExtractResult
   children: React.ReactNode
@@ -30,7 +28,6 @@ export function ArticleClientShell ({
   basePath,
   articlePath,
   articleDescription,
-  articleFrontmatter,
   ogImageUrl,
   shareExtract,
   children
@@ -123,22 +120,18 @@ export function ArticleClientShell ({
                     title={articleTitle}
                     description={articleDescription}
                     mdSource={articleContent}
-                    frontmatter={articleFrontmatter}
                     shareExtract={shareExtract}
                     ogImageUrl={ogImageUrl}
                   />
                 </div>
               ) : null}
-              <MdxRuntimeErrorBoundary key={articlePath ?? 'article'} sourcePath={articlePath ? `/${articlePath}` : undefined}>
-                {children}
-              </MdxRuntimeErrorBoundary>
+              {children}
               {articlePath && (
                 <ShareLinks
                   url={`/${articlePath}`}
                   title={articleTitle}
                   description={articleDescription}
                   mdSource={articleContent}
-                  frontmatter={articleFrontmatter}
                   shareExtract={shareExtract}
                   ogImageUrl={ogImageUrl}
                 />

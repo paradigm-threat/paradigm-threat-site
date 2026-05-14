@@ -27,14 +27,17 @@ export const BLUESKY_MAX = 300
 
 /** Instagram caption */
 export const INSTAGRAM_CAPTION_MAX = 2200
-/** Instagram recommends ≤30 hashtags per post */
-export const INSTAGRAM_HASHTAG_MAX = 30
+/** Copy-share text: keep hashtag spam low; Instagram allows many more but we cap at five for readability */
+export const INSTAGRAM_HASHTAG_MAX = 5
 
 /** Threads post text */
 export const THREADS_MAX = 500
 
 /** Truth Social share `text` query param (first composer line) — https://help.truthsocial.com/publishers/share-button/ */
 export const TRUTHSOCIAL_TEXT_MAX = 500
+
+/** Copy & Share modal: full pasted body budget when Format is Truth Social (intent URL still uses {@link TRUTHSOCIAL_TEXT_MAX}). */
+export const TRUTHSOCIAL_COPY_MAX = 3000
 
 /** LinkedIn feed post (common cap; document if Meta changes) */
 export const LINKEDIN_MAX = 3000
@@ -44,6 +47,21 @@ export const FACEBOOK_MAX = 63000
 
 /** Reddit self-text / pasted caption (no single hard cap; keep reasonable) */
 export const REDDIT_COPY_MAX = 40000
+
+/**
+ * When non-null, the Copy & Share textarea includes snippet + article up to this many characters.
+ * Otherwise the modal uses a short preview (no article body).
+ */
+export function platformModalCopyLimit (platform: SharePlatformId): number | null {
+  switch (platform) {
+    case 'instagram':
+      return INSTAGRAM_CAPTION_MAX
+    case 'truthsocial':
+      return TRUTHSOCIAL_COPY_MAX
+    default:
+      return null
+  }
+}
 
 export function platformCopyLimit (platform: SharePlatformId): number {
   switch (platform) {
@@ -75,8 +93,7 @@ export function platformCopyLimit (platform: SharePlatformId): number {
  * Per-platform recommended cap on the number of `#hashtag` tokens in a copy block.
  * `null` means "no per-platform tag count cap" (still subject to overall character limits).
  *
- * Instagram: the platform allows up to 30 tags per post; beyond that the post fails to publish
- * or the extra tags are dropped. We treat 30 as a hard ceiling on the search-copy text.
+ * Instagram: we cap copied hashtags at {@link INSTAGRAM_HASHTAG_MAX} for readable captions.
  */
 export function platformHashtagLimit (platform: SharePlatformId): number | null {
   switch (platform) {

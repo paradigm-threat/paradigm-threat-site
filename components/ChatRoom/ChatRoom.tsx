@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
 import ErrorBoundary from '../ErrorBoundary/ErrorBoundary'
 import SuspenseLoader from '../atoms/SuspenseLoader/SuspenseLoader'
-import Markdown, { MarkdownToJSX } from 'markdown-to-jsx'
+import { ChatMarkdown } from './ChatMarkdown'
 import { Send, User, MessageSquare, AlertCircle, RefreshCcw, Maximize2, Minimize2, ArrowLeft } from 'lucide-react'
 
 interface ChatRoomProps {
@@ -66,14 +66,6 @@ function getChannelFromPath(pathname: string | null): string | null {
     const segments = pathname.split('/').filter(Boolean)
     if (segments[0] === 'chat' && segments[1]) return segments[1]
     return null
-}
-
-const ChannelMarkdownOptions: MarkdownToJSX.Options = {
-    overrides: {
-        p: { component: 'div' },
-        h1: { component: 'div' },
-        h2: { component: 'div' },
-    },
 }
 
 type ChatView = 'channel' | 'recent' | 'user'
@@ -376,9 +368,7 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
                                         {post.isError && <AlertCircle size={14} className="text-red-500" />}
                                     </div>
                                     <div className={`prose prose-sm dark:prose-invert max-w-none prose-p:mb-0 ${post.isError ? 'text-red-500 font-medium' : 'text-slate-700 dark:text-slate-300'}`}>
-                                        <Markdown options={ChannelMarkdownOptions}>
-                                            {typeof post.content === 'string' ? post.content : ''}
-                                        </Markdown>
+                                        <ChatMarkdown content={typeof post.content === 'string' ? post.content : ''} />
                                     </div>
                                 </div>
                             ))}
@@ -435,9 +425,7 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
                                         <span className="font-mono">{formatPostTime(post.created)}</span>
                                     </div>
                                     <div className="prose prose-sm dark:prose-invert max-w-none prose-p:mb-0 text-slate-700 dark:text-slate-300">
-                                        <Markdown options={ChannelMarkdownOptions}>
-                                            {typeof post.content === 'string' ? post.content : ''}
-                                        </Markdown>
+                                        <ChatMarkdown content={typeof post.content === 'string' ? post.content : ''} />
                                     </div>
                                 </div>
                             ))}
@@ -498,9 +486,7 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
                                                     <span className="font-mono">{formatPostTime(post.created)}</span>
                                                 </div>
                                                 <div className="prose prose-sm dark:prose-invert max-w-none prose-p:mb-0 text-slate-700 dark:text-slate-300">
-                                                    <Markdown options={ChannelMarkdownOptions}>
-                                                        {typeof post.content === 'string' ? post.content : ''}
-                                                    </Markdown>
+                                                    <ChatMarkdown content={typeof post.content === 'string' ? post.content : ''} />
                                                 </div>
                                             </div>
                                         ))}

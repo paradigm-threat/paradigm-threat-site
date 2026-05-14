@@ -14,12 +14,23 @@ export function getOriginsForRepo (repo: RemoteAssetRepo): string[] {
   return repo === 'files' ? getFilesBaseUrlList() : getTimelineOrigins()
 }
 
+function shuffledOrigins (origins: string[]): string[] {
+  const out = [...origins]
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[out[i], out[j]] = [out[j]!, out[i]!]
+  }
+  return out
+}
+
 export interface FetchFromAssetMirrorsInit {
   method?: 'GET' | 'HEAD'
   /** Query string including leading `?`, e.g. `?v=123` */
   search?: string
   cache?: RequestCache
   next?: { revalidate?: number | false }
+  /** Extra request headers (e.g. `Accept: text/html` for relay static markdown HTML). */
+  headers?: Record<string, string>
 }
 
 /**
@@ -33,7 +44,7 @@ export async function fetchFromAssetMirrors (
   const method = init.method ?? 'GET'
   const search = init.search ?? ''
   const path = pathname.startsWith('/') ? pathname : `/${pathname}`
-  const origins = getOriginsForRepo(repo)
+  const origins = shuffledOrigins(getOriginsForRepo(repo))
   if (!origins.length) return null
 
   /** HTTP status per origin attempt, or -1 if fetch threw (e.g. network). */
@@ -48,7 +59,10 @@ export async function fetchFromAssetMirrors (
         method,
         redirect: 'follow',
         signal: ac.signal,
-        headers: { 'Accept-Encoding': 'identity' },
+        headers: {
+          'Accept-Encoding': 'identity',
+          ...init.headers,
+        },
         cache: init.cache ?? 'no-store',
         ...(init.next !== undefined ? { next: init.next } : {}),
       })

@@ -1,27 +1,21 @@
 import { stripMarkdownLite } from '@/lib/share/stripMarkdownLite'
+import { stripYamlFrontmatter } from '@/lib/stripYamlFrontmatter'
 
 export interface ShareExtractInput {
   rawMarkdown: string
-  frontmatter?: Record<string, unknown>
 }
 
 export interface ShareExtractResult {
-  /** frontmatter description → else TL;DR → else first paragraph */
+  /** TL;DR block → else first paragraph */
   snippetPlain: string
-  /** Space-separated #tags from frontmatter.keywords and trailing `Keywords:` line in body */
+  /** Space-separated #tags from `Keywords:` line or `## Keywords` section in body */
   hashtagsLine: string
   /** Plain article body for long platforms (excludes TL;DR block text when possible) */
   articleBodyPlain: string
   /**
-   * If the article declares a published Substack mirror, this is its absolute URL.
-   * Detected from (in order): `frontmatter.substack`, then a `**Substack:**` marker line,
-   * then any `https?://*.substack.com/p/<slug>` URL in the body.
+   * Substack mirror URL from `**Substack:**` marker or bare substack.com/p/ URL in body.
    */
   substackUrl?: string
-}
-
-function stripFrontmatter (md: string): string {
-  return md.replace(/^---\s*\n[\s\S]*?\n---\s*\n?/, '')
 }
 
 function stripLeadingH1 (md: string): string {
@@ -29,10 +23,6 @@ function stripLeadingH1 (md: string): string {
 }
 
 function extractKeywordsSectionFromMarkdownBody (md: string): string {
-  // Common in paradigm-threat-files investigations:
-  //   ## Keywords
-  //   #tag #tag
-  //   #tag2 ...
   const lines = md.split('\n')
   for (let i = lines.length - 1; i >= 0; i--) {
     const header = lines[i].trim().replace(/\*\*/g, '')
@@ -41,7 +31,6 @@ function extractKeywordsSectionFromMarkdownBody (md: string): string {
     for (let j = i + 1; j < lines.length; j++) {
       const t = lines[j].trim()
       if (!t) continue
-      // Stop if we hit a new heading (or a horizontal rule)
       if (/^#{1,6}\s+/.test(t) || /^---\s*$/.test(t)) break
       const found = t.match(/#[A-Za-z0-9_]+/g)
       if (found?.length) collected.push(...found)
@@ -52,9 +41,8 @@ function extractKeywordsSectionFromMarkdownBody (md: string): string {
   return ''
 }
 
-/** Blockquote starting with TL;DR (case-insensitive), including continuation lines with `>`. */
 function extractTldrBlock (md: string): string | null {
-  const body = stripFrontmatter(md)
+  const body = stripYamlFrontmatter(md)
   const lines = body.split('\n')
   let start = -1
   for (let i = 0; i < lines.length; i++) {
@@ -105,7 +93,7 @@ function removeTldrBlockForBody (md: string): string {
 }
 
 function extractFirstParagraphPlain (md: string): string {
-  const withoutFm = stripFrontmatter(md)
+  const withoutFm = stripYamlFrontmatter(md)
   const withoutH1 = stripLeadingH1(withoutFm)
   const chunks = withoutH1.split(/\n\s*\n/)
   for (const chunk of chunks) {
@@ -122,25 +110,6 @@ function extractFirstParagraphPlain (md: string): string {
   return ''
 }
 
-function keywordsToHashtagLine (frontmatter: Record<string, unknown> | undefined): string {
-  const raw = frontmatter?.keywords
-  if (typeof raw !== 'string' || !raw.trim()) return ''
-  const parts = raw.split(',').map((s) => s.trim()).filter(Boolean)
-  const tags: string[] = []
-  for (const p of parts) {
-    const collapsed = p.toLowerCase().replace(/[-\s_]+/g, '').replace(/[^a-z0-9#]/g, '')
-    if (!collapsed) continue
-    const cleaned = collapsed.replace(/^#+/, '')
-    if (!cleaned) continue
-    tags.push(`#${cleaned}`)
-  }
-  return Array.from(new Set(tags)).join(' ')
-}
-
-/**
- * Many investigations end with `Keywords: #tag #tag` (see paradigm-threat-files docs/BLOG.md).
- * Scan from the end of the file for a Keywords line and collect #tokens.
- */
 function extractKeywordsLineFromMarkdownBody (md: string): string {
   const lines = md.split('\n')
   for (let i = lines.length - 1; i >= 0; i--) {
@@ -177,7 +146,7 @@ function removeKeywordsFooter (md: string): string {
 }
 
 function markdownToPlainBody (md: string): string {
-  const noFm = stripFrontmatter(md)
+  const noFm = stripYamlFrontmatter(md)
   const noH1 = stripLeadingH1(noFm)
   const noTldr = removeTldrBlockForBody(noH1)
   let s = removeKeywordsFooter(noTldr)
@@ -187,33 +156,15 @@ function markdownToPlainBody (md: string): string {
   s = s.replace(/`([^`]+)`/g, '$1')
   s = s.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
   s = s.replace(/\*\*([^*]+)\*\*/g, '$1')
-  s = s.replace(/\*([^*]+)\*/g, '$1')
+  s = s.replace(/\*([^*]+)\*\*/g, '$1')
   s = s.replace(/^[-*]\s+/gm, '')
   s = s.replace(/^\d+\.\s+/gm, '')
   s = s.replace(/\n{2,}/g, '\n\n')
   return s.replace(/\s+/g, ' ').trim()
 }
 
-/**
- * Find a published Substack mirror URL for this article, if any.
- *
- * Resolution order:
- *   1. `frontmatter.substack` (string).
- *   2. The first `**Substack:** [...](https://*.substack.com/p/<slug>)` marker line.
- *   3. The first bare `https://*.substack.com/p/<slug>` URL found anywhere in the body.
- *
- * Returns `undefined` if none is found.
- */
-function extractSubstackUrl (
-  rawMarkdown: string,
-  frontmatter: Record<string, unknown>,
-): string | undefined {
-  const fmRaw = frontmatter?.substack
-  if (typeof fmRaw === 'string' && /^https?:\/\/[^\s/]+\/[^\s]*$/i.test(fmRaw.trim())) {
-    return fmRaw.trim()
-  }
-  const body = stripFrontmatter(rawMarkdown)
-  // Marker-line form first (most explicit / most reliable when authors add it).
+function extractSubstackUrl (rawMarkdown: string): string | undefined {
+  const body = stripYamlFrontmatter(rawMarkdown)
   const markerRe =
     /\*\*Substack:\*\*\s*(?:\[[^\]]+\]\((https?:\/\/[^\s)]*substack\.com\/[^\s)]+)\)|<?(https?:\/\/[^\s>]*substack\.com\/[^\s>]+)>?)/i
   const marker = body.match(markerRe)
@@ -228,21 +179,15 @@ function extractSubstackUrl (
 }
 
 export function extractShareMetadata (input: ShareExtractInput): ShareExtractResult {
-  const { rawMarkdown, frontmatter = {} } = input
-  const desc =
-    typeof frontmatter.description === 'string' && frontmatter.description.trim()
-      ? stripMarkdownLite(frontmatter.description)
-      : ''
-  const tldr = extractTldrBlock(stripFrontmatter(rawMarkdown))
+  const { rawMarkdown } = input
+  const tldr = extractTldrBlock(rawMarkdown)
   const firstPara = extractFirstParagraphPlain(rawMarkdown)
-
-  const snippetPlain = desc || tldr || firstPara || ''
-  const fromFm = keywordsToHashtagLine(frontmatter)
+  const snippetPlain = tldr || firstPara || ''
   const fromBody = extractKeywordsLineFromMarkdownBody(rawMarkdown)
   const fromSection = extractKeywordsSectionFromMarkdownBody(rawMarkdown)
-  const hashtagsLine = mergeHashtagLines(mergeHashtagLines(fromFm, fromBody), fromSection)
+  const hashtagsLine = mergeHashtagLines(fromBody, fromSection)
   const articleBodyPlain = markdownToPlainBody(rawMarkdown)
-  const substackUrl = extractSubstackUrl(rawMarkdown, frontmatter)
+  const substackUrl = extractSubstackUrl(rawMarkdown)
 
   return { snippetPlain, hashtagsLine, articleBodyPlain, substackUrl }
 }

@@ -1,19 +1,19 @@
 /**
  * Server-side article fetching for SSR/crawling.
- * Mirrors logic from app/api/article/route.ts.
  */
 
 import { cache } from 'react'
 import { isNonArticlePath } from '@/lib/isNonArticlePath'
 import { resolveOgImageUrl } from '@/lib/share/resolveOgImageUrl'
 import { fetchFilesTextFromMirrors } from '@/lib/serverFilesMirror'
+import { buildArticleMdCandidatePaths } from '@/lib/articleMdPaths'
+import { extractFirstHeading, prepareArticleMarkdown } from '@/lib/articleBody'
 
 export interface ArticleData {
   mdxSource: string
   targetPath: string
   title: string
   basePath: string
-  frontmatter: Record<string, unknown>
   /** Absolute URL for OG image, or undefined */
   ogImageUrl?: string
 }
@@ -52,12 +52,6 @@ export const fetchTextLeaf = cache(async function fetchTextLeaf (
   }
 })
 
-/** First # heading in body (after frontmatter strip), for OG title when YAML has no title */
-function extractFirstHeading (md: string): string | undefined {
-  const m = md.match(/^#\s+(.+)$/m)
-  return m ? m[1].trim().replace(/\s+#\s*$/, '').trim() : undefined
-}
-
 export async function fetchArticle (path: string): Promise<ArticleData | null> {
   if (isNonArticlePath(path)) return null
 
@@ -65,41 +59,17 @@ export async function fetchArticle (path: string): Promise<ArticleData | null> {
   let fileContent: string | null = null
   const vParam = ''
 
-  // 1. Try direct .md/.mdx
-  if (path.endsWith('.md') || path.endsWith('.mdx')) {
-    fileContent = await fetchFilesTextFromMirrors(path, vParam)
-    if (fileContent) targetPath = path
-  }
-
-  // 2. Try path.md then path.mdx (extension omitted in URL)
-  if (!fileContent && path && !path.endsWith('.md') && !path.endsWith('.mdx')) {
-    for (const ext of ['.md', '.mdx']) {
-      const p = `${path}${ext}`
-      fileContent = await fetchFilesTextFromMirrors(p, vParam)
-      if (fileContent) {
-        targetPath = p
-        break
-      }
-    }
-  }
-
-  // 3. Try page.md then page.mdx (directory index)
-  if (!fileContent) {
-    const base = path ? `${path}/` : ''
-    for (const name of ['page.md', 'page.mdx']) {
-      const p = `${base}${name}`
-      fileContent = await fetchFilesTextFromMirrors(p, vParam)
-      if (fileContent) {
-        targetPath = p
-        break
-      }
+  for (const candidate of buildArticleMdCandidatePaths(path)) {
+    fileContent = await fetchFilesTextFromMirrors(candidate, vParam)
+    if (fileContent) {
+      targetPath = candidate
+      break
     }
   }
 
   if (!fileContent) return null
 
-  const matter = await import('gray-matter')
-  const { content: rawContent, data: frontMatter } = matter.default(fileContent)
+  const mdxSource = prepareArticleMarkdown(fileContent)
   const basePath = targetPath.includes('/')
     ? targetPath.split('/').slice(0, -1).join('/')
     : ''
@@ -107,22 +77,17 @@ export async function fetchArticle (path: string): Promise<ArticleData | null> {
     ? basePath.split('/').pop()?.replace(/_/g, ' ')
     : 'Article'
   const title =
-    (frontMatter?.title as string) ||
-    extractFirstHeading(rawContent) ||
+    extractFirstHeading(mdxSource) ||
     titleFromPath ||
     'Article'
 
-  // Same autolink transform as API (MDX treats < as JSX)
-  const mdxSource = rawContent.replace(/<(https?:\/\/[^>]+)>/g, (_, url) => `[${url}](${url})`)
-
-  const ogImageUrl = resolveOgImageUrl(rawContent, basePath, frontMatter as Record<string, unknown>)
+  const ogImageUrl = resolveOgImageUrl(mdxSource, basePath)
 
   return {
     mdxSource,
     targetPath,
     title,
     basePath,
-    frontmatter: frontMatter as Record<string, unknown>,
     ogImageUrl,
   }
 }

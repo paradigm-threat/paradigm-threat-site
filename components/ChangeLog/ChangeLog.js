@@ -95,12 +95,11 @@ const CHANGELOG_THUMB_IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg)$/i
 
 /**
  * Changelog strip `<img>` must not use raw `/history/...` on the Next origin (404).
- * Uses Relay ?w= when primary mirrors are Relay, else `/api/image` + mirrors.
+ * Uses primary mirror URL + `?w=` for rasters.
  */
 function changelogThumbSrc(src) {
   const publicSrc = changelogPublicImageSrc(src)
   if (!publicSrc) return ''
-  if (publicSrc.startsWith('/api/')) return publicSrc
   if (publicSrc.startsWith('/site/')) return publicSrc
   if (/^https?:\/\//i.test(publicSrc)) return publicSrc
   const pathOnly = publicSrc.split('?')[0]
@@ -283,7 +282,11 @@ export default function ChangeLog({ target = '_self' }) {
 
           return (
             <li key={entryKey(entry, entryIdx)} className={styles.entry}>
-              <div className={styles.imageStrip}>
+              <div
+                className={styles.imageStripScroll}
+                role="region"
+                aria-label="Images for this change"
+              >
                 {imgs.length > 0 ? (
                   imgs.map((im, i) => (
                     <button

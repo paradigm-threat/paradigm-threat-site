@@ -19,6 +19,7 @@ const EMPTY_SRC_PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH
 export default function OptimizedImage({ children, className, ...props }: OptimizedImageProps) {
     const srcProps: OptimizedImageProps = processImageProps({ ...props, className }, props.basePath)
     const [isVisible, setIsVisible] = useState(false)
+    const [mirrorIndex, setMirrorIndex] = useState(0)
     /** Full-size decode finished — hide Relay LQIP underlay */
     const [lqipDismissed, setLqipDismissed] = useState(false)
     const ref = useRef<HTMLImageElement>(null)
@@ -30,6 +31,7 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
         optimizedSrc,
         lqipOptimizedSrc,
         highResSrc,
+        mirrorSrcs,
         basePath,
         className: processedClassName,
         ...rest
@@ -62,9 +64,14 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
         return () => observer.disconnect()
     }, [priority])
 
-    if (optimizedSrc) {
+    const mirrorList = Array.isArray(mirrorSrcs) ? (mirrorSrcs as string[]) : []
+    const activeSrc =
+        mirrorList[mirrorIndex] ||
+        (typeof optimizedSrc === 'string' ? optimizedSrc : undefined)
+
+    if (activeSrc) {
         finalProps['data-original-src'] = finalProps.src;
-        finalProps.src = optimizedSrc
+        finalProps.src = activeSrc
     }
 
     // Wide book diagrams often have index/API dimensions that do not match the decoded bitmap;
@@ -137,6 +144,11 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
                     src={isVisible && finalProps.src ? (finalProps.src as string) : EMPTY_SRC_PLACEHOLDER}
                     onLoad={() => {
                         setLqipDismissed(true)
+                    }}
+                    onError={() => {
+                        if (mirrorIndex + 1 < mirrorList.length) {
+                            setMirrorIndex((i) => i + 1)
+                        }
                     }}
                 />
             </div>

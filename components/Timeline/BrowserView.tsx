@@ -1,13 +1,10 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import Markdown from 'markdown-to-jsx'
 import { ChevronRight, FileText, Folder, FolderOpen } from 'lucide-react'
 import { useTimeline } from '@/components/TimelineContext'
-import { PopImage } from '@/components'
-import { TimelineAwareLink } from '@/components/Timeline/TimelineAwareLink'
+import { RelayTimelineMarkdown } from '@/components/RelayTimelineMarkdown'
 import { transformImageCaptions } from './markdownTransform'
-import { getDimensionsFromIndex, resolveImagePath } from '@/components/helpers/imageHelper'
 import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
 
 /* ── Types ──────────────────────────────────────────────────────── */
@@ -382,58 +379,11 @@ export function BrowserView({ initialPath }: BrowserViewProps) {
                 {selectedTitle}
               </h2>
               <div className="prose dark:prose-invert prose-sm max-w-none select-text">
-                <Markdown
-                  options={{
-                    overrides: {
-                      img: (props) => {
-                        const contentDir = selectedPath?.includes('/') ? selectedPath.replace(/\/[^/]+$/, '') : ''
-                        const base = contentDir ? `${baseUrl.replace(/\/$/, '')}/${contentDir}` : baseUrl
-                        const resolved = typeof props.src === 'string' ? resolveImagePath(props.src, base).split('?')[0] : ''
-                        const dims = index && resolved ? getDimensionsFromIndex(index, resolved) : undefined
-                        return (
-                          <PopImage
-                            {...props}
-                            basePath={base}
-                            intrinsicWidth={dims?.width}
-                            intrinsicHeight={dims?.height}
-                            className={props.className}
-                          />
-                        )
-                      },
-                      PopImage: (props: { children?: React.ReactNode; [key: string]: unknown }) => {
-                        const captionText = typeof props.children === 'string' ? props.children : null
-                        const contentDir = selectedPath?.includes('/') ? selectedPath.replace(/\/[^/]+$/, '') : ''
-                        const base = contentDir ? `${baseUrl.replace(/\/$/, '')}/${contentDir}` : baseUrl
-                        const resolved = typeof props.src === 'string' ? resolveImagePath(props.src as string, base).split('?')[0] : ''
-                        const dims = index && resolved ? getDimensionsFromIndex(index, resolved) : undefined
-                        return (
-                          <PopImage
-                            {...props}
-                            basePath={base}
-                            intrinsicWidth={dims?.width}
-                            intrinsicHeight={dims?.height}
-                            className={props.className as string}
-                          >
-                            {captionText ? (
-                              <Markdown
-                                options={{
-                                  overrides: {
-                                    a: (props: { href?: string; children?: React.ReactNode; [key: string]: unknown }) => <TimelineAwareLink {...props} />,
-                                  },
-                                }}
-                              >
-                                {captionText}
-                              </Markdown>
-                            ) : null}
-                          </PopImage>
-                        )
-                      },
-                      a: (props: { href?: string; children?: React.ReactNode; [key: string]: unknown }) => <TimelineAwareLink {...props} />,
-                    },
-                  }}
-                >
-                  {transformImageCaptions(prepareMarkdownContent(mdContent))}
-                </Markdown>
+                <RelayTimelineMarkdown
+                  content={transformImageCaptions(prepareMarkdownContent(mdContent))}
+                  basePath={selectedPath?.includes('/') ? `${baseUrl.replace(/\/$/, '')}/${selectedPath.replace(/\/[^/]+$/, '')}` : baseUrl}
+                  index={index}
+                />
               </div>
             </>
           ) : (

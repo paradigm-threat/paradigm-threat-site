@@ -3,6 +3,7 @@ export * from '@/lib/share/platformLimits'
 export { extractShareMetadata, type ShareExtractInput, type ShareExtractResult } from '@/lib/share/extractShareMetadata'
 export {
   composeShareText,
+  fitComposeShareToCharLimit,
   shareTextCharCount,
   effectiveLengthX,
   truncateShareTextForOutbound,

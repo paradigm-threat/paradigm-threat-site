@@ -1,11 +1,9 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import Markdown from 'markdown-to-jsx'
 import type { TimelineEntry } from '@/components/TimelineContext'
-import { PopImage, ShareLinks } from '@/components'
-import { TimelineAwareLink } from '@/components/Timeline/TimelineAwareLink'
-import { getDimensionsFromIndex, resolveImagePath } from '@/components/helpers/imageHelper'
+import { ShareLinks } from '@/components'
+import { RelayTimelineMarkdown } from '@/components/RelayTimelineMarkdown'
 import { transformImageCaptions } from './markdownTransform'
 import { formatDateRange, formatElapsedSinceStart } from './utils'
 import { useClientClock } from './useClientClock'
@@ -177,54 +175,11 @@ export function MarkdownCarousel({
               <div className="text-slate-500 text-sm text-left">Loading…</div>
             ) : mdContent ? (
               <div className={`prose dark:prose-invert max-w-none text-left select-text ${currentEntry.type === 'article' ? 'prose-sm text-sm' : 'prose-sm'}`}>
-                <Markdown
-                  options={{
-                    overrides: {
-                      img: (props) => {
-                        const resolved = typeof props.src === 'string' ? resolveImagePath(props.src, baseUrl).split('?')[0] : ''
-                        const dims = index && resolved ? getDimensionsFromIndex(index, resolved) : undefined
-                        return (
-                          <PopImage
-                            {...props}
-                            basePath={baseUrl}
-                            intrinsicWidth={dims?.width}
-                            intrinsicHeight={dims?.height}
-                            className={props.className}
-                          />
-                        )
-                      },
-                      PopImage: (props: { children?: React.ReactNode;[key: string]: unknown }) => {
-                        const captionText = typeof props.children === 'string' ? props.children : null
-                        const resolved = typeof props.src === 'string' ? resolveImagePath(props.src as string, baseUrl).split('?')[0] : ''
-                        const dims = index && resolved ? getDimensionsFromIndex(index, resolved) : undefined
-                        return (
-                          <PopImage
-                            {...props}
-                            basePath={baseUrl}
-                            intrinsicWidth={dims?.width}
-                            intrinsicHeight={dims?.height}
-                            className={props.className as string}
-                          >
-                            {captionText ? (
-                              <Markdown
-                                options={{
-                                  overrides: {
-                                    a: (props: { href?: string; children?: React.ReactNode; [key: string]: unknown }) => <TimelineAwareLink {...props} />,
-                                  },
-                                }}
-                              >
-                                {captionText}
-                              </Markdown>
-                            ) : null}
-                          </PopImage>
-                        )
-                      },
-                      a: (props: { href?: string; children?: React.ReactNode; [key: string]: unknown }) => <TimelineAwareLink {...props} />,
-                    },
-                  }}
-                >
-                  {transformImageCaptions(prepareMarkdownContent(typeof mdContent === 'string' ? mdContent : ''))}
-                </Markdown>
+                <RelayTimelineMarkdown
+                  content={transformImageCaptions(prepareMarkdownContent(typeof mdContent === 'string' ? mdContent : ''))}
+                  basePath={baseUrl}
+                  index={index}
+                />
                 <ShareLinks
                   url={`/timeline/${currentEntry.id}`}
                   title={currentEntry.title}

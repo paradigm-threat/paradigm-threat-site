@@ -1,9 +1,10 @@
 /**
- * Build display URLs for repo assets: direct Relay (?w=) when primary mirrors are Relay,
- * else same-origin `/api/image` + sharp (GitLab / preview defaults).
+ * Build display URLs for repo assets: primary mirror origin + optional `?w=` for rasters.
+ * Relay gateways run `server.hooks.get` + `optimizeRasterFromGetContext` (see SERVER_HOOKS.md).
  */
 
-import { getPrimaryFilesBaseUrl, getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
+import { getPrimaryFilesBaseUrl, getPrimaryTimelineBaseUrl, getFilesBaseUrlList } from '@/lib/urlListEnv'
+import { getTimelineOrigins } from '@/lib/timelineOrigins'
 
 /** Max thumb width Relay accepts per hook docs (align with gateway). */
 const MAX_DISPLAY_W = 8192
@@ -44,74 +45,53 @@ function primaryBaseForPath (pathForAPI: string): string {
     : getPrimaryFilesBaseUrl()
 }
 
-/**
- * Same-origin `/api/image` URL (mirrors + sharp). `path` is the full path/query value the route expects.
- */
-export function buildApiImageUrl (pathForAPI: string, width?: number): string {
-  let out = `/api/image?path=${encodeURIComponent(pathForAPI)}`
-  if (width !== undefined && Number.isFinite(width)) {
-    out += `&w=${clampWidth(width)}`
+function pathIsSvg (pathForAPI: string): boolean {
+  const clean = pathForAPI.split('?')[0]
+  const lower = clean.toLowerCase()
+  if (lower.endsWith('.svg')) return true
+  if (pathForAPI.startsWith('http')) {
+    try {
+      return new URL(pathForAPI).pathname.toLowerCase().endsWith('.svg')
+    } catch {
+      return false
+    }
   }
-  return out
+  return false
 }
 
-/** Fixed `&w=` once (path may already include query). */
+/** Set or replace `w` on an absolute URL (preserves other query params). */
 function appendWidthQuery (absoluteUrl: string, w: number): string {
   const u = new URL(absoluteUrl)
   u.searchParams.set('w', String(clampWidth(w)))
   return u.toString()
 }
 
-/**
- * Public URL for raster (WebP from Relay or sharp) or SVG passthrough.
- * `pathForAPI` must be repo-relative `/...` or absolute `http(s):` (whitelisted via /api/image).
- */
-export function buildOptimizedAssetUrl (pathForAPI: string, width?: number): string {
-  const clean = pathForAPI.split('?')[0]
-  const lower = clean.toLowerCase()
-  const isSvg =
-    lower.endsWith('.svg') ||
-    (pathForAPI.startsWith('http') &&
-      (() => {
-        try {
-          return new URL(pathForAPI).pathname.toLowerCase().endsWith('.svg')
-        } catch {
-          return false
-        }
-      })())
-
+function absoluteMirrorUrl (pathForAPI: string): string {
   if (pathForAPI.startsWith('http')) {
-    if (isSvg) {
-      return buildApiImageUrl(pathForAPI)
-    }
-    if (width === undefined) {
-      return buildApiImageUrl(pathForAPI, 800)
-    }
-    return buildApiImageUrl(pathForAPI, width)
+    return pathForAPI
   }
-
+  const [clean, ...rest] = pathForAPI.split('?')
+  const pathQs = rest.length ? `?${rest.join('?')}` : ''
   const norm = clean.replace(/^\/+/, '')
   const base = primaryBaseForPath(pathForAPI).replace(/\/+$/, '')
   const encodedPath = encodePathSegments(norm)
-  const absoluteBase = `${base}/${encodedPath}`
+  return `${base}/${encodedPath}${pathQs}`
+}
+
+/**
+ * Public URL for raster (WebP from Relay when `?w=` set) or SVG passthrough.
+ * `pathForAPI` is repo-relative `/...` or absolute `http(s):`.
+ */
+export function buildOptimizedAssetUrl (pathForAPI: string, width?: number): string {
+  const isSvg = pathIsSvg(pathForAPI)
+  const absolute = absoluteMirrorUrl(pathForAPI)
 
   if (isSvg) {
-    if (isRelayOrigin(base)) {
-      return absoluteBase
-    }
-    return buildApiImageUrl(pathForAPI.startsWith('/') ? pathForAPI : `/${norm}`)
+    return absolute.split('?')[0]
   }
 
-  const w =
-    width === undefined ? 800 : clampWidth(width)
-
-  if (isRelayOrigin(base)) {
-    return appendWidthQuery(absoluteBase, w)
-  }
-
-  const pathQs = pathForAPI.includes('?') ? pathForAPI.slice(pathForAPI.indexOf('?')) : ''
-  const pathForApi = `/${norm}${pathQs}`
-  return buildApiImageUrl(pathForApi, w)
+  const w = width === undefined ? 800 : clampWidth(width)
+  return appendWidthQuery(absolute.split('?')[0], w)
 }
 
 export function deriveLqipWidth (displayWidthPx: number): number {
@@ -126,14 +106,32 @@ export function buildLqipOptimizedAssetUrl (
   pathForAPI: string,
   displayWidthPx: number,
 ): string | undefined {
-  const clean = pathForAPI.split('?')[0]
-  const lower = clean.toLowerCase()
-  const isSvg = lower.endsWith('.svg')
-  if (isSvg || pathForAPI.startsWith('http')) return undefined
+  if (pathIsSvg(pathForAPI) || pathForAPI.startsWith('http')) return undefined
 
   const d = clampWidth(displayWidthPx)
   const lqipW = deriveLqipWidth(d)
   if (lqipW >= d) return undefined
 
   return buildOptimizedAssetUrl(pathForAPI, lqipW)
+}
+
+/** All mirror origins for a repo-relative asset (shuffled per call). */
+export function listOptimizedAssetUrls (pathForAPI: string, width?: number): string[] {
+  const clean = pathForAPI.split('?')[0]
+  const norm = clean.replace(/^\/+/, '')
+  const repo = inferAssetRepoFromRelPath(norm)
+  const bases = repo === 'timeline' ? getTimelineOrigins() : getFilesBaseUrlList()
+  const shuffled = [...bases]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!]
+  }
+  const isSvg = pathIsSvg(pathForAPI)
+  const w = width === undefined ? 800 : clampWidth(width)
+  return shuffled.map((base) => {
+    const encodedPath = encodePathSegments(norm)
+    const absolute = `${base.replace(/\/+$/, '')}/${encodedPath}`
+    if (isSvg) return absolute
+    return appendWidthQuery(absolute, w)
+  })
 }

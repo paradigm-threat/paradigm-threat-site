@@ -2,12 +2,11 @@
 
 import React, { useState, useEffect, useMemo, memo, useRef, useSyncExternalStore } from 'react'
 import { useParams, usePathname } from 'next/navigation'
-import { RemoteMDX } from '@/components/RemoteMDX'
-import { MdxRuntimeErrorBoundary } from '@/components/MdxRuntimeErrorBoundary'
+import { RelayMarkdown } from '@/components/RelayMarkdown'
 import { PopImage, useFiles, ArticleNav } from '@/components'
 import { ArticleRemote404Notice } from '@/components/ArticleRemote404Notice'
 import Link from 'next/link'
-import matter from 'gray-matter'
+import { prepareArticleMarkdown, extractFirstHeading } from '@/lib/articleBody'
 import { ArticleTTSProvider } from '@/components/ArticleTTS/ArticleTTSProvider'
 import { ArticleTTSOverlay } from '@/components/ArticleTTS/ArticleTTSOverlay'
 import { stripMarkdownForTTS, buildParagraphStarts } from '@/components/Timeline/ttsHelpers'
@@ -19,8 +18,6 @@ import { useMobileHubTtsChrome } from '@/lib/hooks/useMobileHubTtsChrome'
 import { resolveOgImageUrl } from '@/lib/share/resolveOgImageUrl'
 import { remoteRelay } from '@/lib/remoteRelayStore'
 import { publicFilesAssetUrl } from '@/lib/canonicalPublicSite'
-import type { MdxCompileDiagnostics } from '@/lib/mdxCompileDiagnostics'
-import { MdxCompileErrorPanel } from '@/components/MdxCompileErrorPanel'
 
 const DIRECT_IMAGE_EXT = /\.(jpg|jpeg|png|gif|svg|webp|avif|ico)$/i
 const DIRECT_PLAINTEXT_LEAF_EXT = /\.(txt|cs)$/i
@@ -42,17 +39,14 @@ export const CatchAllClient = memo(function CatchAllClient() {
   const params = useParams()
   const pathname = usePathname()
   const { suppressOverlay } = useMobileHubTtsChrome()
-  const { fileList, loading: indexLoading } = useFiles()
+  const { fileList, loading: indexLoading, error: filesIndexError } = useFiles()
   const filesBaseUrl = useSyncExternalStore(
     (cb) => remoteRelay.subscribe(cb),
     () => remoteRelay.getSnapshot().filesBaseUrl,
     () => remoteRelay.getSnapshot().filesBaseUrl,
   )
   const [content, setContent] = useState<string | null>(null)
-  const [compiledMdx, setCompiledMdx] = useState<{
-    compiledSource: string
-    frontmatter?: Record<string, unknown>
-    scope?: Record<string, unknown>
+  const [articleMeta, setArticleMeta] = useState<{
     ogImageUrl?: string
   } | null>(null)
   const [basePath, setBasePath] = useState('')
@@ -66,11 +60,6 @@ export const CatchAllClient = memo(function CatchAllClient() {
   const [mds, setMds] = useState<string[]>([])
   const [mdContents, setMdContents] = useState<Record<string, { title: string; content: string }>>({})
   const [error, setError] = useState<string | null>(null)
-  const [mdxCompileFailure, setMdxCompileFailure] = useState<{
-    path: string
-    title: string
-    diagnostics: MdxCompileDiagnostics
-  } | null>(null)
   const [remoteArticle404, setRemoteArticle404] = useState(false)
   /** True when 404 is shown and the URL path does not appear in index.json (vs indexed .txt CDN miss, etc.). */
   const [article404PathMissingFromIndex, setArticle404PathMissingFromIndex] = useState(false)
@@ -94,14 +83,10 @@ export const CatchAllClient = memo(function CatchAllClient() {
   )
 
   const ogImageUrlForShare = useMemo(() => {
-    if (compiledMdx?.ogImageUrl) return compiledMdx.ogImageUrl
-    if (!content || !compiledMdx) return undefined
-    return resolveOgImageUrl(
-      content,
-      basePath,
-      (compiledMdx.frontmatter || {}) as Record<string, unknown>
-    )
-  }, [content, basePath, compiledMdx])
+    if (articleMeta?.ogImageUrl) return articleMeta.ogImageUrl
+    if (!content || !articleMeta) return undefined
+    return resolveOgImageUrl(content, basePath)
+  }, [content, basePath, articleMeta])
 
   /** Index / generated listing pages (no article MDX) — same label as the page title (h1). */
   const listingPageTitle = useMemo(() => path.split('/').pop() || 'Home', [path])
@@ -130,101 +115,73 @@ export const CatchAllClient = memo(function CatchAllClient() {
         setRemoteArticle404(false)
         setArticle404PathMissingFromIndex(false)
         setError(null)
-        setMdxCompileFailure(null)
         setDirectImageLeaf(null)
         setDirectTextLeaf(null)
 
-        const articleUrl = `/api/article?path=${encodeURIComponent(requestPath)}${version ? `&v=${encodeURIComponent(version)}` : ''}`
-        const articleRes = await fetch(articleUrl, { signal: abortController.signal })
-
-        if (loadingPathRef.current !== requestPath || !isMounted) return
-
-        if (articleRes.ok) {
-          const data = await articleRes.json()
-
+        let articleLoaded = false
+        let articleFetchStatus: number | null = null
+        try {
+          const articleRes = await remoteRelay.fetchFilesMd(requestPath, vParam, abortController.signal)
+          articleFetchStatus = articleRes.status
           if (loadingPathRef.current !== requestPath || !isMounted) return
 
-          const {
-            compiledSource,
-            frontmatter,
-            scope,
-            content: mdxSource,
-            title: articleTitle,
-            basePath: calcBasePath,
-            ogImageUrl: apiOg,
-          } = data
-
-          if (isMounted && loadingPathRef.current === requestPath) {
-            setRemoteArticle404(false)
-            setArticle404PathMissingFromIndex(false)
-            setDirectImageLeaf(null)
-            setDirectTextLeaf(null)
-            setBasePath(calcBasePath || '')
-            setContent(mdxSource)
-            setCompiledMdx({ compiledSource, frontmatter, scope, ogImageUrl: apiOg as string | undefined })
-            setArticleTitle(articleTitle || 'Article')
-            setDirectFiles([])
-            setSubDirs([])
-            setImages([])
-            setMds([])
-          }
-
-          let current = tree
-          for (const s of (calcBasePath || '').split('/').filter(Boolean)) {
-            if (current && current[s]) current = current[s]
-            else { current = null; break }
-          }
-
-          if (current && typeof current === 'object') {
-            const imagesInDir = Object.keys(current).filter(k => {
-              if (k === '_count') return false
-              const val = current[k]
-              const isFile = val !== null && typeof val === 'object' && !('_count' in val)
-              return isFile && /\.(jpg|jpeg|png|gif|svg|webp)$/i.test(k)
-            })
-            const unused = imagesInDir.filter((img: string) => {
-              const escapedImg = img.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-              const regex = new RegExp(`[\\(/\\s"'.]${escapedImg}([\\?\\s"')]|$)`, 'i')
-              return !regex.test(mdxSource)
-            })
-            if (isMounted && loadingPathRef.current === requestPath) setUnusedImages(unused)
-          }
-        } else {
-          let errJson: Record<string, unknown> | null = null
-          try {
-            errJson = (await articleRes.json()) as Record<string, unknown>
-          } catch {
-            errJson = null
-          }
-
-          const handledMdxCompile =
-            articleRes.status === 422 &&
-            errJson?.error === 'mdx_compile' &&
-            errJson?.diagnostics != null &&
-            typeof errJson.diagnostics === 'object'
-
-          if (handledMdxCompile && isMounted && loadingPathRef.current === requestPath) {
-            const diag = errJson!.diagnostics as MdxCompileDiagnostics
+          if (articleRes.ok) {
+            const text = await articleRes.text()
+            const mdxSource = prepareArticleMarkdown(text)
+            const lastSeg = requestPath.split('/').pop() || ''
+            const calcBasePath = /\.mdx?$/i.test(lastSeg)
+              ? requestPath.split('/').slice(0, -1).join('/')
+              : requestPath
             const failTitle =
-              typeof errJson!.title === 'string' && errJson!.title.trim()
-                ? (errJson!.title as string).trim()
-                : requestPath.replace(/_/g, ' ')
-            setMdxCompileFailure({ path: requestPath, title: failTitle, diagnostics: diag })
-            setRemoteArticle404(false)
-            setArticle404PathMissingFromIndex(false)
-            setDirectImageLeaf(null)
-            setDirectTextLeaf(null)
-            setContent(null)
-            setCompiledMdx(null)
-            setArticleTitle(failTitle)
-            setDirectFiles([])
-            setSubDirs([])
-            setImages([])
-            setMds([])
-            setMdContents({})
-            setUnusedImages([])
-            setError(null)
-          } else if (!handledMdxCompile) {
+              extractFirstHeading(mdxSource) ||
+              lastSeg.replace(/\.mdx?$/i, '').replace(/_/g, ' ') ||
+              'Article'
+            const apiOg = resolveOgImageUrl(mdxSource, calcBasePath)
+
+            if (isMounted && loadingPathRef.current === requestPath) {
+              setRemoteArticle404(false)
+              setArticle404PathMissingFromIndex(false)
+              setDirectImageLeaf(null)
+              setDirectTextLeaf(null)
+              setBasePath(calcBasePath || '')
+              setContent(mdxSource)
+              setArticleMeta({ ogImageUrl: apiOg })
+              setArticleTitle(failTitle)
+              setDirectFiles([])
+              setSubDirs([])
+              setImages([])
+              setMds([])
+            }
+
+            let current = tree
+            for (const s of (calcBasePath || '').split('/').filter(Boolean)) {
+              if (current && current[s]) current = current[s]
+              else { current = null; break }
+            }
+
+            if (current && typeof current === 'object') {
+              const imagesInDir = Object.keys(current).filter(k => {
+                if (k === '_count') return false
+                const val = current[k]
+                const isFile = val !== null && typeof val === 'object' && !('_count' in val)
+                return isFile && /\.(jpg|jpeg|png|gif|svg|webp)$/i.test(k)
+              })
+              const unused = imagesInDir.filter((img: string) => {
+                const escapedImg = img.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+                const regex = new RegExp(`[\\(/\\s"'.]${escapedImg}([\\?\\s"')]|$)`, 'i')
+                return !regex.test(mdxSource)
+              })
+              if (isMounted && loadingPathRef.current === requestPath) setUnusedImages(unused)
+            }
+            articleLoaded = true
+          }
+        } catch {
+          /* fall through to index / 404 handling */
+        }
+
+        if (articleLoaded) {
+          /* article path handled */
+        } else {
           let current = tree
           if (current && typeof current === 'object') {
             for (const s of slugArray) {
@@ -257,7 +214,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
               setRemoteArticle404(false)
               setArticle404PathMissingFromIndex(false)
               setContent(null)
-              setCompiledMdx(null)
+              setArticleMeta(null)
               setArticleTitle(titled)
               setDirectFiles([])
               setSubDirs([])
@@ -292,7 +249,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
                 setRemoteArticle404(false)
                 setArticle404PathMissingFromIndex(false)
                 setContent(null)
-                setCompiledMdx(null)
+                setArticleMeta(null)
                 setArticleTitle(titled)
                 setDirectFiles([])
                 setSubDirs([])
@@ -307,7 +264,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
                 setDirectTextLeaf(null)
                 setDirectImageLeaf(null)
                 setContent(null)
-                setCompiledMdx(null)
+                setArticleMeta(null)
                 setArticleTitle('')
                 setDirectFiles([])
                 setSubDirs([])
@@ -339,7 +296,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
               setDirectImageLeaf(null)
               setDirectTextLeaf(null)
               setContent(null)
-              setCompiledMdx(null)
+              setArticleMeta(null)
               setArticleTitle('')
               setDirectFiles(files.sort())
               setSubDirs(dirs.sort())
@@ -365,10 +322,11 @@ export const CatchAllClient = memo(function CatchAllClient() {
                 try {
                   const response = await remoteRelay.fetchFilesMd(fullPath, vParam, abortController.signal)
                   const text = await response.text()
-                  const { content: mdxSource, data: frontMatter } = matter(text)
+                  const mdxSource = prepareArticleMarkdown(text)
+                  const h1 = extractFirstHeading(mdxSource)
                   contents[f] = {
-                    title: frontMatter.title || contents[f]?.title || f.replace(/_/g, ' ').replace('.md', ''),
-                    content: mdxSource
+                    title: h1 || contents[f]?.title || f.replace(/_/g, ' ').replace('.md', ''),
+                    content: mdxSource,
                   }
                 } catch (e) { }
               }))
@@ -378,26 +336,21 @@ export const CatchAllClient = memo(function CatchAllClient() {
             setDirectImageLeaf(null)
             setDirectTextLeaf(null)
             setContent(null)
-            setCompiledMdx(null)
+            setArticleMeta(null)
             setArticleTitle('')
             setDirectFiles([])
             setSubDirs([])
             setImages([])
             setMds([])
             setMdContents({})
-            if (articleRes.status === 404) {
+            if (articleFetchStatus === 404) {
               setRemoteArticle404(true)
               setArticle404PathMissingFromIndex(pathMissingFromIndex)
             } else {
               setRemoteArticle404(false)
               setArticle404PathMissingFromIndex(false)
-              const msg =
-                errJson && typeof errJson.error === 'string'
-                  ? errJson.error
-                  : `Could not load this page (HTTP ${articleRes.status}).`
-              setError(msg)
+              setError('Could not load this page.')
             }
-          }
           }
         }
       } catch (e) {
@@ -430,48 +383,6 @@ export const CatchAllClient = memo(function CatchAllClient() {
     return <div className="flex items-center justify-center min-h-screen"><SuspenseLoader /></div>
   }
 
-  if (mdxCompileFailure && mdxCompileFailure.path === path) {
-    const listingShareUrl = path ? `/${path}` : '/'
-    return (
-      <div className="space-y-12">
-        <div className="not-prose mb-6">
-          <ShareLinksFloating
-            url={listingShareUrl}
-            title={mdxCompileFailure.title}
-            mdSource=""
-          />
-        </div>
-        <div>
-          <h1 className="text-4xl font-extrabold mb-8 capitalize tracking-tight text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800 pb-4">
-            {mdxCompileFailure.title}
-          </h1>
-          <MdxCompileErrorPanel
-            diagnostics={mdxCompileFailure.diagnostics}
-            sourcePath={mdxCompileFailure.path}
-            phase="client"
-          />
-          <div className="mt-8 flex flex-wrap gap-3">
-            <button
-              type="button"
-              className="rounded-xl bg-slate-200 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
-              onClick={() => {
-                setMdxCompileFailure(null)
-                setArticleRetryKey((k) => k + 1)
-              }}
-            >
-              Retry
-            </button>
-            <Link
-              href="/"
-              className="inline-flex items-center rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
-            >
-              Home
-            </Link>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   if (directImageLeaf) {
     const listingShareUrl = path ? `/${path}` : '/'
@@ -562,22 +473,12 @@ export const CatchAllClient = memo(function CatchAllClient() {
                       url={`/${path}`}
                       title={articleTitle}
                       mdSource={content || ''}
-                      frontmatter={compiledMdx?.frontmatter as Record<string, unknown> | undefined}
                       ogImageUrl={ogImageUrlForShare}
                     />
                   </div>
                 ) : null}
-                {compiledMdx ? (
-                  <MdxRuntimeErrorBoundary key={path ?? ''} sourcePath={path ? `/${path}` : undefined}>
-                    <RemoteMDX
-                      compiled={{
-                        compiledSource: compiledMdx.compiledSource,
-                        frontmatter: compiledMdx.frontmatter,
-                        scope: compiledMdx.scope,
-                      }}
-                      basePath={basePath}
-                    />
-                  </MdxRuntimeErrorBoundary>
+                {content ? (
+                  <RelayMarkdown key={path ?? ''} content={content} basePath={basePath} sourcePath={path || undefined} />
                 ) : (
                   <div className="animate-pulse h-32 bg-slate-200/50 dark:bg-slate-800/50 rounded-xl" />
                 )}
@@ -586,7 +487,6 @@ export const CatchAllClient = memo(function CatchAllClient() {
                     url={`/${path}`}
                     title={articleTitle}
                     mdSource={content || ''}
-                    frontmatter={compiledMdx?.frontmatter as Record<string, unknown> | undefined}
                     ogImageUrl={ogImageUrlForShare}
                   />
                 ) : null}
@@ -679,7 +579,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
         </h1>
 
         {directFiles.length === 0 && subDirs.length === 0 ? (
-          remoteArticle404 ? (
+          filesIndexError && !fileList ? null : remoteArticle404 ? (
             <ArticleRemote404Notice
               notInIndex={article404PathMissingFromIndex}
               path={path}

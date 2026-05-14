@@ -5,16 +5,13 @@ import {
   composeShareText,
   effectiveLengthX,
   extractShareMetadata,
+  fitComposeShareToCharLimit,
   platformUsesTruncatedOutboundIntent,
   shareTextCharCount,
   truncateShareTextForOutbound,
   type SharePlatformId,
 } from '@/lib/share'
-import {
-  REDDIT_TITLE_MAX,
-  limitHashtagsLine,
-  platformHashtagLimit,
-} from '@/lib/share/platformLimits'
+import { REDDIT_TITLE_MAX, platformModalCopyLimit } from '@/lib/share/platformLimits'
 import type { ShareLinksProps } from '@/components/ShareLinks/types'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://paradigmthreat.net'
@@ -110,7 +107,6 @@ export function useShareLinksModel({
   title,
   description,
   mdSource,
-  frontmatter,
   shareExtract: shareExtractProp,
   ogImageUrl,
 }: ShareLinksProps) {
@@ -119,14 +115,14 @@ export function useShareLinksModel({
   const shareExtract = useMemo(() => {
     if (shareExtractProp) return shareExtractProp
     if (mdSource) {
-      return extractShareMetadata({ rawMarkdown: mdSource, frontmatter })
+      return extractShareMetadata({ rawMarkdown: mdSource })
     }
     return {
       snippetPlain: description?.trim() || '',
       hashtagsLine: '',
       articleBodyPlain: '',
     }
-  }, [shareExtractProp, mdSource, frontmatter, description])
+  }, [shareExtractProp, mdSource, description])
 
   const composeInput = useMemo(
     () => ({
@@ -143,20 +139,25 @@ export function useShareLinksModel({
   const [modalOpen, setModalOpen] = useState(false)
   const [copyFormatPlatform, setCopyFormatPlatform] = useState<SharePlatformId>('x')
 
+  /**
+   * Modal copy: full compose order (incl. Substack under canonical URL). X omits snippet to stay minimal.
+   * Instagram / Truth Social include snippet + article up to each platform’s modal limit (2,200 / 3,000 chars).
+   */
   const activeCopyText = useMemo(() => {
     const p = copyFormatPlatform
-    const t = composeInput.title.trim()
-    const u = composeInput.canonicalUrl.trim()
-    const substack = (composeInput.substackUrl || '').trim()
-    const tags = limitHashtagsLine(composeInput.hashtagsLine.trim(), platformHashtagLimit(p))
-    const snippet = composeInput.snippetPlain.trim()
     const isXMinimal = p === 'x'
-
-    const parts: string[] = [t, '', u]
-    if (substack && substack !== u) parts.push(substack)
-    if (tags) parts.push('', tags)
-    if (!isXMinimal && snippet) parts.push('', snippet)
-    return parts.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+    const modalLimit = platformModalCopyLimit(p)
+    if (modalLimit != null) {
+      const longInput = { ...composeInput }
+      const full = composeShareText(p, longInput)
+      if (full.length <= modalLimit) return full
+      return fitComposeShareToCharLimit(p, longInput, modalLimit)
+    }
+    return composeShareText(p, {
+      ...composeInput,
+      snippetPlain: isXMinimal ? '' : composeInput.snippetPlain,
+      articleBodyPlain: '',
+    })
   }, [copyFormatPlatform, composeInput])
 
   const charCount = useMemo(() => shareTextCharCount(activeCopyText), [activeCopyText])

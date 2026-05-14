@@ -23,6 +23,8 @@
  *   → className="book-illustration" on PopImage (the `{...}` is not left as visible text).
  */
 
+import { parseImageJsonProps } from '@/lib/parseImageJsonProps'
+
 /**
  * Parse `{.class1 .class2 #id}` after a markdown image (Pandoc / Kramdown style).
  */
@@ -50,12 +52,19 @@ function escapeJsxAttrValue (s: string): string {
   return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
 }
 
-/** Extra PopImage props from `{...}` (className for markdown-to-jsx). */
-function pandocBlockToPopImageExtraAttrs (block: string | undefined): string {
-  const { className, id } = parsePandocImageAttrBlock(block)
+function extraAttrsFromImageParts (jsonQuoted: string | undefined, pandocBlock: string | undefined): string {
+  const jsonMeta = parseImageJsonProps(jsonQuoted)
+  const pandoc = parsePandocImageAttrBlock(pandocBlock)
+  const merged: Record<string, string> = { ...jsonMeta }
+  if (pandoc.className) {
+    merged.className = merged.className
+      ? `${merged.className} ${pandoc.className}`
+      : pandoc.className
+  }
+  if (pandoc.id) merged.id = pandoc.id
   const parts: string[] = []
-  if (id) parts.push(`id="${escapeJsxAttrValue(id)}"`)
-  if (className) parts.push(`className="${escapeJsxAttrValue(className)}"`)
+  if (merged.id) parts.push(`id="${escapeJsxAttrValue(merged.id)}"`)
+  if (merged.className) parts.push(`className="${escapeJsxAttrValue(merged.className)}"`)
   return parts.length ? ' ' + parts.join(' ') : ''
 }
 
@@ -88,30 +97,29 @@ export function transformImageCaptions (md: string): string {
   // image + caption and the next image line becomes junk inside <PopImage>, leaving raw tags as text.
   const afterUrlSpace = '[ \\t]*'
 
+  const jsonTitle = "(?:\\s+'(\\{[^']*\\})'|\\s+\"(\\{[^\"]*\\})\")?"
+
   const imagePattern = new RegExp(
-    '!\\[([^\\]]*)\\]\\(([^)\\s]+)(?:\\s+["\'][^"\']*["\'])?\\)' + afterUrlSpace + pandocAttrs,
+    '!\\[([^\\]]*)\\]\\(([^)\\s]+)' + jsonTitle + '\\)' + afterUrlSpace + pandocAttrs,
     'g'
   )
 
-  // Image immediately followed by one or more caption lines (no blank line between).
-  // Optional `{.class}` may appear between `)` and the newline before the caption.
   const imageWithCaption = new RegExp(
-    '!\\[([^\\]]*)\\]\\(([^)\\s]+)(?:\\s+["\'][^"\']*["\'])?\\)' + afterUrlSpace + pandocAttrs + '\\n([^\\n]+(?:\\n[^\\n]+)*)',
+    '!\\[([^\\]]*)\\]\\(([^)\\s]+)' + jsonTitle + '\\)' + afterUrlSpace + pandocAttrs + '\\n([^\\n]+(?:\\n[^\\n]+)*)',
     'g'
   )
 
-  let result = md.replace(imageWithCaption, (match, _alt, url, attrs, caption) => {
+  let result = md.replace(imageWithCaption, (match, _alt, url, jsonSingle, jsonDouble, attrs, caption) => {
     const captionPlain = stripMarkdown(caption).replace(/"/g, '&quot;')
     const safeUrl = typeof url === 'string' ? url : ''
-    const extra = pandocBlockToPopImageExtraAttrs(attrs)
+    const extra = extraAttrsFromImageParts(jsonSingle || jsonDouble, attrs)
     return `<PopImage src="${safeUrl}" alt="${captionPlain}"${extra}>${caption}</PopImage>`
   })
 
-  // Remaining standalone images with no following caption line.
-  result = result.replace(imagePattern, (match, alt, url, attrs) => {
+  result = result.replace(imagePattern, (match, alt, url, jsonSingle, jsonDouble, attrs) => {
     const safeAlt = typeof alt === 'string' ? alt.replace(/"/g, '&quot;') : ''
     const safeUrl = typeof url === 'string' ? url : ''
-    const extra = pandocBlockToPopImageExtraAttrs(attrs)
+    const extra = extraAttrsFromImageParts(jsonSingle || jsonDouble, attrs)
     return `<PopImage src="${safeUrl}" alt="${safeAlt}"${extra} />`
   })
 

@@ -1,14 +1,11 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import Markdown from 'markdown-to-jsx'
-import PopImage from '@/components/Image/PopImage'
-import DynamicIndex from '@/components/DynamicIndex/DynamicIndex'
-import { MarkdownLink } from '@/components/MarkdownLink'
+import { RelayTimelineMarkdown } from '@/components/RelayTimelineMarkdown'
 import { transformImageCaptions } from '@/components/Timeline/markdownTransform'
 
 /** Strip H1 title and YAML frontmatter before rendering. */
-function prepareMarkdownContent(md: string): string {
+function prepareMarkdownContent (md: string): string {
   if (typeof md !== 'string') return ''
   let out = md
     .replace(/^# .+\n*/m, '')
@@ -23,7 +20,7 @@ interface RemoteMarkdownProps {
   className?: string
 }
 
-export function RemoteMarkdown({ src, baseUrl, title, className = '' }: RemoteMarkdownProps) {
+export function RemoteMarkdown ({ src, baseUrl, title, className = '' }: RemoteMarkdownProps) {
   const [content, setContent] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -55,53 +52,13 @@ export function RemoteMarkdown({ src, baseUrl, title, className = '' }: RemoteMa
   }
   if (!content) return null
 
-  const prepared = prepareMarkdownContent(typeof content === 'string' ? content : '')
+  const prepared = prepareMarkdownContent(content)
   const transformed = transformImageCaptions(prepared)
 
   return (
     <article className={`prose prose-sm dark:prose-invert max-w-none ${className}`}>
       {title && <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">{title}</h2>}
-      <Markdown
-        options={{
-          overrides: {
-            img: (props) => (
-              <PopImage
-                {...props}
-                basePath={baseUrl}
-                className={props.className}
-              />
-            ),
-            PopImage: (props: { children?: string;[key: string]: unknown }) => (
-              <PopImage
-                {...props}
-                basePath={baseUrl}
-                className={props.className as string}
-              >
-                {typeof props.children === 'string' ? (
-                  <Markdown
-                    options={{
-                      overrides: {
-                        a: (props: { href?: string; children?: React.ReactNode; [key: string]: unknown }) => <MarkdownLink {...props} />,
-                      },
-                    }}
-                  >
-                    {props.children}
-                  </Markdown>
-                ) : null}
-              </PopImage>
-            ),
-            a: (props: { href?: string; children?: React.ReactNode; [key: string]: unknown }) => <MarkdownLink {...props} />,
-            DynamicIndex: (props: { [key: string]: unknown }) => (
-              <DynamicIndex {...props} mode="inline" currentPath={baseUrl} />
-            ),
-            dynamicindex: (props: { [key: string]: unknown }) => (
-              <DynamicIndex {...props} mode="inline" currentPath={baseUrl} />
-            ),
-          },
-        }}
-      >
-        {typeof transformed === 'string' ? transformed : ''}
-      </Markdown>
+      <RelayTimelineMarkdown content={transformed} basePath={baseUrl} />
     </article>
   )
 }

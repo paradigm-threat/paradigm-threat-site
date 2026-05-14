@@ -1,12 +1,13 @@
 'use client'
 
-import React, { useState, useEffect, memo } from 'react'
+import React, { useState, useEffect, memo, useRef, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Menu, X, Search, Home, MessageSquare, Video, Clock, Heart, Rss } from 'lucide-react'
+import { Menu, X, Search, Home, MessageSquare, Video, Clock, Heart, Rss, Server } from 'lucide-react'
 import { ThemeToggle, FontToggle, DynamicNav, DynamicIndex } from '@/components'
 import { FeelingLuckyButton } from '@/components/FeelingLucky/FeelingLuckyButton'
 import { ResumeInvestigationPanel } from '@/components/ResumeInvestigationPanel'
+import { remoteRelay, relayHostLabel } from '@/lib/remoteRelayStore'
 
 interface NavbarProps {
     fileList: any
@@ -16,6 +17,92 @@ interface NavbarProps {
 const HEADER_WORDMARK_SRC = '/site/header.png'
 /** Triangle mark only (same graphic as favicon) — avoids clash with menu below ~350px. */
 const HEADER_MARK_SRC = '/site/favicon.svg'
+
+function RelayServerSelector() {
+    const [menuOpen, setMenuOpen] = useState(false)
+    const wrapRef = useRef<HTMLDivElement>(null)
+
+    const activeIdx = useSyncExternalStore(
+        (cb) => remoteRelay.subscribe(cb),
+        () => remoteRelay.getActivePairIndex(),
+        () => remoteRelay.getActivePairIndex(),
+    )
+
+    // Keep getSnapshot primitive/stable to satisfy useSyncExternalStore contract.
+    useSyncExternalStore(
+        (cb) => remoteRelay.subscribe(cb),
+        () => remoteRelay.getRelayPairs().map((p) => `${p.files}|${p.timeline}`).join('\n'),
+        () => remoteRelay.getRelayPairs().map((p) => `${p.files}|${p.timeline}`).join('\n'),
+    )
+    const options = remoteRelay.getRelayPairs().map((pair, idx) => ({
+        idx,
+        label: `${relayHostLabel(pair.files)} • ${relayHostLabel(pair.timeline)}`,
+    }))
+
+    useEffect(() => {
+        if (!menuOpen) return undefined
+        const onDoc = (e: MouseEvent) => {
+            if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+                setMenuOpen(false)
+            }
+        }
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setMenuOpen(false)
+        }
+        document.addEventListener('mousedown', onDoc)
+        document.addEventListener('keydown', onKey)
+        return () => {
+            document.removeEventListener('mousedown', onDoc)
+            document.removeEventListener('keydown', onKey)
+        }
+    }, [menuOpen])
+
+    if (options.length <= 1) return null
+
+    const currentLabel = options.find((o) => o.idx === activeIdx)?.label ?? options[0]!.label
+
+    return (
+        <div ref={wrapRef} className="relative">
+            <button
+                type="button"
+                onClick={() => setMenuOpen((v) => !v)}
+                className="p-2 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors w-9 h-9 flex items-center justify-center text-slate-600 dark:text-slate-400"
+                aria-expanded={menuOpen}
+                aria-haspopup="menu"
+                aria-label="Relay server menu"
+                title={`Relay server — ${currentLabel}`}
+            >
+                <Server size={18} strokeWidth={1.75} aria-hidden />
+            </button>
+            {menuOpen && (
+                <div
+                    role="menu"
+                    className="absolute right-0 top-full mt-1 z-[120] min-w-[min(calc(100vw-2rem),22rem)] max-w-[min(calc(100vw-2rem),26rem)] rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-800"
+                >
+                    <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700">
+                        Relay server
+                    </div>
+                    {options.map((opt) => (
+                        <button
+                            key={opt.idx}
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                                remoteRelay.setActivePairIndex(opt.idx)
+                                setMenuOpen(false)
+                            }}
+                            className={`flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 ${opt.idx === activeIdx ? 'bg-slate-50 dark:bg-slate-900/50' : ''
+                                }`}
+                        >
+                            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{`Server ${opt.idx + 1}`}</span>
+                            <span className="break-all text-xs text-slate-800 dark:text-slate-100">{opt.label}</span>
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    )
+}
 
 const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
     const [isOpen, setIsOpen] = useState(false)
@@ -80,6 +167,7 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
 
                     <div className="flex shrink-0 items-center gap-2">
                         <div className="hidden lg:flex items-center gap-2">
+                            <RelayServerSelector />
                             <FontToggle />
                             <ThemeToggle />
                         </div>
@@ -105,6 +193,7 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
                                 Display
                             </span>
                             <div className="flex items-center gap-2">
+                                <RelayServerSelector />
                                 <FontToggle />
                                 <ThemeToggle />
                             </div>

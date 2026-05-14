@@ -6,6 +6,7 @@ import {
 } from '@/lib/urlListEnv'
 import { sendClientTelemetry } from '@/lib/clientTelemetrySend'
 import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
+import { buildArticleMdCandidatePaths } from '@/lib/articleMdPaths'
 
 export function relayHostLabel(origin: string): string {
   if (!origin) return ''
@@ -25,7 +26,7 @@ export type RelayNotifyEvent =
     }
   | {
       type: 'switch'
-      reason: 'index_failover' | 'md_failover' | 'timeline_md_failover'
+      reason: 'index_failover' | 'md_failover' | 'timeline_md_failover' | 'manual_select'
       filesOrigin: string
       timelineOrigin: string
       serverLabel: string
@@ -34,6 +35,13 @@ export type RelayNotifyEvent =
 const PROBE_TIMEOUT_MS = 8000
 const MD_FETCH_TIMEOUT_MS = 12_000
 const INDEX_FETCH_TIMEOUT_MS = 5000
+
+/** Persisted manual relay selection (survives refresh). Failover does not overwrite. */
+const RELAY_PREFERRED_PAIR_KEY = 'paradigm-threat-relay-preferred-pair'
+
+function normalizeStoredOrigin(s: string): string {
+  return s.trim().replace(/\/+$/, '')
+}
 
 /**
  * Among mirrors whose probe time is within this band of the fastest, pick one at random.
@@ -145,11 +153,14 @@ class RemoteRelayStore {
 
   private switchToPair(
     p: RelayOriginPair,
-    reason: 'index_failover' | 'md_failover' | 'timeline_md_failover',
+    reason: 'index_failover' | 'md_failover' | 'timeline_md_failover' | 'manual_select',
   ): void {
     const changed = p.files !== this.filesOrigin || p.timeline !== this.timelineOrigin
     this.filesOrigin = p.files
     this.timelineOrigin = p.timeline
+    if (reason === 'manual_select') {
+      this.persistPreferredPair(p)
+    }
     this.emit()
     if (changed) {
       this.emitNotify({
@@ -187,6 +198,26 @@ class RemoteRelayStore {
       timelineHostLabel: relayHostLabel(tb),
       serverLabel: relayHostLabel(fb),
     }
+  }
+
+  getRelayPairs(): RelayOriginPair[] {
+    this.ensurePairs()
+    return [...this.pairs]
+  }
+
+  getActivePairIndex(): number {
+    this.ensurePairs()
+    const idx = this.pairs.findIndex((p) => p.files === this.filesOrigin && p.timeline === this.timelineOrigin)
+    return idx >= 0 ? idx : 0
+  }
+
+  setActivePairIndex(index: number): boolean {
+    this.ensurePairs()
+    if (!Number.isInteger(index) || index < 0 || index >= this.pairs.length) return false
+    const pair = this.pairs[index]
+    if (!pair) return false
+    this.switchToPair(pair, 'manual_select')
+    return true
   }
 
   async bootstrap(): Promise<void> {
@@ -254,8 +285,44 @@ class RemoteRelayStore {
     return this.pairs[0]!
   }
 
+  private readStoredPreferredPair(): RelayOriginPair | null {
+    if (typeof window === 'undefined') return null
+    this.ensurePairs()
+    try {
+      const raw = window.localStorage.getItem(RELAY_PREFERRED_PAIR_KEY)
+      if (!raw) return null
+      const parsed = JSON.parse(raw) as { files?: unknown; timeline?: unknown }
+      const files =
+        typeof parsed.files === 'string' ? normalizeStoredOrigin(parsed.files) : ''
+      const timeline =
+        typeof parsed.timeline === 'string' ? normalizeStoredOrigin(parsed.timeline) : ''
+      if (!files || !timeline) return null
+      const match = this.pairs.find((pair) => pair.files === files && pair.timeline === timeline)
+      return match ?? null
+    } catch {
+      return null
+    }
+  }
+
+  private persistPreferredPair(p: RelayOriginPair): void {
+    if (typeof window === 'undefined') return
+    try {
+      window.localStorage.setItem(
+        RELAY_PREFERRED_PAIR_KEY,
+        JSON.stringify({ files: p.files, timeline: p.timeline }),
+      )
+    } catch {
+      /* quota / private mode */
+    }
+  }
+
   private async runBootstrap(): Promise<void> {
     this.ensurePairs()
+    const preferred = this.readStoredPreferredPair()
+    if (preferred) {
+      this.finishBootstrap(preferred)
+      return
+    }
     const best = await this.pickFastestPair()
     this.finishBootstrap(best)
   }
@@ -288,25 +355,28 @@ class RemoteRelayStore {
   }
 
   /**
-   * Fetch a markdown file from the files mirror; on timeout/error try other pairs.
+   * Fetch markdown for a site URL path (tries path.md, path/page.md, etc.); on timeout/error try other pairs.
    */
-  async fetchFilesMd(fullPath: string, versionQuery: string, externalAbort: AbortSignal): Promise<Response> {
+  async fetchFilesMd(logicalPath: string, versionQuery: string, externalAbort: AbortSignal): Promise<Response> {
     this.ensurePairs()
     const order = this.pairFailoverOrder()
+    const candidates = buildArticleMdCandidatePaths(logicalPath)
     let lastErr: Error | null = null
-    for (const p of order) {
-      const base = p.files
-      const url = `${base.replace(/\/$/, '')}/${fullPath.replace(/^\//, '')}${versionQuery}`
-      const signal = mergeAbort(externalAbort, MD_FETCH_TIMEOUT_MS)
-      try {
-        const res = await fetch(url, { signal })
-        if (!res.ok) continue
-        if (p.files !== this.filesOrigin || p.timeline !== this.timelineOrigin) {
-          this.switchToPair(p, 'md_failover')
+    for (const relPath of candidates) {
+      for (const p of order) {
+        const base = p.files
+        const url = `${base.replace(/\/$/, '')}/${relPath.replace(/^\//, '')}${versionQuery}`
+        const signal = mergeAbort(externalAbort, MD_FETCH_TIMEOUT_MS)
+        try {
+          const res = await fetch(url, { signal })
+          if (!res.ok) continue
+          if (p.files !== this.filesOrigin || p.timeline !== this.timelineOrigin) {
+            this.switchToPair(p, 'md_failover')
+          }
+          return res
+        } catch (e) {
+          lastErr = e instanceof Error ? e : new Error(String(e))
         }
-        return res
-      } catch (e) {
-        lastErr = e instanceof Error ? e : new Error(String(e))
       }
     }
     const err = lastErr ?? new Error('All relay pairs failed for files MD')
@@ -315,7 +385,7 @@ class RemoteRelayStore {
       kind: 'mirror_md_failed',
       mirrorPhase: 'files_md',
       message: err.message.slice(0, 500),
-      mirrorResourcePath: fullPath.replace(/^\//, '').slice(0, 200),
+      mirrorResourcePath: logicalPath.replace(/^\//, '').slice(0, 200),
       attemptedHostCount: order.length,
       attemptedHostsSummary: summary.slice(0, 200),
     })

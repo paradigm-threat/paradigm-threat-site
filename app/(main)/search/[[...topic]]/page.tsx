@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo, Suspense, useRef, useCallback } from 'react'
 import { getMergedSearchIndex, getRemoteFile } from '@/server/remoteFiles'
 import { SearchHeader, FolderGrid, ArticleStack, ImageGallery } from '@/components/search'
-import matter from 'gray-matter'
+import { prepareArticleMarkdown, extractFirstHeading } from '@/lib/articleBody'
 import { Loader2, Search } from 'lucide-react'
 import { useRouter, useSearchParams, useParams } from 'next/navigation'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
@@ -91,9 +91,9 @@ function SearchContent() {
             const path = e.path
             const content = await getRemoteFile(path)
             if (!content) return null
-            const { content: mdxSource, data: frontMatter } = matter(content)
+            const mdxSource = prepareArticleMarkdown(content)
             const basePath = path.includes('/') ? path.split('/').slice(0, -1).join('/') : ''
-            return { path, mdxSource, frontMatter, basePath }
+            return { path, mdxSource, basePath, title: extractFirstHeading(mdxSource) }
         })).then(results => {
             setRenderedMds(results.filter(Boolean))
             setContentLoading(false)

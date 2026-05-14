@@ -11,7 +11,7 @@ export function RemoteFileIndexBanner() {
 
   return (
     <div
-      className="w-full max-w-[90rem] mx-auto mb-6 rounded-lg border border-amber-500/40 bg-amber-50/90 dark:bg-amber-950/40 px-4 py-3 text-amber-950 dark:text-amber-100 shadow-sm"
+      className="mb-6 rounded-lg border border-amber-500/40 bg-amber-50/90 dark:bg-amber-950/40 px-4 py-3 text-amber-950 dark:text-amber-100 shadow-sm"
       role="alert"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

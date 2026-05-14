@@ -8,6 +8,7 @@ import { publicFilesAssetUrl, publicTimelineAssetUrl } from '@/lib/canonicalPubl
 import {
     buildLqipOptimizedAssetUrl,
     buildOptimizedAssetUrl,
+    listOptimizedAssetUrls,
 } from '@/lib/relayOptimizedAssetUrl'
 
 const DEFAULT_FILES_BASE_URL = getPrimaryFilesBaseUrl()
@@ -213,7 +214,7 @@ export function processImageProps(props: any, basePath?: string, filesRootUrl?: 
                     : w
                 : 800
 
-        // SVG: Relay or /api/image passthrough — no raster resize
+        // SVG: direct mirror URL — no raster resize
         if (isSvg) {
             finalProps.optimizedSrc = buildOptimizedAssetUrl(pathForAPI)
             finalProps.width = Number.isFinite(displayWidth) ? displayWidth : 800
@@ -243,6 +244,7 @@ export function processImageProps(props: any, basePath?: string, filesRootUrl?: 
 
         // High res for popout (full URL)
         finalProps.highResSrc = canonicalHighResPublicUrl(pathForAPI);
+        finalProps.mirrorSrcs = listOptimizedAssetUrls(pathForAPI, finalProps.width as number)
 
         return { src: pathForAPI, ...finalProps, title, alt, className } as ImagePropsFormatted;
     }

@@ -2,8 +2,18 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import { extractShareMetadata } from './extractShareMetadata.ts'
-import { composeShareText, truncateShareTextForOutbound } from './composeShareText.ts'
-import { limitHashtagsLine, INSTAGRAM_HASHTAG_MAX } from './platformLimits.ts'
+import {
+  composeShareText,
+  fitComposeShareToCharLimit,
+  truncateShareTextForOutbound,
+} from './composeShareText.ts'
+import {
+  INSTAGRAM_CAPTION_MAX,
+  INSTAGRAM_HASHTAG_MAX,
+  TRUTHSOCIAL_COPY_MAX,
+  limitHashtagsLine,
+  platformModalCopyLimit,
+} from './platformLimits.ts'
 
 const SUBSTACK_URL = 'https://paradigmthreat2.substack.com/p/pursue-release-01-what-am-i-asking'
 
@@ -24,15 +34,6 @@ test('extractShareMetadata picks up the Substack marker line', () => {
   const r = extractShareMetadata({ rawMarkdown: SAMPLE_BODY })
   assert.equal(r.substackUrl, SUBSTACK_URL)
   assert.match(r.hashtagsLine, /#UAP/)
-})
-
-test('extractShareMetadata reads frontmatter.substack first', () => {
-  const fmUrl = 'https://example.substack.com/p/foo'
-  const r = extractShareMetadata({
-    rawMarkdown: SAMPLE_BODY,
-    frontmatter: { substack: fmUrl },
-  })
-  assert.equal(r.substackUrl, fmUrl)
 })
 
 test('extractShareMetadata returns undefined when no Substack URL is present', () => {
@@ -101,6 +102,53 @@ test('composeShareText caps Instagram hashtags at the platform limit', () => {
   })
   const tagTokens = text.match(/#t\d+/g) || []
   assert.equal(tagTokens.length, INSTAGRAM_HASHTAG_MAX)
+})
+
+test('composeShareText for Instagram includes article body when within caption limit', () => {
+  const article = 'First paragraph. Second paragraph with enough words to be recognizable.'
+  const text = composeShareText('instagram', {
+    title: 'Sample',
+    canonicalUrl: 'https://paradigmthreat.net/sample',
+    snippetPlain: 'Snippet line.',
+    hashtagsLine: '#UAP',
+    articleBodyPlain: article,
+  })
+  assert.ok(text.includes(article), 'article plain body appears in composed Instagram text')
+  assert.ok(text.includes('Snippet line.'), 'snippet appears before article block')
+})
+
+test('platformModalCopyLimit enables long modal copy for Instagram and Truth Social only', () => {
+  assert.equal(platformModalCopyLimit('instagram'), INSTAGRAM_CAPTION_MAX)
+  assert.equal(platformModalCopyLimit('truthsocial'), TRUTHSOCIAL_COPY_MAX)
+  assert.equal(platformModalCopyLimit('x'), null)
+})
+
+test('fitComposeShareToCharLimit trims oversized Truth Social modal copy to at most TRUTHSOCIAL_COPY_MAX', () => {
+  const hugeArticle = 'word '.repeat(5000)
+  const input = {
+    title: 'Sample',
+    canonicalUrl: 'https://paradigmthreat.net/sample',
+    snippetPlain: 'Snip.',
+    hashtagsLine: '#a #b',
+    articleBodyPlain: hugeArticle,
+  }
+  const fitted = fitComposeShareToCharLimit('truthsocial', input, TRUTHSOCIAL_COPY_MAX)
+  assert.ok(fitted.length <= TRUTHSOCIAL_COPY_MAX)
+  assert.ok(fitted.includes('https://paradigmthreat.net/sample'))
+})
+
+test('fitComposeShareToCharLimit trims oversized Instagram copy to at most caption limit', () => {
+  const hugeArticle = 'word '.repeat(4000)
+  const input = {
+    title: 'Sample',
+    canonicalUrl: 'https://paradigmthreat.net/sample',
+    snippetPlain: 'Snip.',
+    hashtagsLine: '#a #b #c #d #e',
+    articleBodyPlain: hugeArticle,
+  }
+  const fitted = fitComposeShareToCharLimit('instagram', input, INSTAGRAM_CAPTION_MAX)
+  assert.ok(fitted.length <= INSTAGRAM_CAPTION_MAX)
+  assert.ok(fitted.includes('https://paradigmthreat.net/sample'))
 })
 
 test('composeShareText leaves hashtags untouched on platforms with no per-platform tag cap', () => {

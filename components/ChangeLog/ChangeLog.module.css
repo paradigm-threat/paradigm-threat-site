@@ -79,34 +79,52 @@
     gap: 0.75rem;
     align-items: flex-start;
     margin-bottom: 1rem;
-    /* One row of thumbs; text may grow below without stretching the thumb column. */
-    min-height: 3.5rem;
 }
 
 .entry:last-child {
     margin-bottom: 0;
 }
 
-.imageStrip {
-    flex: 0 0 auto;
-    flex-shrink: 0;
+/*
+ * One row of thumbnails + horizontal scroll — row height stays ~one thumb tall so short
+ * file-list text does not leave a huge empty band beside a tall vertical stack.
+ * Width shows at most 2 thumbs; additional images scroll horizontally.
+ */
+.imageStripScroll {
+    box-sizing: border-box;
+    flex: 0 1 auto;
+    align-self: flex-start;
+    /* 2× thumb + gap + horizontal padding (matches .thumb 4.5rem) */
+    max-width: min(100%, calc(2 * 4.5rem + 0.45rem + 0.5rem));
+    min-width: 0;
+    min-height: 0;
+
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     flex-wrap: nowrap;
-    align-items: flex-start;
-    gap: 0.35rem;
-    height: auto;
-    max-width: min(100%, 14rem);
-    overflow: visible;
+    align-items: center;
+    gap: 0.45rem;
+
+    /* Single thumb row: no vertical growth from many images */
+    max-height: calc(4.5rem + 0.5rem);
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+
+    padding: 0.25rem;
+    border-radius: 0.375rem;
+    border: 1px solid rgb(203 213 225 / 0.55);
 }
 
-.wrapFullscreen .imageStrip {
-    height: auto;
-    max-width: min(100%, 26rem);
+:global(.dark) .imageStripScroll {
+    border-color: rgb(71 85 105 / 0.85);
 }
 
-.wrapFullscreen .entry {
-    min-height: 5rem;
+.wrapFullscreen .imageStripScroll {
+    /* 2× fullscreen thumb + gap + padding (matches .thumbFs 6rem) */
+    max-width: min(100%, calc(2 * 6rem + 0.45rem + 0.5rem));
+    max-height: calc(6rem + 0.5rem);
 }
 
 .thumbBtn {
@@ -153,8 +171,8 @@
 
 .thumb {
     flex-shrink: 0;
-    width: 3.5rem;
-    height: 3.5rem;
+    width: 4.5rem;
+    height: 4.5rem;
     object-fit: cover;
     border-radius: 0.25rem;
     border: 1px solid rgb(203 213 225);
@@ -166,8 +184,8 @@
 
 .thumbLogo {
     flex-shrink: 0;
-    width: 3.5rem;
-    height: 3.5rem;
+    width: 4.5rem;
+    height: 4.5rem;
     object-fit: contain;
     padding: 0.2rem;
     border-radius: 0.25rem;
@@ -181,13 +199,13 @@
 }
 
 .wrapFullscreen .thumbFs {
-    width: 5rem;
-    height: 5rem;
+    width: 6rem;
+    height: 6rem;
 }
 
 .wrapFullscreen .thumbLogoFs {
-    width: 5rem;
-    height: 5rem;
+    width: 6rem;
+    height: 6rem;
 }
 
 .entryBody {
@@ -202,18 +220,13 @@
         min-height: 0;
     }
 
-    .imageStrip {
-        height: auto;
+    .imageStripScroll {
         max-width: 100%;
         width: 100%;
-        overflow: visible;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.4rem;
     }
 
     .thumbBtn {
-        display: block;
+        display: inline-flex;
     }
 }
 

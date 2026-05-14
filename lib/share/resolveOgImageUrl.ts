@@ -1,6 +1,5 @@
 /**
- * OG / share preview image: frontmatter.image or first markdown image.
- * Mirrors previous articleServer logic (canonical paradigmthreat.net /files/...).
+ * OG / share preview image: first markdown image in article body.
  */
 
 import { publicFilesAssetUrl } from '@/lib/canonicalPublicSite'
@@ -24,18 +23,6 @@ export function extractFirstImageUrlFromMarkdown (md: string, basePath: string):
 export function resolveOgImageUrl (
   rawContent: string,
   basePath: string,
-  frontmatter: Record<string, unknown>
 ): string | undefined {
-  if (frontmatter?.image && typeof frontmatter.image === 'string') {
-    const img = frontmatter.image as string
-    if (img.startsWith('http')) {
-      return img
-    }
-    if (img.startsWith('/')) {
-      return publicFilesAssetUrl(img.replace(/^\//, ''))
-    }
-    const rel = basePath ? `${basePath}/${img.replace(/^\.\//, '')}` : img.replace(/^\.\//, '')
-    return publicFilesAssetUrl(rel.replace(/^\//, ''))
-  }
   return extractFirstImageUrlFromMarkdown(rawContent, basePath)
 }

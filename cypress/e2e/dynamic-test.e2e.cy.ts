@@ -12,7 +12,8 @@ describe('Dynamic Site Specification', () => {
                 message.includes('Initial UI does not match') ||
                 message.includes('did not have matching text') ||
                 message.includes('No matching child') ||
-                message.includes('[next-mdx-remote] error compiling MDX') ||
+                message.includes('relay-markdown') ||
+                message.includes('Markdown compile') ||
                 message.includes('Expected a closing tag')
             ) {
                 cy.log(`Non-critical error: ${message.substring(0, 100)}`);
@@ -32,7 +33,7 @@ describe('Dynamic Site Specification', () => {
 
         // Also handle promise rejections
         cy.on('uncaught:exception', (err) => {
-            if (err?.message?.includes('[next-mdx-remote] error compiling MDX')) {
+            if (err?.message?.includes('Markdown compile') || err?.message?.includes('relay-markdown')) {
                 return false;
             }
         });

@@ -10,6 +10,7 @@ import {
   formatIndexDateTiny,
   getIndexUpdatedTime,
 } from '@/lib/indexUpdated'
+import { extractFirstHeading } from '@/lib/articleBody'
 
 export type AutoIndexSort = 'name-asc' | 'name-desc'
 export type AutoIndexFormat = 'default' | 'blog'
@@ -181,7 +182,6 @@ export default function AutoIndex({
         setMdContents(initial)
         return
       }
-      const matter = (await import('gray-matter')).default
       const results: Record<string, { title: string }> = { ...initial }
       await Promise.all(
         mdFiles.map(async (f) => {
@@ -190,8 +190,7 @@ export default function AutoIndex({
             const res = await fetch(`${baseUrl}/${fullPath}${vParam}`)
             if (res.ok) {
               const text = await res.text()
-              const { data: fm } = matter(text)
-              const t = fm?.title as string | undefined
+              const t = extractFirstHeading(text)
               if (t) results[f] = { title: t }
             }
           } catch {

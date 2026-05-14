@@ -99,7 +99,7 @@ import { buildOptimizedAssetUrl, isRelayOrigin } from '@/lib/relayOptimizedAsset
 
 const REPO_IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg)$/i
 
-/** Same-origin public URL for the asset (GitLab Pages /files mirror), not `/api/image`. */
+/** Canonical public URL for the asset (GitLab Pages /files mirror). */
 function pathToCanonicalFilesOrTimelineUrl(pathForAPI: string): string {
     const norm = pathForAPI.replace(/^\//, '').replace(/\/+/g, '/')
     if (norm.startsWith('media/')) {
@@ -117,16 +117,6 @@ export function galleryDirectPublicAssetUrl(image: GalleryImage): string | null 
 
     const rawSrc = typeof image.src === 'string' ? image.src : ''
     if (!rawSrc) return null
-
-    if (rawSrc.startsWith('/api/image')) {
-        try {
-            const u = new URL(rawSrc, `${CANONICAL_SITE_ORIGIN}/`)
-            const path = u.searchParams.get('path')
-            if (path) return pathToCanonicalFilesOrTimelineUrl(path)
-        } catch {
-            return null
-        }
-    }
 
     if (/^https?:\/\//i.test(rawSrc)) {
         try {
@@ -156,15 +146,11 @@ export function galleryDirectPublicAssetUrl(image: GalleryImage): string | null 
     return pathToCanonicalFilesOrTimelineUrl(pathOnly)
 }
 
-/**
- * Fullscreen gallery `<img src>`: optimized bytes via Relay ?w= when primary mirrors are Relay,
- * else `/api/image` (GitLab / multi-mirror fallback).
- */
+/** Fullscreen gallery `<img src>`: primary mirror + `?w=` for rasters. */
 export function galleryOverlayDisplaySrc (image: GalleryImage): string {
     const rawSrc = typeof image.src === 'string' ? image.src : ''
     const hi = typeof image.highResSrc === 'string' ? image.highResSrc : ''
     if (!rawSrc) return hi
-    if (rawSrc.startsWith('/api/')) return rawSrc
     if (rawSrc.startsWith('/site/')) return hi || rawSrc
     if (/^https?:\/\//i.test(rawSrc)) return hi || rawSrc
 

@@ -1,7 +1,9 @@
 import React, { Suspense } from 'react'
 import { extractShareMetadata } from '@/lib/share'
 import { fetchArticle, fetchTextLeaf } from '@/lib/articleServer'
-import { ArticleContentSSR } from '@/components/ArticleContentSSR'
+import { buildArticleSeoHtml } from '@/lib/seo/buildArticleSeoHtml'
+import { ArticleMarkdownRegion } from '@/components/ArticleMarkdownRegion'
+import { ArticleJsonLd } from '@/components/ArticleJsonLd'
 import { ArticleClientShell } from '@/components/ArticleClientShell'
 import { TextLeafClientShell } from '@/components/TextLeafClientShell'
 import { CatchAllClient } from './CatchAllClient'
@@ -39,23 +41,24 @@ function getPathFromParams (params: { slug?: string | string[] }): string {
 export async function generateMetadata ({ params }: PageProps): Promise<Metadata> {
   const resolved = await params
   const path = getPathFromParams(resolved)
-  if (!path) return { title: 'Paradigm Threat' }
 
   const article = await fetchArticle(path)
   if (article) {
     const title = `${article.title} | Paradigm Threat`
     const shareExtract = extractShareMetadata({
       rawMarkdown: article.mdxSource,
-      frontmatter: article.frontmatter,
     })
     const descriptionPlain =
       shareExtract.snippetPlain.trim() || `Read ${article.title} on Paradigm Threat`
     const description = truncateForOgDescription(descriptionPlain)
-    const canonicalUrl = `${SITE_URL.replace(/\/$/, '')}/${path}`
+    const canonicalUrl = path
+      ? `${SITE_URL.replace(/\/$/, '')}/${path}`
+      : SITE_URL.replace(/\/$/, '')
 
     return {
       title,
       description,
+      alternates: { canonical: canonicalUrl },
       openGraph: {
         title,
         description,
@@ -78,10 +81,13 @@ export async function generateMetadata ({ params }: PageProps): Promise<Metadata
     const descriptionPlain =
       firstNonEmptyLine(textLeaf.text) || `Read ${textLeaf.title} on Paradigm Threat`
     const description = truncateForOgDescription(descriptionPlain)
-    const canonicalUrl = `${SITE_URL.replace(/\/$/, '')}/${path}`
+    const canonicalUrl = path
+      ? `${SITE_URL.replace(/\/$/, '')}/${path}`
+      : SITE_URL.replace(/\/$/, '')
     return {
       title,
       description,
+      alternates: { canonical: canonicalUrl },
       openGraph: {
         title,
         description,
@@ -103,15 +109,19 @@ export default async function CatchAllPage ({ params }: PageProps) {
   const resolved = await params
   const path = getPathFromParams(resolved)
 
-  // Try to fetch article server-side for SSR (crawlers get full HTML)
-  const article = path ? await fetchArticle(path) : null
+  // Try to fetch article server-side for SSR (crawlers get full HTML); path '' → root page.md
+  const article = await fetchArticle(path)
 
   if (article) {
     const shareExtract = extractShareMetadata({
       rawMarkdown: article.mdxSource,
-      frontmatter: article.frontmatter,
     })
     const description = shareExtract.snippetPlain.trim() || undefined
+    const seoHtml = await buildArticleSeoHtml({
+      markdownBody: article.mdxSource,
+      basePath: article.basePath,
+      articlePath: article.targetPath,
+    })
     return (
       <ArticleClientShell
         articleTitle={article.title}
@@ -119,17 +129,21 @@ export default async function CatchAllPage ({ params }: PageProps) {
         basePath={article.basePath}
         articlePath={path}
         articleDescription={description}
-        articleFrontmatter={article.frontmatter}
         ogImageUrl={article.ogImageUrl}
         shareExtract={shareExtract}
       >
-        <Suspense fallback={<div className="animate-pulse h-32 bg-slate-200/50 dark:bg-slate-800/50 rounded-xl" />}>
-          <ArticleContentSSR
-            mdxSource={article.mdxSource}
-            basePath={article.basePath}
-            sourcePath={path}
-          />
-        </Suspense>
+        <ArticleJsonLd
+          title={article.title}
+          description={description}
+          articlePath={path}
+          imageUrl={article.ogImageUrl}
+        />
+        <ArticleMarkdownRegion
+          seoHtml={seoHtml}
+          content={article.mdxSource}
+          basePath={article.basePath}
+          sourcePath={path}
+        />
       </ArticleClientShell>
     )
   }

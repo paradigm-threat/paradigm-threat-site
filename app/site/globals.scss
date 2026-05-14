@@ -1,5 +1,4 @@
 @import url("https://fonts.googleapis.com/css?family=Titillium+Web:400,400i,700&display=swap");
-@import "katex/dist/katex.min.css";
 
 @font-face {
   font-family: 'EB Garamond';
@@ -255,4 +254,18 @@ pre * {
 
 .animate-ken-burns-pan-left {
   animation: ken-burns-pan-left var(--slideshow-duration, 8s) ease-in-out forwards;
+}
+
+/* Crawler / no-JS semantic article HTML (replaced by WASM client when ready) */
+.seo-article {
+  max-width: none;
+}
+
+.seo-article img {
+  max-width: 100%;
+  height: auto;
+}
+
+.seo-article a {
+  text-decoration: underline;
 }

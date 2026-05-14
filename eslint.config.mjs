@@ -3,5 +3,5 @@
 import nextConfig from 'eslint-config-next/core-web-vitals';
 
 /** Playwright specs use @playwright/test globals; lint via `npx playwright test` instead. */
-const config = [{ ignores: ['e2e/**'] }, ...nextConfig];
+const config = [{ ignores: ['e2e/**', 'public/wasm/**'] }, ...nextConfig];
 export default config;
