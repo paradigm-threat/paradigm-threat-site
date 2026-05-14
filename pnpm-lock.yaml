@@ -15,8 +15,8 @@ importers:
         specifier: ^7.29.0
         version: 7.29.0
       '@clevertree/md2ast':
-        specifier: ^1.0.0
-        version: 1.0.0
+        specifier: ^1.0.1
+        version: 1.0.1
       '@ducanh2912/next-pwa':
         specifier: ^10.2.9
         version: 10.2.9(next@16.1.6(@babel/core@7.29.0)(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(sass@1.98.0))(webpack@5.105.4)
@@ -668,8 +668,8 @@ packages:
     resolution: {integrity: sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==}
     engines: {node: '>=6.9.0'}
 
-  '@clevertree/md2ast@1.0.0':
-    resolution: {integrity: sha512-/e9jV2HouRpKFQnT5VC+aG6WRa4bH1lCSAuxwuhxJuXzuo6PUywQardqPdXb9IDAdxTwp/Kpt+kbiRn4WPOpwQ==}
+  '@clevertree/md2ast@1.0.1':
+    resolution: {integrity: sha512-POS3CgzRMjf/dW9svcGFSLttM7grZB2RFtKdPeU2eExk0phJuhrgC9kaC51g+f4Y91xNAu6znpzQM8Re61TxXA==}
 
   '@cypress/request@3.0.10':
     resolution: {integrity: sha512-hauBrOdvu08vOsagkZ/Aju5XuiZx6ldsLfByg1htFeldhex+PeMrYauANzFsMJeAA0+dyPLbDoX2OYuvVoLDkQ==}
@@ -5284,7 +5284,7 @@ snapshots:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
 
-  '@clevertree/md2ast@1.0.0': {}
+  '@clevertree/md2ast@1.0.1': {}
 
   '@cypress/request@3.0.10':
     dependencies:

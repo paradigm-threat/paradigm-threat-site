@@ -26,7 +26,7 @@
   },
   "dependencies": {
     "@babel/code-frame": "^7.29.0",
-    "@clevertree/md2ast": "^1.0.0",
+    "@clevertree/md2ast": "^1.0.1",
     "@ducanh2912/next-pwa": "^10.2.9",
     "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^20.19.37",
