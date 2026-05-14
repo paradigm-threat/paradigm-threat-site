@@ -117,6 +117,10 @@ export function buildLqipOptimizedAssetUrl (
 
 /** All mirror origins for a repo-relative asset (shuffled per call). */
 export function listOptimizedAssetUrls (pathForAPI: string, width?: number): string[] {
+  if (pathForAPI.startsWith('http')) {
+    return [buildOptimizedAssetUrl(pathForAPI, width)]
+  }
+
   const clean = pathForAPI.split('?')[0]
   const norm = clean.replace(/^\/+/, '')
   const repo = inferAssetRepoFromRelPath(norm)

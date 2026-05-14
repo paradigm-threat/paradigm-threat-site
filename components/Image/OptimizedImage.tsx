@@ -22,7 +22,7 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
     const [mirrorIndex, setMirrorIndex] = useState(0)
     /** Full-size decode finished — hide Relay LQIP underlay */
     const [lqipDismissed, setLqipDismissed] = useState(false)
-    const ref = useRef<HTMLImageElement>(null)
+    const containerRef = useRef<HTMLDivElement>(null)
 
     const {
         alt,
@@ -47,6 +47,9 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
             return
         }
 
+        const el = containerRef.current
+        if (!el) return
+
         const observer = new IntersectionObserver(
             ([entry]) => {
                 if (entry.isIntersecting) {
@@ -54,13 +57,10 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
                     observer.disconnect()
                 }
             },
-            { rootMargin: '200px' } // Load 200px before it enters view
+            { rootMargin: '200px' }
         )
 
-        if (ref.current) {
-            observer.observe(ref.current)
-        }
-
+        observer.observe(el)
         return () => observer.disconnect()
     }, [priority])
 
@@ -113,6 +113,7 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
             style={finalProps.width ? { maxWidth: `${finalProps.width}px` } : {}}
         >
             <div
+                ref={containerRef}
                 key={imageIntrinsicKey}
                 className={`relative w-full bg-slate-100 dark:bg-slate-900 overflow-hidden ${!isVisible ? 'animate-pulse' : ''} ${isBookIllustration && !isVisible ? 'min-h-12' : ''}`}
                 style={containerStyle}
@@ -136,7 +137,6 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
                 {/* next/image not used: dynamic src/placeholder and aspect ratio from props */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                    ref={ref}
                     loading='lazy'
                     alt={alt}
                     className={`relative z-[1] block w-full max-w-full h-auto transition-opacity duration-700 ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0'}`}

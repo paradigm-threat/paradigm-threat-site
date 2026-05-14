@@ -45,4 +45,14 @@ describe('buildOptimizedAssetUrl', () => {
     const url = buildOptimizedAssetUrl('/cosmos/mars/massacre.jpg')
     assert.match(url, /\?w=800$/)
   })
+
+  it('listOptimizedAssetUrls preserves absolute https URLs (no mirror path mangling)', async () => {
+    const { buildOptimizedAssetUrl, listOptimizedAssetUrls } = await import('./relayOptimizedAssetUrl.ts')
+    const abs =
+      'https://paradigmthreat.net/influence/controlled_opposition/investigations/cave-story-header.png'
+    const expected = buildOptimizedAssetUrl(abs, 800)
+    const mirrors = listOptimizedAssetUrls(abs, 800)
+    assert.deepEqual(mirrors, [expected])
+    assert.match(expected, /\?w=800$/)
+  })
 })
