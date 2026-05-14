@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useMemo, useRef } from 'react'
-import { MarkdownRenderer, configureRelayMarkdownWasm } from '@clevertree/relay-markdown'
+import { MarkdownRenderer, configureMd2astWasm } from '@/lib/md2ast-react'
 import { filesMarkdownOverrides } from '@/lib/markdownComponentOverrides'
 import { transformImageCaptions } from '@/components/Timeline/markdownTransform'
 
@@ -9,7 +9,7 @@ let wasmConfigured = false
 
 function ensureWasmBase (): void {
   if (wasmConfigured || typeof window === 'undefined') return
-  configureRelayMarkdownWasm(`${window.location.origin}/wasm/md2ast/`)
+  configureMd2astWasm(`${window.location.origin}/wasm/md2ast/`)
   wasmConfigured = true
 }
 

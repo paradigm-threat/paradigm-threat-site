@@ -1,5 +1,5 @@
 /**
- * Markdown component overrides for @clevertree/relay-markdown.
+ * Markdown component overrides for md2ast-react.
  *
  * Tags used in paradigm-threat-files corpus (grep audit):
  *   ChangeLog, OptimizedImage, AutoIndex, ChatRoom
@@ -9,7 +9,7 @@
 'use client'
 
 import React from 'react'
-import type { MdOverrides } from '@clevertree/relay-markdown'
+import type { MdOverrides } from '@/lib/md2ast-react'
 import * as componentsNamespace from '@/components'
 import { MarkdownLink } from '@/components/MarkdownLink'
 import { useFiles } from '@/components/FilesContext'

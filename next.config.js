@@ -71,6 +71,15 @@ const withPWA = require('@ducanh2912/next-pwa').default({
       },
       // Canonical site proxies: /files/* and /files/timeline/*
       {
+        urlPattern: /\/wasm\/md2ast\/.+/i,
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'md2ast-wasm',
+          expiration: { maxEntries: 4, maxAgeSeconds: 60 * 60 * 24 * 30 },
+          cacheableResponse: { statuses: [0, 200] },
+        },
+      },
+      {
         urlPattern: /^https:\/\/paradigmthreat\.net\/files\/.+/i,
         handler: 'StaleWhileRevalidate',
         options: {
@@ -86,7 +95,7 @@ const withPWA = require('@ducanh2912/next-pwa').default({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Transpile the local animation package (ESM, needs Next.js compilation)
-  transpilePackages: ['paradigm-threat-animation', '@clevertree/relay-markdown'],
+  transpilePackages: ['paradigm-threat-animation'],
   // output: 'export',
   images: {
     formats: ['image/avif', 'image/webp'],

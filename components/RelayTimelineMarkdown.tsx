@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useMemo } from 'react'
-import { MarkdownRenderer, configureRelayMarkdownWasm, type MdOverrides } from '@clevertree/relay-markdown'
+import { MarkdownRenderer, configureMd2astWasm, type MdOverrides } from '@/lib/md2ast-react'
 import { PopImage } from '@/components'
 import { TimelineAwareLink } from '@/components/Timeline/TimelineAwareLink'
 import { getDimensionsFromIndex, resolveImagePath } from '@/components/helpers/imageHelper'
@@ -10,7 +10,7 @@ let wasmConfigured = false
 
 function ensureWasmBase (): void {
   if (wasmConfigured || typeof window === 'undefined') return
-  configureRelayMarkdownWasm(`${window.location.origin}/wasm/md2ast/`)
+  configureMd2astWasm(`${window.location.origin}/wasm/md2ast/`)
   wasmConfigured = true
 }
 

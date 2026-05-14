@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
-    "predev": "node scripts/postinstall-relay-markdown.mjs",
-    "build": "node scripts/sync-relay-markdown-wasm.mjs && next build --webpack",
+    "predev": "node scripts/postinstall-md2ast.mjs",
+    "build": "node scripts/sync-md2ast-wasm.mjs && next build --webpack",
     "export": "next export",
     "start": "next start -p 8081",
     "build-start": "next build && next start -p 8081",
@@ -22,10 +22,11 @@
     "test:e2e:ui": "playwright test --ui",
     "standard": "npx standard --fix",
     "prepare": "husky install",
-    "postinstall": "node scripts/postinstall-relay-markdown.mjs"
+    "postinstall": "node scripts/postinstall-md2ast.mjs"
   },
   "dependencies": {
-    "@clevertree/relay-markdown": "^0.2.0",
+    "@babel/code-frame": "^7.29.0",
+    "@clevertree/md2ast": "^1.0.0",
     "@ducanh2912/next-pwa": "^10.2.9",
     "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^20.19.37",
