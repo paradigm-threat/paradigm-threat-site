@@ -3,7 +3,7 @@ import type { MdNode } from './mdAst'
 let wasmBaseUrl = '/wasm/md2ast/'
 
 interface Md2jsxWasmModule {
-  default: (input?: string | URL | Request | BufferSource) => Promise<unknown>
+  default: (module_or_path?: string | URL | Request | BufferSource) => Promise<unknown>
   transpile: (markdown: string, allowedTags: string[]) => string
 }
 
@@ -24,7 +24,7 @@ async function loadWasm (): Promise<Md2jsxWasmModule> {
     wasmReady = (async () => {
       const entry = `${wasmBaseUrl}md2ast.js`
       const mod = (await import(/* webpackIgnore: true */ entry)) as Md2jsxWasmModule
-      await mod.default()
+      await mod.default(`${wasmBaseUrl}md2ast_bg.wasm`)
       wasmMod = mod
       return mod
     })()
@@ -38,5 +38,8 @@ export async function parseMarkdownInternal (
 ): Promise<MdNode[]> {
   const mod = await loadWasm()
   const json = mod.transpile(markdown, allowedTags)
+  if (typeof json !== 'string' || !json.trim()) {
+    throw new Error('md2ast transpile returned empty output (WASM may have failed to initialize)')
+  }
   return JSON.parse(json) as MdNode[]
 }
