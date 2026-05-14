@@ -49,7 +49,12 @@ export function parsePandocImageAttrBlock (block: string | undefined): { classNa
 }
 
 function escapeJsxAttrValue (s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
+  return s
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
 }
 
 function extraAttrsFromImageParts (jsonQuoted: string | undefined, pandocBlock: string | undefined): string {
@@ -110,14 +115,14 @@ export function transformImageCaptions (md: string): string {
   )
 
   let result = md.replace(imageWithCaption, (match, _alt, url, jsonSingle, jsonDouble, attrs, caption) => {
-    const captionPlain = stripMarkdown(caption).replace(/"/g, '&quot;')
+    const captionPlain = escapeJsxAttrValue(stripMarkdown(caption))
     const safeUrl = typeof url === 'string' ? url : ''
     const extra = extraAttrsFromImageParts(jsonSingle || jsonDouble, attrs)
     return `<PopImage src="${safeUrl}" alt="${captionPlain}"${extra}>${caption}</PopImage>`
   })
 
   result = result.replace(imagePattern, (match, alt, url, jsonSingle, jsonDouble, attrs) => {
-    const safeAlt = typeof alt === 'string' ? alt.replace(/"/g, '&quot;') : ''
+    const safeAlt = escapeJsxAttrValue(typeof alt === 'string' ? alt : '')
     const safeUrl = typeof url === 'string' ? url : ''
     const extra = extraAttrsFromImageParts(jsonSingle || jsonDouble, attrs)
     return `<PopImage src="${safeUrl}" alt="${safeAlt}"${extra} />`

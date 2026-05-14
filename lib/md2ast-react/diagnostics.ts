@@ -189,6 +189,11 @@ export function validateMarkdownSource (
     const trimmed = line.trimEnd()
     // Multi-line HTML (e.g. <iframe …\n  title=…\n/>) is valid; only flag unclosed PascalCase components.
     if (trimmed.includes('<') && !trimmed.includes('>') && /<[A-Z]/.test(trimmed)) {
+      let combined = trimmed
+      for (let j = i + 1; j < lines.length && j < i + 16 && !combined.includes('>'); j++) {
+        combined += '\n' + lines[j].trimEnd()
+      }
+      if (combined.includes('>') || combined.includes('/>')) continue
       const bare = trimmed.match(/<([A-Za-z][A-Za-z0-9-]*)\b/)
       throw new MarkdownCompileError(diag(
         'malformed_tag',
