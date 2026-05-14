@@ -50,6 +50,18 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
         const el = containerRef.current
         if (!el) return
 
+        const syncVisible = () => {
+            const rect = el.getBoundingClientRect()
+            const margin = 200
+            if (rect.bottom >= -margin && rect.top <= window.innerHeight + margin) {
+                setIsVisible(true)
+                return true
+            }
+            return false
+        }
+
+        if (syncVisible()) return
+
         const observer = new IntersectionObserver(
             ([entry]) => {
                 if (entry.isIntersecting) {
@@ -61,6 +73,9 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
         )
 
         observer.observe(el)
+        requestAnimationFrame(() => {
+            if (syncVisible()) observer.disconnect()
+        })
         return () => observer.disconnect()
     }, [priority])
 
