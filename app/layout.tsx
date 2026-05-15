@@ -1,8 +1,9 @@
 'use client'
 
-import React, { Suspense, useEffect } from "react";
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useScrollToTopOnPathnameUnlessHistory } from "@/lib/hooks/useScrollToTopOnPathnameUnlessHistory";
 import { DynamicNav, FloatingDiv, ThemeToggle, Navbar, ImageGalleryProvider, FilesProvider, useFiles, ClientErrorReporter } from "@/components";
 import { RelayServerToast } from "@/components/RelayServerToast";
 import { RelayFooterAttribution } from "@/components/RelayFooterAttribution";
@@ -33,10 +34,7 @@ export default function RootLayout(
 function RootLayoutInner({ children }: { children: React.ReactNode }) {
     const { fileList } = useFiles();
     const pathname = usePathname();
-
-    useEffect(() => {
-        window.scrollTo(0, 0);
-    }, [pathname]);
+    useScrollToTopOnPathnameUnlessHistory(pathname);
 
     return (
         <html lang="en" className="dark font-['Titillium_Web']" suppressHydrationWarning>

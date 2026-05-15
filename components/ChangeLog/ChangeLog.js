@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import { Maximize2, Minimize2 } from 'lucide-react'
 import { useImageGallery } from '@/components/Image/ImageGalleryContext'
 import { buildOptimizedAssetUrl } from '@/lib/relayOptimizedAssetUrl'
@@ -336,7 +337,11 @@ export default function ChangeLog({ target = '_self' }) {
                     {entry.files.map((file, idx) => (
                       <React.Fragment key={`${entryKey(entry, entryIdx)}:${file.path}:${idx}`}>
                         {idx > 0 ? ' | ' : ''}
-                        <a href={file.href} target={target} title={file.path}>{getFileLabel(file.path)}</a>
+                        {/^https?:\/\//i.test(file.href) ? (
+                          <a href={file.href} target={target} rel={target === '_blank' ? 'noopener noreferrer' : undefined} title={file.path}>{getFileLabel(file.path)}</a>
+                        ) : (
+                          <Link href={file.href} title={file.path} target={target} rel={target === '_blank' ? 'noopener noreferrer' : undefined}>{getFileLabel(file.path)}</Link>
+                        )}
                       </React.Fragment>
                     ))}
                   </div>

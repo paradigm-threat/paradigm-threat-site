@@ -109,7 +109,6 @@ export const CatchAllClient = memo(function CatchAllClient() {
     const abortController = new AbortController()
 
     const loadPage = async () => {
-      window.scrollTo(0, 0)
       try {
         setLoading(true)
         setRemoteArticle404(false)
