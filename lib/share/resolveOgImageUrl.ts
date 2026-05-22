@@ -2,13 +2,14 @@
  * OG / share preview image: first markdown image in article body.
  */
 
-import { publicFilesAssetUrl, CANONICAL_SITE_ORIGIN } from '@/lib/canonicalPublicSite'
+import {
+  mirrorRasterOgUrl,
+  CANONICAL_SITE_ORIGIN,
+  OG_SHARE_IMAGE_WIDTH,
+} from '@/lib/canonicalPublicSite'
+import { isRelayOrigin } from '@/lib/relayOptimizedAssetUrl'
 
-/**
- * Max width query (`?w=`) for Open Graph / Twitter card image URLs on the public site.
- * Relay / files route serves a downscaled raster (often WebP), which keeps previews fast.
- */
-export const OG_SHARE_IMAGE_WIDTH = 800
+export { OG_SHARE_IMAGE_WIDTH }
 
 const RASTER_IMAGE_EXT = /\.(apng|png|jpe?g|gif|webp|avif|bmp|ico)$/i
 
@@ -35,19 +36,40 @@ function isCanonicalSiteAbsolute (absoluteUrl: string): boolean {
   }
 }
 
-/** Append `?w=` for raster assets on paradigmthreat.net; SVG and off-site URLs unchanged. */
+/** Repo-relative path from a canonical-site absolute asset URL (strips legacy `/files/` prefix). */
+function relPathFromCanonicalAbsolute (absoluteUrl: string): string {
+  let pathname = pathnameOfAbsoluteOrPath(absoluteUrl)
+  if (pathname.startsWith('/files/timeline/')) {
+    return pathname.slice('/files/timeline/'.length)
+  }
+  if (pathname.startsWith('/files/')) {
+    return pathname.slice('/files/'.length)
+  }
+  return pathname.replace(/^\//, '')
+}
+
+/** Append `?w=` for raster assets on Relay or legacy canonical-site asset paths. */
 export function appendOgShareWidthParam (absoluteUrl: string): string {
   const base = absoluteUrl.trim().split('?')[0]
   if (!base.startsWith('http')) return base
-  if (!isCanonicalSiteAbsolute(base)) return base
   if (!isRasterPathLike(base)) return base
-  try {
-    const u = new URL(base)
-    u.searchParams.set('w', String(OG_SHARE_IMAGE_WIDTH))
-    return u.toString()
-  } catch {
-    return base
+
+  if (isRelayOrigin(base)) {
+    try {
+      const u = new URL(base)
+      u.searchParams.set('w', String(OG_SHARE_IMAGE_WIDTH))
+      return u.toString()
+    } catch {
+      return base
+    }
   }
+
+  if (isCanonicalSiteAbsolute(base)) {
+    const rel = relPathFromCanonicalAbsolute(base)
+    return mirrorRasterOgUrl(rel)
+  }
+
+  return base
 }
 
 /** Extract first markdown image URL: ![alt](url) */
@@ -65,7 +87,7 @@ export function extractFirstImageUrlFromMarkdown (md: string, basePath: string):
   const prefix =
     rootAbsolute ? '' : basePath ? (basePath.endsWith('/') ? basePath : basePath + '/') : ''
   const path = (prefix + src).replace(/\/+/g, '/')
-  return appendOgShareWidthParam(publicFilesAssetUrl(path.replace(/^\//, '')))
+  return mirrorRasterOgUrl(path.replace(/^\//, ''))
 }
 
 export function resolveOgImageUrl (

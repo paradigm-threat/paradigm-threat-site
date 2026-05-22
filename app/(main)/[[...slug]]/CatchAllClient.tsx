@@ -17,7 +17,7 @@ import { ShareLinks, ShareLinksFloating, TextLeafClientShell } from '@/component
 import { useMobileHubTtsChrome } from '@/lib/hooks/useMobileHubTtsChrome'
 import { resolveOgImageUrl } from '@/lib/share/resolveOgImageUrl'
 import { remoteRelay } from '@/lib/remoteRelayStore'
-import { publicFilesAssetUrl } from '@/lib/canonicalPublicSite'
+import { mirrorRasterOgUrl } from '@/lib/canonicalPublicSite'
 
 const DIRECT_IMAGE_EXT = /\.(jpg|jpeg|png|gif|svg|webp|avif|ico)$/i
 const DIRECT_PLAINTEXT_LEAF_EXT = /\.(txt|cs)$/i
@@ -385,7 +385,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
 
   if (directImageLeaf) {
     const listingShareUrl = path ? `/${path}` : '/'
-    const ogForImage = publicFilesAssetUrl(path)
+    const ogForImage = mirrorRasterOgUrl(path)
     return (
       <div className="space-y-12">
         <div className="not-prose mb-6">
@@ -580,8 +580,6 @@ export const CatchAllClient = memo(function CatchAllClient() {
         {directFiles.length === 0 && subDirs.length === 0 ? (
           filesIndexError && !fileList ? null : remoteArticle404 ? (
             <ArticleRemote404Notice
-              notInIndex={article404PathMissingFromIndex}
-              path={path}
               onRetry={() => setArticleRetryKey((k) => k + 1)}
             />
           ) : (

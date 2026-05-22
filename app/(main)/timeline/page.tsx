@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { TimelineProvider, TimelineView } from '@/components/Timeline'
+import { TimelineProvider, TimelineView, RemoteMarkdown } from '@/components/Timeline'
 
 
 export default function TimelinePage() {

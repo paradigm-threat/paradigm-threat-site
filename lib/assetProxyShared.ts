@@ -1,5 +1,5 @@
 /**
- * Shared helpers for /files, /files/timeline, and /export reverse proxies.
+ * Shared helpers for /export reverse proxy (timeline export paths).
  */
 
 export const ASSET_PROXY_HEADER_ALLOW = new Set([

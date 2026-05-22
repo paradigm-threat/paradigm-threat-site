@@ -69,7 +69,6 @@ const withPWA = require('@ducanh2912/next-pwa').default({
           cacheableResponse: { statuses: [0, 200] },
         },
       },
-      // Canonical site proxies: /files/* and /files/timeline/*
       {
         urlPattern: /\/wasm\/md2ast\/.+/i,
         handler: 'CacheFirst',
@@ -80,11 +79,11 @@ const withPWA = require('@ducanh2912/next-pwa').default({
         },
       },
       {
-        urlPattern: /^https:\/\/paradigmthreat\.net\/files\/.+/i,
+        urlPattern: /^https:\/\/[^/]+\.relaygateway\.net\/[^?]+\.(png|jpe?g|gif|webp|svg|avif)(\?.*)?$/i,
         handler: 'StaleWhileRevalidate',
         options: {
-          cacheName: 'pt-files-proxy',
-          expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 },
+          cacheName: 'pt-relay-assets',
+          expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 7 },
           cacheableResponse: { statuses: [0, 200] },
         },
       },

@@ -4,26 +4,12 @@ interface ImagePropsFormatted {
 }
 
 import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
-import { publicFilesAssetUrl, publicTimelineAssetUrl } from '@/lib/canonicalPublicSite'
 import {
     buildLqipOptimizedAssetUrl,
     buildOptimizedAssetUrl,
-    listOptimizedAssetUrls,
 } from '@/lib/relayOptimizedAssetUrl'
 
 const DEFAULT_FILES_BASE_URL = getPrimaryFilesBaseUrl()
-
-/** Canonical https://paradigmthreat.net URLs for high-res (not relay hostnames). */
-function canonicalHighResPublicUrl (pathForAPI: string): string {
-  if (pathForAPI.startsWith('http')) return pathForAPI
-  const [p, ...rest] = pathForAPI.split('?')
-  const q = rest.length ? '?' + rest.join('?') : ''
-  const norm = p.replace(/^\//, '')
-  if (norm.startsWith('media/')) {
-    return publicTimelineAssetUrl(norm) + q
-  }
-  return publicFilesAssetUrl(norm) + q
-}
 
 let cachedIndex: any = null;
 let indexPromise: Promise<any> | null = null;
@@ -31,7 +17,7 @@ let indexPromise: Promise<any> | null = null;
 export async function checkFileExists(path: string): Promise<boolean> {
     try {
         if (!indexPromise) {
-            indexPromise = fetch('/files/index.json')
+            indexPromise = fetch(`${DEFAULT_FILES_BASE_URL}/index.json`)
                 .then(res => res.ok ? res.json() : null)
                 .then(index => {
                     cachedIndex = index;
@@ -51,8 +37,33 @@ export async function checkFileExists(path: string): Promise<boolean> {
 }
 
 /**
+ * Look up LQIP (blur placeholder) from the index tree by image path.
+ * Index structure: index.media["01.before-creation"]["before-creation.png"]._lqip
+ * Path can be "/media/01.before-creation/before-creation.png", "media/01.before-creation/before-creation.png", or full URL
+ */
+export function getLqipFromIndex(index: any, imagePath: string): string | undefined {
+    if (!index || typeof imagePath !== 'string') return undefined
+    let clean = imagePath.split('?')[0]
+    if (clean.startsWith('http')) {
+        try {
+            clean = new URL(clean).pathname
+        } catch {
+            return undefined
+        }
+    }
+    clean = clean.replace(/^\//, '')
+    if (!clean) return undefined
+    const parts = clean.split('/').filter(Boolean)
+    let curr: any = index
+    for (let i = 0; i < parts.length && curr; i++) {
+        curr = curr[parts[i]]
+    }
+    return curr && typeof curr === 'object' && typeof curr._lqip === 'string' ? curr._lqip : undefined
+}
+
+/**
  * Look up intrinsic dimensions (width, height) from the index tree by image path.
- * Used to reserve aspect ratio for the image container before the optimized image loads.
+ * Same path resolution as getLqipFromIndex. Used to reserve aspect ratio for LQIP placeholder.
  */
 export function getDimensionsFromIndex(index: any, imagePath: string): { width: number; height: number } | undefined {
     if (!index || typeof imagePath !== 'string') return undefined
@@ -159,11 +170,9 @@ export function processImageProps(props: any, basePath?: string, filesRootUrl?: 
         delete (finalProps as any).w;
     }
 
-    const fp = finalProps as Record<string, unknown>
-    if (typeof fp.lqip === 'string' && fp.blurDataURL == null) {
-        fp.blurDataURL = fp.lqip
+    if (props.lqip) {
+        finalProps.blurDataURL = props.lqip;
     }
-    delete fp.lqip
 
     // If optimizedSrc is already provided, we assume the props are already processed
     if (props.optimizedSrc && typeof src === 'string') {
@@ -214,17 +223,11 @@ export function processImageProps(props: any, basePath?: string, filesRootUrl?: 
                     : w
                 : 800
 
-        // SVG: direct mirror URL — no raster resize
-        if (isSvg) {
-            finalProps.optimizedSrc = buildOptimizedAssetUrl(pathForAPI)
-            finalProps.width = Number.isFinite(displayWidth) ? displayWidth : 800
-        } else if (w) {
-            finalProps.optimizedSrc = buildOptimizedAssetUrl(pathForAPI, displayWidth)
-            finalProps.width = typeof w === 'string' ? parseInt(w, 10) : displayWidth
-        } else {
-            finalProps.optimizedSrc = buildOptimizedAssetUrl(pathForAPI, 800)
-            finalProps.width = 800
-        }
+        finalProps.optimizedSrc = buildOptimizedAssetUrl(
+            pathForAPI,
+            isSvg ? undefined : displayWidth,
+        )
+        finalProps.width = Number.isFinite(displayWidth) ? displayWidth : 800
 
         const hasAuthorBlur =
             typeof (finalProps as { blurDataURL?: string }).blurDataURL === 'string' &&
@@ -242,9 +245,7 @@ export function processImageProps(props: any, basePath?: string, filesRootUrl?: 
             finalProps.height = Math.round(finalProps.width * (intrinsicHeight / intrinsicWidth));
         }
 
-        // High res for popout (full URL)
-        finalProps.highResSrc = canonicalHighResPublicUrl(pathForAPI);
-        finalProps.mirrorSrcs = listOptimizedAssetUrls(pathForAPI, finalProps.width as number)
+        finalProps.highResSrc = buildOptimizedAssetUrl(pathForAPI, 1600)
 
         return { src: pathForAPI, ...finalProps, title, alt, className } as ImagePropsFormatted;
     }

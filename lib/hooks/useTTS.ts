@@ -205,8 +205,6 @@ export function useTTS() {
     const segmentsRef = useRef<TTSSegment[]>([])
     /** Dedupe Piper `ended` (some browsers fire twice; avoids double advance / replay) */
     const piperEndedDedupeRef = useRef<{ key: string; t: number } | null>(null)
-    /** True after `/api/tts/piper/voices` fetch settles (success or failure) — avoids "no voice" before load */
-    const piperVoicesFetchDoneRef = useRef(false)
 
     /** Request screen wake lock (keeps screen on during playback) */
     const acquireWakeLock = useCallback(async () => {
@@ -390,9 +388,6 @@ export function useTTS() {
                 setAvailablePiperVoices([])
                 setState(prev => ({ ...prev, provider: 'webSpeech' }))
             })
-            .finally(() => {
-                piperVoicesFetchDoneRef.current = true
-            })
 
         return () => { mounted = false }
     }, [])
@@ -552,22 +547,13 @@ export function useTTS() {
             }))
 
             if (!voiceId) {
-                // No voice id yet: either voices still loading, or server returned no voices
-                if (!piperVoicesFetchDoneRef.current) {
-                    setState(prev => ({
-                        ...prev,
-                        error: 'Piper voices are still loading — wait a moment and press play again.',
-                    }))
-                    stop()
-                    return
-                }
+                // No piper voice available — auto-fallback to webSpeech instead of failing
                 console.warn('Piper voice not configured, falling back to Speech API.')
                 providerRef.current = 'webSpeech'
                 setState(prev => ({
                     ...prev,
                     provider: 'webSpeech',
-                    error:
-                        'Piper not available (no voice selected or server returned no voices — set PIPER_API_URLS on the deployment). Switched to Speech API.',
+                    error: 'Piper not available (no voices configured — set PIPER1_VOICES_JSON env var). Switched to Speech API.',
                 }))
                 localStorage.setItem(LS_PROVIDER, 'webSpeech')
                 // Continue below to webSpeech path instead of stopping

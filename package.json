@@ -40,6 +40,7 @@
     "dotenv": "^16.6.1",
     "eslint-config-next": "^16.1.6",
     "framer-motion": "^12.36.0",
+    "gray-matter": "^4.0.3",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.562.0",
     "mime": "^3.0.0",

@@ -1,8 +1,8 @@
 'use client'
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react'
-import { createPortal } from 'react-dom'
 import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
+import { buildOptimizedAssetUrl } from '@/lib/relayOptimizedAssetUrl'
 
 export interface GalleryImage {
     src: string
@@ -19,10 +19,6 @@ export interface ImageGalleryContextType {
     setCurrentIndex: (index: number) => void
     isOpen: boolean
     setIsOpen: (isOpen: boolean) => void
-    /** When set, the overlay shows only this list (e.g. one change-log entry) instead of all registered images. */
-    overrideImages: GalleryImage[] | null
-    openGallery: (items: GalleryImage[], startIndex?: number) => void
-    clearGalleryOverride: () => void
 }
 
 const ImageGalleryContext = createContext<ImageGalleryContextType | undefined>(undefined)
@@ -32,7 +28,6 @@ export function ImageGalleryProvider({ children }: { children: React.ReactNode }
     const [images, setImages] = useState<GalleryImage[]>([])
     const [currentIndex, setCurrentIndex] = useState(-1)
     const [isOpen, setIsOpen] = useState(false)
-    const [overrideImages, setOverrideImages] = useState<GalleryImage[] | null>(null)
 
     // Using a ref to track images to avoid re-renders during registration loop
     const imagesRef = useRef<GalleryImage[]>([])
@@ -53,18 +48,6 @@ export function ImageGalleryProvider({ children }: { children: React.ReactNode }
         setImages([...imagesRef.current])
     }, [])
 
-    const clearGalleryOverride = useCallback(() => {
-        setOverrideImages(null)
-    }, [])
-
-    const openGallery = useCallback((items: GalleryImage[], startIndex = 0) => {
-        const list = items.filter((i): i is GalleryImage => Boolean(i?.src))
-        if (list.length === 0) return
-        setOverrideImages(list)
-        setCurrentIndex(Math.min(Math.max(0, startIndex), list.length - 1))
-        setIsOpen(true)
-    }, [])
-
     const contextValue = useMemo(() => ({
         images,
         registerImage,
@@ -72,11 +55,8 @@ export function ImageGalleryProvider({ children }: { children: React.ReactNode }
         currentIndex,
         setCurrentIndex,
         isOpen,
-        setIsOpen,
-        overrideImages,
-        openGallery,
-        clearGalleryOverride
-    }), [images, registerImage, unregisterImage, currentIndex, isOpen, overrideImages, openGallery, clearGalleryOverride]);
+        setIsOpen
+    }), [images, registerImage, unregisterImage, currentIndex, isOpen]);
 
     return (
         <ImageGalleryContext.Provider value={contextValue}>
@@ -87,127 +67,21 @@ export function ImageGalleryProvider({ children }: { children: React.ReactNode }
 }
 
 import { motion, AnimatePresence } from 'framer-motion'
-import Link from 'next/link'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { checkFileExists } from '@/components/helpers/imageHelper'
-import {
-    CANONICAL_SITE_ORIGIN,
-    publicFilesAssetUrl,
-    publicTimelineAssetUrl,
-} from '@/lib/canonicalPublicSite'
-import { buildOptimizedAssetUrl, isRelayOrigin } from '@/lib/relayOptimizedAssetUrl'
 
 const REPO_IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg)$/i
 
-/** Canonical public URL for the asset (GitLab Pages /files mirror). */
-function pathToCanonicalFilesOrTimelineUrl(pathForAPI: string): string {
-    const norm = pathForAPI.replace(/^\//, '').replace(/\/+/g, '/')
-    if (norm.startsWith('media/')) {
-        return publicTimelineAssetUrl(norm)
-    }
-    return publicFilesAssetUrl(norm)
-}
-
-/**
- * Direct CDN / canonical site URL for opening or sharing the image bytes outside the image API.
- */
-export function galleryDirectPublicAssetUrl(image: GalleryImage): string | null {
-    const hi = typeof image.highResSrc === 'string' ? image.highResSrc.trim() : ''
-    if (hi && /^https?:\/\//i.test(hi)) return hi
-
-    const rawSrc = typeof image.src === 'string' ? image.src : ''
-    if (!rawSrc) return null
-
-    if (/^https?:\/\//i.test(rawSrc)) {
-        try {
-            const u = new URL(rawSrc)
-            if (u.origin === CANONICAL_SITE_ORIGIN) return rawSrc
-            if (isRelayOrigin(rawSrc)) {
-                const pathOnly = u.pathname.replace(/\/+/g, '/').split('?')[0]
-                if (pathOnly.startsWith('/') && REPO_IMAGE_EXT.test(pathOnly)) {
-                    return pathToCanonicalFilesOrTimelineUrl(pathOnly)
-                }
-            }
-        } catch {
-            /* ignore */
-        }
-        return null
-    }
-
-    const pathOnly = rawSrc.split('?')[0]
-
-    if (pathOnly.startsWith('/site/')) {
-        return `${CANONICAL_SITE_ORIGIN}${pathOnly.replace(/\/+/g, '/')}`
-    }
-
-    if (!pathOnly.startsWith('/') || !REPO_IMAGE_EXT.test(pathOnly)) {
-        return null
-    }
-    return pathToCanonicalFilesOrTimelineUrl(pathOnly)
-}
-
-/** Fullscreen gallery `<img src>`: primary mirror + `?w=` for rasters. */
-export function galleryOverlayDisplaySrc (image: GalleryImage): string {
+function galleryDisplaySrc (image: GalleryImage): string {
     const rawSrc = typeof image.src === 'string' ? image.src : ''
     const hi = typeof image.highResSrc === 'string' ? image.highResSrc : ''
     if (!rawSrc) return hi
-    if (rawSrc.startsWith('/site/')) return hi || rawSrc
     if (/^https?:\/\//i.test(rawSrc)) return hi || rawSrc
-
     const pathOnly = rawSrc.split('?')[0]
-    if (!pathOnly.startsWith('/') || !REPO_IMAGE_EXT.test(pathOnly)) {
-        return hi || rawSrc
+    if (pathOnly.startsWith('/') && REPO_IMAGE_EXT.test(pathOnly)) {
+        return buildOptimizedAssetUrl(pathOnly, 1600)
     }
-
-    return buildOptimizedAssetUrl(pathOnly, 1600)
-}
-
-/** Folder segments of a repo-relative path as /search links (matches path-style search URLs). */
-function GallerySrcBreadcrumb({ src }: { src: string }) {
-    if (!src || src.startsWith('http://') || src.startsWith('https://')) {
-        return <span>{src}</span>
-    }
-    const normalized = src.replace(/^\/+/, '').replace(/\/+/g, '/')
-    const parts = normalized.split('/').filter(Boolean)
-    if (parts.length === 0) {
-        return <span>{src}</span>
-    }
-    const last = parts[parts.length - 1]
-    const hasFileExtension = /\.[a-z0-9]{1,12}$/i.test(last)
-    const folderSegments = hasFileExtension ? parts.slice(0, -1) : parts
-    const fileName = hasFileExtension ? last : null
-
-    if (folderSegments.length === 0) {
-        return <span>{src}</span>
-    }
-
-    return (
-        <span className="inline min-w-0">
-            <span className="text-white/40">/</span>
-            {folderSegments.map((seg, i) => {
-                const href =
-                    '/search/' + folderSegments.slice(0, i + 1).map(encodeURIComponent).join('/')
-                return (
-                    <span key={href} className="inline">
-                        {i > 0 && <span className="text-white/40">/</span>}
-                        <Link
-                            href={href}
-                            className="text-white/80 hover:text-white underline-offset-2 hover:underline"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            {seg}
-                        </Link>
-                    </span>
-                )
-            })}
-            {fileName && (
-                <>
-                    <span className="text-white/40">/</span>
-                    <span className="text-white/50">{fileName}</span>
-                </>
-            )}
-        </span>
-    )
+    return hi || rawSrc
 }
 
 /**
@@ -270,16 +144,16 @@ function GalleryImageItem({
                 else if (swipe > 100) goPrev()
             }}
             onClick={(e) => e.stopPropagation()}
-            className={`relative z-10 flex h-full max-h-full min-h-0 w-full max-w-[99vw] ${aspectRatio && aspectRatio < 1 ? 'lg:max-w-[92vw]' : 'lg:max-w-[88vw]'} ${aspectRatio && aspectRatio < 1 ? 'flex-col lg:flex-row' : 'flex-col'} items-center justify-center gap-4 lg:gap-6 overflow-y-auto pointer-events-none`}
-            style={{ willChange: 'transform, opacity' }}
+            className={`relative z-10 max-w-[99vw] ${aspectRatio && aspectRatio < 1 ? 'lg:max-w-[90vw]' : 'lg:max-w-[80vw]'} flex ${aspectRatio && aspectRatio < 1 ? 'flex-col lg:flex-row' : 'flex-col'} items-center justify-center gap-4 lg:gap-6 pointer-events-none`}
+            style={{ willChange: 'transform, opacity', maxHeight: 'calc(100vh - 8rem)' }}
         >
-            <div className="relative flex min-h-0 max-h-full min-w-0 w-full flex-1 items-center justify-center">
+            <div className="relative flex items-center justify-center min-h-[200px] w-full" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element -- gallery overlay: dynamic highResSrc, next/image not used here */}
                 <img
                     ref={imgRef}
-                    src={galleryOverlayDisplaySrc(image)}
-                    className="max-h-full max-w-full object-contain shadow-2xl rounded-lg pointer-events-auto cursor-grab active:cursor-grabbing transition-opacity duration-300"
-                    style={{ opacity: (aspectRatio !== null || isHighResLoaded) ? 1 : 0 }}
+                    src={galleryDisplaySrc(image)}
+                    className="max-w-full object-contain shadow-2xl rounded-lg pointer-events-auto cursor-grab active:cursor-grabbing transition-opacity duration-300"
+                    style={{ opacity: (aspectRatio !== null || isHighResLoaded) ? 1 : 0, maxHeight: 'calc(100vh - 8rem)' }}
                     alt={image.alt}
                     onDragStart={(e) => e.preventDefault()}
                     onLoad={(e) => {
@@ -292,7 +166,7 @@ function GalleryImageItem({
                 />
             </div>
             {displayCaption && (
-                <div className={`shrink-0 text-white/90 font-medium px-4 ${aspectRatio && aspectRatio < 1 ? 'lg:max-w-xs lg:max-h-full lg:text-left' : 'max-w-2xl text-center'} text-shadow-lg pointer-events-auto max-h-[min(28dvh,12rem)] overflow-y-auto lg:max-h-[40vh]`}>
+                <div className={`text-white/90 font-medium px-4 ${aspectRatio && aspectRatio < 1 ? 'lg:max-w-xs lg:text-left' : 'max-w-2xl text-center'} text-shadow-lg pointer-events-auto max-h-[20vh] lg:max-h-full overflow-y-auto`}>
                     {displayCaption}
                 </div>
             )}
@@ -301,47 +175,26 @@ function GalleryImageItem({
 }
 
 export function ImageGalleryOverlay() {
-    const { images, currentIndex, setCurrentIndex, isOpen, setIsOpen, overrideImages, clearGalleryOverride } = useImageGallery()
+    const { images, currentIndex, setCurrentIndex, isOpen, setIsOpen } = useImageGallery()
     const [direction, setDirection] = useState(0)
     const [remoteCaption, setRemoteCaption] = useState<string | null>(null)
-    /** Avoid SSR/client mismatch; portal must mount after hydrate so overlay stacks above site chrome. */
-    const [portalReady, setPortalReady] = useState(false)
-    useEffect(() => {
-        const id = requestAnimationFrame(() => {
-            setPortalReady(true)
-        })
-        return () => cancelAnimationFrame(id)
-    }, [])
 
-    const galleryList = useMemo(
-        () => (overrideImages && overrideImages.length > 0 ? overrideImages : images),
-        [overrideImages, images]
-    )
-
-    const currentImage = galleryList[currentIndex] || null
-
-    const directCdnUrl = useMemo(
-        () => (currentImage ? galleryDirectPublicAssetUrl(currentImage) : null),
-        [currentImage],
-    )
+    const currentImage = images[currentIndex] || null
 
     useEffect(() => {
         // Preload next and previous images
-        if (isOpen && galleryList.length > 1) {
-            const nextIdx = (currentIndex + 1) % galleryList.length;
-            const prevIdx = (currentIndex - 1 + galleryList.length) % galleryList.length;
+        if (isOpen && images.length > 1) {
+            const nextIdx = (currentIndex + 1) % images.length;
+            const prevIdx = (currentIndex - 1 + images.length) % images.length;
 
-            [galleryList[nextIdx], galleryList[prevIdx]].forEach(img => {
+            [images[nextIdx], images[prevIdx]].forEach(img => {
                 if (img) {
-                    const u = galleryOverlayDisplaySrc(img)
-                    if (u) {
-                        const preload = new Image()
-                        preload.src = u
-                    }
+                    const preload = new Image();
+                    preload.src = galleryDisplaySrc(img);
                 }
             });
         }
-    }, [currentIndex, isOpen, currentImage?.src, galleryList])
+    }, [currentIndex, isOpen, currentImage?.src, images])
 
     useEffect(() => {
         if (!isOpen || !currentImage) return
@@ -371,27 +224,26 @@ export function ImageGalleryOverlay() {
 
     const goNext = useCallback((e?: React.MouseEvent | KeyboardEvent) => {
         e?.stopPropagation()
-        if (galleryList.length > 1) {
+        if (images.length > 1) {
             setDirection(1)
-            setCurrentIndex((currentIndex + 1) % galleryList.length)
+            setCurrentIndex((currentIndex + 1) % images.length)
         }
-    }, [currentIndex, galleryList.length, setCurrentIndex])
+    }, [currentIndex, images.length, setCurrentIndex])
 
     const goPrev = useCallback((e?: React.MouseEvent | KeyboardEvent) => {
         e?.stopPropagation()
-        if (galleryList.length > 1) {
+        if (images.length > 1) {
             setDirection(-1)
-            setCurrentIndex((currentIndex - 1 + galleryList.length) % galleryList.length)
+            setCurrentIndex((currentIndex - 1 + images.length) % images.length)
         }
-    }, [currentIndex, galleryList.length, setCurrentIndex])
+    }, [currentIndex, images.length, setCurrentIndex])
 
     const closeFullscreen = useCallback(() => {
         if (window.location.hash.startsWith('#img=')) {
             window.history.replaceState(null, '', window.location.pathname + window.location.search);
         }
-        clearGalleryOverride()
         setIsOpen(false)
-    }, [setIsOpen, clearGalleryOverride])
+    }, [setIsOpen])
 
     useEffect(() => {
         if (!isOpen) return;
@@ -417,9 +269,8 @@ export function ImageGalleryOverlay() {
 
     if (!currentImage) return null
 
-    const prevImage = galleryList.length > 1 ? galleryList[(currentIndex - 1 + galleryList.length) % galleryList.length] : null;
-    const nextImage = galleryList.length > 1 ? galleryList[(currentIndex + 1) % galleryList.length] : null;
-
+    const prevImage = images.length > 1 ? images[(currentIndex - 1 + images.length) % images.length] : null;
+    const nextImage = images.length > 1 ? images[(currentIndex + 1) % images.length] : null;
     const fallbackCaption =
         typeof currentImage.src === 'string'
             ? currentImage.src.split('/').pop()?.split('.')[0]?.replace(/_/g, ' ')
@@ -429,54 +280,31 @@ export function ImageGalleryOverlay() {
             ? currentImage.children
             : remoteCaption || currentImage.alt || fallbackCaption;
 
-    const overlayTree = (
+    return (
         <AnimatePresence>
             {isOpen && (
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-[500] flex flex-col bg-black/95 pt-[env(safe-area-inset-top,0px)] select-none"
+                    className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center pt-16 pb-4 px-2 md:px-12 select-none"
                     onClick={closeFullscreen}
                 >
-                    {/* Header: in document flow so image/caption never sit underneath it */}
-                    <div className="z-50 flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-black/70 px-3 py-3 backdrop-blur-sm md:px-4 md:py-3.5">
-                        <div className="pointer-events-auto flex min-w-0 flex-1 items-baseline gap-2">
-                            <div className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-sm text-white/50">
-                                {currentIndex + 1} / {galleryList.length} —{' '}
-                                {typeof currentImage.src === 'string' ? (
-                                    <GallerySrcBreadcrumb src={currentImage.src} />
-                                ) : (
-                                    currentImage.src
-                                )}
-                            </div>
-                            {directCdnUrl && (
-                                <a
-                                    href={directCdnUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="shrink-0 font-sans text-xs text-sky-400/90 underline-offset-2 hover:text-sky-300 hover:underline"
-                                    title={directCdnUrl}
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    CDN
-                                </a>
-                            )}
+                    {/* Header Controls */}
+                    <div className="absolute top-0 inset-x-0 p-4 flex justify-between items-center z-50">
+                        <div className="text-white/50 text-sm font-mono whitespace-nowrap overflow-hidden text-ellipsis mr-4">
+                            {currentIndex + 1} / {images.length} — {currentImage.src}
                         </div>
                         <button
-                            type="button"
                             onClick={closeFullscreen}
-                            className="pointer-events-auto z-50 -m-2 shrink-0 p-2 text-white/60 transition-colors hover:text-white md:-m-3 md:p-3"
-                            aria-label="Close gallery"
+                            className="text-white/60 hover:text-white transition-colors p-4 -m-4 z-50 pointer-events-auto"
                         >
-                            <X size={28} className="md:h-8 md:w-8" />
+                            <X size={32} />
                         </button>
                     </div>
 
-                    {/* Image stage: bounded height below header and above mobile chrome */}
-                    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                     {/* Navigation Previews */}
-                    <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-between px-4">
+                    <div className="absolute inset-x-0 inset-y-0 pointer-events-none flex items-center justify-between px-4 z-40">
                         {/* Prev Preview */}
                         <div className="w-1/4 h-full flex items-center justify-start overflow-hidden">
                             <AnimatePresence initial={false} custom={direction}>
@@ -561,26 +389,23 @@ export function ImageGalleryOverlay() {
                     </div>
 
                     {/* Main Image */}
-                    <div className="relative z-10 flex h-full min-h-0 w-full items-center justify-center py-2">
-                        <AnimatePresence mode="popLayout" initial={false} custom={direction}>
-                            <GalleryImageItem
-                                key={currentImage.src}
-                                image={currentImage}
-                                direction={direction}
-                                displayCaption={displayCaption}
-                                goNext={goNext}
-                                goPrev={goPrev}
-                            />
-                        </AnimatePresence>
-                    </div>
-                    </div>
+                    <AnimatePresence mode="popLayout" initial={false} custom={direction}>
+                        <GalleryImageItem
+                            key={currentImage.src}
+                            image={currentImage}
+                            direction={direction}
+                            displayCaption={displayCaption}
+                            goNext={goNext}
+                            goPrev={goPrev}
+                        />
+                    </AnimatePresence>
 
-                    {/* Mobile Controls — in flow so they do not cover caption */}
-                    <div className="pointer-events-none z-50 flex shrink-0 justify-center gap-12 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] md:hidden">
-                        <button type="button" onClick={(e) => { e.stopPropagation(); goPrev(); }} className={`pointer-events-auto rounded-full bg-white/10 p-4 text-white backdrop-blur-md ${!prevImage && 'opacity-20'}`} disabled={!prevImage} aria-label="Previous image">
+                    {/* Mobile Controls */}
+                    <div className="absolute bottom-10 left-0 right-0 md:hidden flex justify-center gap-12 pointer-events-none z-50">
+                        <button onClick={(e) => { e.stopPropagation(); goPrev(); }} className={`p-4 rounded-full bg-white/10 backdrop-blur-md text-white pointer-events-auto ${!prevImage && 'opacity-20'}`} disabled={!prevImage}>
                             <ChevronLeft size={32} />
                         </button>
-                        <button type="button" onClick={(e) => { e.stopPropagation(); goNext(); }} className={`pointer-events-auto rounded-full bg-white/10 p-4 text-white backdrop-blur-md ${!nextImage && 'opacity-20'}`} disabled={!nextImage} aria-label="Next image">
+                        <button onClick={(e) => { e.stopPropagation(); goNext(); }} className={`p-4 rounded-full bg-white/10 backdrop-blur-md text-white pointer-events-auto ${!nextImage && 'opacity-20'}`} disabled={!nextImage}>
                             <ChevronRight size={32} />
                         </button>
                     </div>
@@ -588,11 +413,6 @@ export function ImageGalleryOverlay() {
             )}
         </AnimatePresence>
     )
-
-    if (portalReady && typeof document !== 'undefined') {
-        return createPortal(overlayTree, document.body)
-    }
-    return overlayTree
 }
 
 export function useImageGallery() {

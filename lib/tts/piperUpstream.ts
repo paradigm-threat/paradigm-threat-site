@@ -6,45 +6,22 @@
  *     http://host:5590 https://other.example.com
  *   PIPER_API_URL — optional legacy single host (used when PIPER_API_URLS is empty)
  *   PIPER_API_SECRET — optional Bearer token for all hosts (same as .env.local / Vercel)
- *
- * **Vercel:** Project env from the dashboard overrides repo files. If `PIPER_API_URLS` is not set
- * there, `process.env.PIPER_API_URLS` can be empty at runtime even when `.env` exists in git.
- * We fall back to public relay HTTPS bases (Caddy routes `/tts` and `/voices` to clevertree-tts).
  */
-
-/** When env is unset (common on Vercel without dashboard vars), use relay masters on :443. */
-const DEFAULT_PIPER_API_URLS =
-    'https://atlanta2.relaygateway.net https://atlanta3.relaygateway.net https://jp-osa.relaygateway.net'
 
 function normalizeBaseUrl(raw: string): string {
     return raw.trim().replace(/\/+$/, '')
 }
 
-/**
- * Ordered, deduped list: explicit env first, then legacy single host, then public relay defaults.
- * Vercel often sets `PIPER_API_URLS` to `http://…:5590`; serverless cannot reach that port, so listing
- * only env bases yields zero voices. Appending defaults ensures HTTPS :443 relays are always tried.
- */
 export function getPiperApiBaseUrls(): string[] {
-    const explicitList = (process.env.PIPER_API_URLS ?? '').trim()
-    const fromExplicit = explicitList
-        .split(/[\s|]+/)
+    const listRaw = (process.env.PIPER_API_URLS ?? '').trim()
+    const fromList = listRaw
+        .split(/\s+/)
         .map((s) => normalizeBaseUrl(s))
         .filter(Boolean)
-    const legacy = normalizeBaseUrl(process.env.PIPER_API_URL ?? '')
-    const fromDefault = DEFAULT_PIPER_API_URLS.split(/\s+/)
-        .map((s) => normalizeBaseUrl(s))
-        .filter(Boolean)
+    if (fromList.length > 0) return fromList
 
-    const seen = new Set<string>()
-    const out: string[] = []
-    for (const u of [...fromExplicit, ...(legacy ? [legacy] : []), ...fromDefault]) {
-        if (!seen.has(u)) {
-            seen.add(u)
-            out.push(u)
-        }
-    }
-    return out
+    const single = normalizeBaseUrl(process.env.PIPER_API_URL ?? '')
+    return single ? [single] : []
 }
 
 export function getPiperApiSecret(): string {

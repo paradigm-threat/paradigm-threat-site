@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import { ArticleNav, ShareLinks, ShareLinksFloating } from '@/components'
 import { ArticleTTSProvider } from '@/components/ArticleTTS/ArticleTTSProvider'
 import { ArticleTTSOverlay } from '@/components/ArticleTTS/ArticleTTSOverlay'
-import { publicFilesAssetUrl } from '@/lib/canonicalPublicSite'
+import { mirrorFilesAssetUrl } from '@/lib/canonicalPublicSite'
 import { shouldPersistVisit } from '@/lib/visitResumeStorage'
 import { useMobileHubTtsChrome } from '@/lib/hooks/useMobileHubTtsChrome'
 
@@ -35,7 +35,7 @@ export function TextLeafClientShell ({ articlePath, title, body }: TextLeafClien
   const { suppressOverlay } = useMobileHubTtsChrome()
 
   const shareUrl = articlePath ? `/${articlePath}` : '/'
-  const rawUrl = publicFilesAssetUrl(articlePath)
+  const rawUrl = mirrorFilesAssetUrl(articlePath)
   const basePath = useMemo(
     () => (articlePath.includes('/') ? articlePath.split('/').slice(0, -1).join('/') : ''),
     [articlePath],

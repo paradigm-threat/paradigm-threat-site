@@ -10,7 +10,7 @@ import { useClientClock } from './useClientClock'
 import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
 import { remoteRelay } from '@/lib/remoteRelayStore'
 import { firstTimelineOgMediaPath } from '@/lib/timelineMedia'
-import { publicTimelineAssetUrl } from '@/lib/canonicalPublicSite'
+import { mirrorTimelineAssetUrl } from '@/lib/canonicalPublicSite'
 
 /** H1 date prefix: only when title begins with formatted range + em dash (avoids duplicating e.g. `1421 CE — Title`). */
 function getHeaderDatePrefixInfo(entry: TimelineEntry): {
@@ -84,7 +84,7 @@ export function MarkdownCarousel({
   const timelineOgImageUrl = currentEntry
     ? (() => {
         const ogPath = firstTimelineOgMediaPath(currentEntry.media)
-        return ogPath ? publicTimelineAssetUrl(ogPath.replace(/^\/+/, '')) : undefined
+        return ogPath ? mirrorTimelineAssetUrl(ogPath.replace(/^\/+/, '')) : undefined
       })()
     : undefined
 

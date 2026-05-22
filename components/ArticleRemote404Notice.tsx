@@ -1,12 +1,8 @@
 'use client'
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React from 'react'
 import Link from 'next/link'
 import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
-import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
-import { filterEntriesByPathQueries, hrefForSearchQuery } from '@/lib/pathSearchQuery'
-import { indexedFilesDirectlyUnderDirectory, parentDirectoryFromContentPath } from '@/lib/indexSiblingEntries'
-import { SearchResultLinks } from '@/components/search'
 
 const CENSORSHIP_IMAGES = [
   'influence/censorship/github-ban.png',
@@ -27,151 +23,43 @@ function filesAssetUrl(relativePath: string): string {
 export interface ArticleRemote404NoticeProps {
   /** Refetch this route’s article from the API (and re-run directory resolution). */
   onRetry?: () => void
-  /** URL path is absent from index.json (vs indexed file missing on mirrors). */
-  notInIndex?: boolean
-  /** Current article path (no leading slash) for path-derived search. */
-  path?: string
-}
-
-function PathSearchSuggestions({ path }: { path: string }) {
-  const [entries, setEntries] = useState<IndexedPathEntry[] | null>(null)
-  const [loadErr, setLoadErr] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    let cancelled = false
-    queueMicrotask(() => {
-      if (!cancelled) {
-        setLoading(true)
-        setLoadErr(null)
-      }
-    })
-    fetch('/api/search-index')
-      .then(async (res) => {
-        if (!res.ok) throw new Error('search index unavailable')
-        return res.json() as Promise<IndexedPathEntry[] | { error?: string }>
-      })
-      .then((payload) => {
-        if (cancelled) return
-        if (!Array.isArray(payload)) setLoadErr('Could not load search index')
-        else setEntries(payload)
-      })
-      .catch(() => {
-        if (!cancelled) setLoadErr('Could not load search index')
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const parentDir = useMemo(() => parentDirectoryFromContentPath(path), [path])
-
-  const siblingFiles = useMemo(() => {
-    if (!entries) return [] as IndexedPathEntry[]
-    return indexedFilesDirectlyUnderDirectory(entries, parentDir)
-  }, [entries, parentDir])
-
-  const { results, queryUsed, linkQuery } = useMemo(() => {
-    if (!entries) {
-      return { results: [] as IndexedPathEntry[], queryUsed: '', linkQuery: '' }
-    }
-    return filterEntriesByPathQueries(entries, path)
-  }, [entries, path])
-
-  if (loading) {
-    return (
-      <p className="text-sm text-slate-500 dark:text-slate-400" aria-live="polite">
-        Loading path-based suggestions…
-      </p>
-    )
-  }
-  if (loadErr) return null
-
-  const searchHref = hrefForSearchQuery(linkQuery)
-
-  return (
-    <div className="space-y-4 pt-1 border-t border-slate-200/80 dark:border-slate-600/80 mt-4">
-      {siblingFiles.length > 0 ? (
-        <div className="space-y-2">
-          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Files in this folder</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            From <span className="font-mono text-slate-600 dark:text-slate-300">{parentDir}/</span>
-            {parentDir ? (
-              <>
-                {' '}
-                ·{' '}
-                <Link
-                  href={`/${parentDir}`}
-                  className="font-medium text-blue-600 dark:text-blue-400 hover:underline"
-                >
-                  Open folder
-                </Link>
-              </>
-            ) : null}
-          </p>
-          <div className="max-h-72 overflow-y-auto pr-1">
-            <SearchResultLinks entries={siblingFiles} maxItems={50} className="grid gap-2" />
-          </div>
-        </div>
-      ) : null}
-
-      <div className={siblingFiles.length > 0 ? 'space-y-3 pt-2 border-t border-slate-200/80 dark:border-slate-600/80' : 'space-y-3'}>
-        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-          Possible matches from your path
-        </h3>
-      <p className="text-xs text-slate-500 dark:text-slate-400">
-        Path tokens were matched against the same index as site search (any token can match; more matches rank
-        higher)
-        {queryUsed ? (
-          <>
-            {' '}
-            — tokens:{' '}
-            <span className="font-mono text-slate-600 dark:text-slate-300">{queryUsed}</span>
-            {results.length === 0 ? '; try the full search page' : ''}.
-          </>
-        ) : (
-          '.'
-        )}
-      </p>
-      {results.length > 0 ? (
-        <div className="max-h-72 overflow-y-auto pr-1 space-y-2">
-          <SearchResultLinks entries={results} maxItems={15} className="grid gap-2" />
-        </div>
-      ) : (
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          No indexed files matched after trying narrower keywords from this path.
-        </p>
-      )}
-        <div>
-          <Link
-            href={searchHref}
-            className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            Open full search
-          </Link>
-        </div>
-      </div>
-    </div>
-  )
 }
 
 /**
  * Shown when the article API returns 404 (remote markdown/images unavailable).
  * Not used for directory listings or non-404 errors.
  */
-export function ArticleRemote404Notice({
-  onRetry,
-  notInIndex = false,
-  path = '',
-}: ArticleRemote404NoticeProps) {
+export function ArticleRemote404Notice({ onRetry }: ArticleRemote404NoticeProps) {
   return (
-    <div className="selectable-content py-10 space-y-8 text-left max-w-2xl mx-auto">
+    <div className="py-10 space-y-8 text-left max-w-2xl mx-auto">
       <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-900/60 p-6 space-y-4 text-slate-800 dark:text-slate-200">
         <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Content unavailable (404)</h2>
-        {notInIndex && path ? <PathSearchSuggestions path={path} /> : null}
+        <p className="text-sm leading-relaxed">
+          I keep seeing my material flagged for abuse by hosts and intermediaries—often with no notice, no letter, and
+          no explanation. So far that pattern has shown up on every network I&apos;ve tried, without exception.
+        </p>
+        <p className="text-sm leading-relaxed">
+          A 404 here usually means the static file never reached your browser: throttling, opaque blocks, or silent
+          takedowns—not that I got the path wrong in the repo.
+        </p>
+        <p className="text-sm leading-relaxed">
+          Honestly, the censorship has been a constant weathervane for which direction I should take next. As far as the
+          technical challenges go, I love them—please, bring them on. I&apos;m not going to run out of IP addresses
+          anytime soon, and it really doesn&apos;t look as if the people trying to contain this have many tricks left in
+          the bag.
+        </p>
+        <p className="text-sm leading-relaxed">
+          Everything seems to point to me being closer than ever to some sort of real breakthrough.
+          If that&apos;s what they&apos;re trying to avoid, they&apos;re not doing a good enough job. And by
+          &quot;they,&quot; I mean you—the reader—if you&apos;re one of them.
+        </p>
+        <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+          I&apos;m moving toward self-hosted files; leaning on a single cloud edge is fragile when the edge simply stops
+          answering. Development and publishing now run on GitLab. In the past, the GitLab CEO has reportedly said the
+          company intends to &quot;continue to work with clients regardless of their political beliefs&quot;—I&apos;m
+          not treating any host as a friend, but that line is one reason GitLab is the forge while I sort out my own
+          hosting.
+        </p>
         <div className="flex flex-wrap items-center gap-3 pt-2">
           {onRetry ? (
             <button
@@ -190,6 +78,44 @@ export function ArticleRemote404Notice({
               Retry (reload)
             </button>
           )}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          Restriction screenshots (archived; GitLab file links)
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {CENSORSHIP_IMAGES.map((src, i) => (
+            <div
+              key={src}
+              className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-100 dark:bg-slate-800"
+            >
+              <a
+                href={GITLAB_BLOB_URLS[i]}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block hover:opacity-95 transition-opacity"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={filesAssetUrl(src)}
+                  alt={`Host restriction screenshot ${i + 1}`}
+                  className="w-full h-auto object-contain max-h-64 bg-black/5 dark:bg-black/20"
+                />
+              </a>
+              <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-700">
+                <a
+                  href={GITLAB_BLOB_URLS[i]}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline break-all"
+                >
+                  {GITLAB_BLOB_URLS[i]}
+                </a>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

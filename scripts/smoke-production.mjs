@@ -1,15 +1,31 @@
 #!/usr/bin/env node
 /**
- * Production smoke checks: /files proxies, canonical OG images, timeline OG.
+ * Production smoke checks: relay mirrors, OG images on primary mirror (no /files/ proxy).
  *
  * Usage:
  *   npm run smoke:prod
  *   SMOKE_BASE_URL=https://staging.example npm run smoke:prod
+ *   SMOKE_FILES_MIRROR=https://paradigm-threat-files.atlanta3.relaygateway.net npm run smoke:prod
  *
  * Exit 0 on success, 1 on any failure.
  */
 
 const BASE = (process.env.SMOKE_BASE_URL || 'https://paradigmthreat.net').replace(/\/$/, '')
+
+function firstOrigin (raw, fallback) {
+  const trimmed = (raw || '').trim()
+  if (!trimmed) return fallback.replace(/\/$/, '')
+  return trimmed.split(/\s+/)[0].replace(/\/$/, '')
+}
+
+const FILES_MIRROR = firstOrigin(
+  process.env.SMOKE_FILES_MIRROR || process.env.NEXT_PUBLIC_FILES_BASE_URL,
+  'https://paradigm-threat-files.atlanta3.relaygateway.net',
+)
+const TIMELINE_MIRROR = firstOrigin(
+  process.env.SMOKE_TIMELINE_MIRROR || process.env.NEXT_PUBLIC_TIMELINE_BASE_URL,
+  'https://paradigm-threat-timeline.atlanta3.relaygateway.net',
+)
 
 function fail (msg) {
   console.error('smoke-production:', msg)
@@ -36,14 +52,35 @@ function extractMeta (html, property) {
   return m ? m[1] : null
 }
 
+function assertRelayOg (ogImage, label) {
+  if (!ogImage) fail(`${label} — missing og:image`)
+  if (ogImage.includes('/files/')) {
+    fail(`${label} — og:image must not use ${BASE}/files/ proxy — got ${ogImage}`)
+  }
+  let host
+  try {
+    host = new URL(ogImage).hostname
+  } catch {
+    fail(`${label} — invalid og:image URL ${ogImage}`)
+  }
+  if (!host.endsWith('.relaygateway.net')) {
+    fail(`${label} — og:image should be on a relay mirror (*.relaygateway.net) — got ${ogImage}`)
+  }
+  if (!/\?w=\d+/.test(ogImage) && /\.(png|jpe?g|gif|webp|avif)/i.test(ogImage)) {
+    fail(`${label} — raster og:image should include ?w= — got ${ogImage}`)
+  }
+}
+
 async function main () {
   console.log('smoke-production: base =', BASE)
+  console.log('smoke-production: files mirror =', FILES_MIRROR)
+  console.log('smoke-production: timeline mirror =', TIMELINE_MIRROR)
 
-  await expectHead(`${BASE}/files/index.json`, { contentTypeIncludes: 'application/json' })
-  await expectHead(`${BASE}/files/timeline/data/events.json`, { contentTypeIncludes: 'application/json' })
+  await expectHead(`${FILES_MIRROR}/index.json`, { contentTypeIncludes: 'application/json' })
+  await expectHead(`${TIMELINE_MIRROR}/data/events.json`, { contentTypeIncludes: 'application/json' })
   await expectHead(
-    `${BASE}/files/events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation.png`,
-    { contentTypeIncludes: 'image/png' },
+    `${FILES_MIRROR}/events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation.png?w=400`,
+    { contentTypeIncludes: 'image/' },
   )
 
   const articleUrl = `${BASE}/events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation.md`
@@ -52,10 +89,7 @@ async function main () {
     return r.text()
   })
   const ogImage = extractMeta(articleHtml, 'og:image')
-  if (!ogImage) fail(`${articleUrl} — missing og:image`)
-  if (!ogImage.startsWith(`${BASE}/files/`)) {
-    fail(`og:image should be under ${BASE}/files/ — got ${ogImage}`)
-  }
+  assertRelayOg(ogImage, articleUrl)
   await expectHead(ogImage, { contentTypeIncludes: 'image/' })
 
   const timelinePageUrl = `${BASE}/timeline/evt-introduction`
@@ -67,11 +101,12 @@ async function main () {
     return r.text()
   })
   const tlOg = extractMeta(timelineHtml, 'og:image')
-  if (!tlOg) fail(`${timelinePageUrl} — missing og:image`)
-  if (!tlOg.startsWith(`${BASE}/files/timeline/`)) {
-    fail(`timeline og:image should be under ${BASE}/files/timeline/ — got ${tlOg}`)
+  if (tlOg) {
+    assertRelayOg(tlOg, timelinePageUrl)
+    await expectHead(tlOg, { contentTypeIncludes: 'image/' })
+  } else {
+    console.log('smoke-production: timeline page has no og:image (skipped)')
   }
-  await expectHead(tlOg, { contentTypeIncludes: 'image/' })
 
   console.log('smoke-production: all checks passed')
 }

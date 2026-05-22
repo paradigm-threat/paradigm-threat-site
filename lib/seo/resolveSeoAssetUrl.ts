@@ -1,8 +1,11 @@
-import { publicFilesAssetUrl } from '@/lib/canonicalPublicSite'
+import { mirrorFilesAssetUrl } from '@/lib/canonicalPublicSite'
+import { buildOptimizedAssetUrl } from '@/lib/relayOptimizedAssetUrl'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://paradigmthreat.net'
 
-/** Resolve markdown image/link paths to canonical site URLs for crawlers. */
+const RASTER_EXT = /\.(apng|png|jpe?g|gif|webp|avif|bmp|ico)$/i
+
+/** Resolve markdown image/link paths to primary mirror URLs for crawlers. */
 export function resolveSeoAssetUrl (href: string, basePath: string): string {
   const raw = href.trim()
   if (!raw || raw.startsWith('#') || raw.startsWith('mailto:') || raw.startsWith('tel:')) return raw
@@ -20,7 +23,11 @@ export function resolveSeoAssetUrl (href: string, basePath: string): string {
       : ''
 
   const joined = `${prefix}${path}`.replace(/\/+/g, '/').replace(/^\//, '')
-  return publicFilesAssetUrl(joined)
+  const pathForApi = `/${joined}`
+  if (RASTER_EXT.test(joined)) {
+    return buildOptimizedAssetUrl(pathForApi)
+  }
+  return mirrorFilesAssetUrl(joined)
 }
 
 export function resolveSeoPageUrl (articlePath: string): string {

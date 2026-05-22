@@ -1,30 +1,57 @@
 import assert from 'node:assert/strict'
-import { describe, it } from 'node:test'
+import { describe, it, before, after } from 'node:test'
 
 describe('resolveOgImageUrl / appendOgShareWidthParam', () => {
-  it('adds ?w= to first relative raster under /files/', async () => {
+  const prevFiles = process.env.NEXT_PUBLIC_FILES_BASE_URL
+
+  before(() => {
+    process.env.NEXT_PUBLIC_FILES_BASE_URL =
+      'https://paradigm-threat-files.atlanta3.relaygateway.net'
+  })
+
+  after(() => {
+    if (prevFiles === undefined) delete process.env.NEXT_PUBLIC_FILES_BASE_URL
+    else process.env.NEXT_PUBLIC_FILES_BASE_URL = prevFiles
+  })
+
+  it('adds ?w= to first relative raster on primary files mirror', async () => {
     const { extractFirstImageUrlFromMarkdown, OG_SHARE_IMAGE_WIDTH } = await import('./resolveOgImageUrl.ts')
     const md = '![x](hero.png)'
     const url = extractFirstImageUrlFromMarkdown(md, 'governance/war')
     assert.equal(
       url,
-      `https://paradigmthreat.net/files/governance/war/hero.png?w=${OG_SHARE_IMAGE_WIDTH}`,
+      `https://paradigm-threat-files.atlanta3.relaygateway.net/governance/war/hero.png?w=${OG_SHARE_IMAGE_WIDTH}`,
     )
+    assert.doesNotMatch(url, /\/files\//)
   })
 
-  it('adds ?w= to same-origin absolute raster URLs', async () => {
+  it('maps legacy /files/ absolute URLs to mirror + w', async () => {
     const { appendOgShareWidthParam, OG_SHARE_IMAGE_WIDTH } = await import('./resolveOgImageUrl.ts')
     assert.equal(
-      appendOgShareWidthParam('https://paradigmthreat.net/governance/war/mission-accomplished-again-iran-2026.png'),
-      `https://paradigmthreat.net/governance/war/mission-accomplished-again-iran-2026.png?w=${OG_SHARE_IMAGE_WIDTH}`,
+      appendOgShareWidthParam(
+        'https://paradigmthreat.net/files/governance/war/hero.png',
+      ),
+      `https://paradigm-threat-files.atlanta3.relaygateway.net/governance/war/hero.png?w=${OG_SHARE_IMAGE_WIDTH}`,
     )
   })
 
-  it('does not add ?w= to SVG on canonical site', async () => {
+  it('maps same-origin absolute raster paths to mirror', async () => {
+    const { appendOgShareWidthParam, OG_SHARE_IMAGE_WIDTH } = await import('./resolveOgImageUrl.ts')
+    assert.equal(
+      appendOgShareWidthParam(
+        'https://paradigmthreat.net/governance/war/mission-accomplished-again-iran-2026.png',
+      ),
+      `https://paradigm-threat-files.atlanta3.relaygateway.net/governance/war/mission-accomplished-again-iran-2026.png?w=${OG_SHARE_IMAGE_WIDTH}`,
+    )
+  })
+
+  it('does not add ?w= to SVG on mirror', async () => {
     const { appendOgShareWidthParam } = await import('./resolveOgImageUrl.ts')
     assert.equal(
-      appendOgShareWidthParam('https://paradigmthreat.net/files/site/favicon.svg'),
-      'https://paradigmthreat.net/files/site/favicon.svg',
+      appendOgShareWidthParam(
+        'https://paradigm-threat-files.atlanta3.relaygateway.net/site/favicon.svg',
+      ),
+      'https://paradigm-threat-files.atlanta3.relaygateway.net/site/favicon.svg',
     )
   })
 

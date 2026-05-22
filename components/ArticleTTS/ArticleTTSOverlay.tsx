@@ -1,22 +1,10 @@
 'use client'
 
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import React, { useState } from 'react'
 import { Play, Pause, Square, ChevronUp, Settings2, X } from 'lucide-react'
 import type { TTSState, SubtitleMode, PiperVoice, TTSProvider } from '@/lib/hooks/useTTS'
-import { useBottomChrome } from '@/lib/BottomChromeContext'
 
 const RATES = [0.75, 1.0, 1.25, 1.5, 2.0]
-
-/** Range styling: larger thumb/track for touch; used with onInput + onChange for live preview while dragging. */
-const seekRangeClassName =
-  'h-4 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-white/15 accent-indigo-500 ' +
-  '[&::-webkit-slider-runnable-track]:h-2 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-white/10 ' +
-  '[&::-webkit-slider-thumb]:mt-[-6px] [&::-webkit-slider-thumb]:h-7 [&::-webkit-slider-thumb]:w-7 [&::-webkit-slider-thumb]:cursor-pointer ' +
-  '[&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-500 ' +
-  '[&::-webkit-slider-thumb]:shadow-md ' +
-  '[&::-moz-range-track]:h-2 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-white/10 ' +
-  '[&::-moz-range-thumb]:h-7 [&::-moz-range-thumb]:w-7 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:rounded-full ' +
-  '[&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-indigo-500'
 
 function getPiperVoiceOptionLabel(voice: PiperVoice): string {
   if (voice.name?.trim()) return voice.name.trim()
@@ -52,6 +40,8 @@ export interface ArticleTTSOverlayProps {
   onSwitchToSpeechAndResume?: () => void
   onScrollToTop: () => void
   isScrolled: boolean
+  /** Merged onto the fixed wrapper (e.g. mobile hub scroll gate). */
+  overlayContainerClassName?: string
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -79,62 +69,16 @@ export function ArticleTTSOverlay({
   onSwitchToSpeechAndResume,
   onScrollToTop,
   isScrolled,
+  overlayContainerClassName = '',
   onSeekToSentence,
   sentences,
   currentSentenceIndex,
   onRetry,
 }: ArticleTTSOverlayProps) {
-  const rootRef = useRef<HTMLDivElement>(null)
-  const transcriptScrollRef = useRef<HTMLDivElement>(null)
-  const activeTranscriptLineRef = useRef<HTMLParagraphElement>(null)
-  const { isHub, setTtsDockHeightPx } = useBottomChrome()
   const [expanded, setExpanded] = useState(false)
   const [seekValue, setSeekValue] = useState<number | null>(null)
-
-  const onSeekSliderMove = (e: React.SyntheticEvent<HTMLInputElement>) => {
-    setSeekValue(parseInt(e.currentTarget.value, 10))
-  }
-
-  useLayoutEffect(() => {
-    if (!isHub) {
-      setTtsDockHeightPx(0)
-      return
-    }
-    const el = rootRef.current
-    if (!el) return
-
-    const publish = () => {
-      const rect = el.getBoundingClientRect()
-      setTtsDockHeightPx(Math.ceil(window.innerHeight - rect.top))
-    }
-
-    const ro = new ResizeObserver(publish)
-    ro.observe(el)
-    window.addEventListener('resize', publish)
-    publish()
-
-    return () => {
-      ro.disconnect()
-      window.removeEventListener('resize', publish)
-      setTtsDockHeightPx(0)
-    }
-  }, [isHub, setTtsDockHeightPx])
   const totalSentences = sentences.length
   const displayIndex = seekValue !== null ? seekValue : currentSentenceIndex
-  const displaySentenceIdx = clamp(displayIndex, 0, Math.max(0, totalSentences - 1))
-
-  /** Keep the active line visible inside the transcript panel only (no document scroll). */
-  useEffect(() => {
-    if (ttsState.subtitleMode !== 'scroll' || totalSentences === 0) return
-    const container = transcriptScrollRef.current
-    const el = activeTranscriptLineRef.current
-    if (!container || !el) return
-    const cr = container.getBoundingClientRect()
-    const er = el.getBoundingClientRect()
-    const elTopRelative = er.top - cr.top + container.scrollTop
-    const nextTop = elTopRelative - container.clientHeight / 2 + el.clientHeight / 2
-    container.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' })
-  }, [displaySentenceIdx, ttsState.subtitleMode, totalSentences])
 
   const filteredVoices = availableVoices
     .filter(v => ttsState.langFilter === 'all' || v.lang.startsWith(ttsState.langFilter))
@@ -142,26 +86,9 @@ export function ArticleTTSOverlay({
 
   const filteredPiperVoices = availablePiperVoices
 
-  /** Panel width: seek needs a wide bar; expanded settings need room below — but the top transport row only stretches when the seek slider is present. */
-  const panelNeedsFullWidth = totalSentences > 0 || expanded
-  const transportRowNeedsFullWidth = totalSentences > 0
-  /** With sentences, the seek uses flex-1 on the same row as buttons — when settings are open that reads as a hollow gap; move seek to a second row. */
-  const seekOnOwnRow = expanded && totalSentences > 0
-  /** Before first play, `sentences` is still empty but the panel is wide when expanded — pin the transport cluster to the trailing edge. */
-  const transportClusterEnd = seekOnOwnRow || (expanded && totalSentences === 0)
-  const transportRowFullWidth = seekOnOwnRow || transportRowNeedsFullWidth || (expanded && totalSentences === 0)
-
-  const transcriptWidthClass = panelNeedsFullWidth
-    ? 'min-w-0 w-full max-w-full'
-    : 'mx-auto box-content w-fit max-w-[min(100%,100vw-0.5rem)] lg:mx-0'
-
   return (
     <div
-      ref={rootRef}
-      className={`fixed bottom-0 z-50 flex flex-col gap-1.5 box-border max-w-[100vw] px-1 sm:px-0 lg:bottom-8 lg:px-0 ${panelNeedsFullWidth
-        ? 'left-0 right-0 w-full lg:left-auto lg:right-8 lg:w-full lg:max-w-md'
-        : 'left-0 right-0 w-full lg:left-auto lg:right-8 lg:w-max lg:max-w-full'
-        }`}
+      className={`fixed bottom-0 right-0 left-0 md:left-auto md:right-8 md:bottom-8 md:max-w-md z-50 ${overlayContainerClassName}`.trim()}
     >
       {/* Error banner */}
       {ttsState.error && (
@@ -199,140 +126,54 @@ export function ArticleTTSOverlay({
         </div>
       )}
 
-      {totalSentences > 0 && (
-        <div className={transcriptWidthClass}>
-          <div className="overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900/95 shadow-xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95">
-            {ttsState.subtitleMode === 'caption' ? (
-              <div className="max-h-[min(28vh,14rem)] overflow-y-auto px-3 py-2.5 sm:px-4 sm:py-3">
-                <p className="text-sm sm:text-base leading-relaxed text-slate-100">
-                  {sentences[displaySentenceIdx] ?? ''}
-                </p>
-              </div>
-            ) : (
-              <div
-                ref={transcriptScrollRef}
-                className="max-h-[min(28vh,14rem)] overflow-y-auto px-3 py-2 sm:px-4 sm:py-2.5 scroll-smooth"
+      {/* Main overlay panel */}
+      <div className="bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md border border-slate-700/50 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
+        {/* Transport + Back to top row */}
+        <div className="flex items-center gap-2 p-3">
+          {ttsState.sentences.length > 0 ? (
+            <>
+              <button
+                onClick={ttsState.isPlaying ? onPause : () => { onScrollToTop(); onPlay(); }}
+                className="w-14 h-14 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-lg transition-all hover:scale-105"
+                aria-label={ttsState.isPlaying ? 'Pause' : 'Play'}
               >
-                {sentences.map((s, i) => (
-                  <p
-                    key={i}
-                    ref={i === displaySentenceIdx ? activeTranscriptLineRef : undefined}
-                    className={`text-sm sm:text-base leading-relaxed mb-1.5 last:mb-0 transition-colors duration-200 ${i === displaySentenceIdx
-                      ? 'text-white font-semibold'
-                      : i < displaySentenceIdx
-                        ? 'text-slate-500'
-                        : 'text-slate-400'
-                      }`}
-                  >
-                    {s}
-                  </p>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Main overlay panel — full width only when seek needs room; otherwise hug controls */}
-      <div
-        className={`overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900/95 shadow-2xl backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95 ${transcriptWidthClass}`}
-      >
-        {/* Transport + seek: inline seek only when settings collapsed; when expanded, seek on its own row so flex-1 does not hollow the row. */}
-        <div
-          className={`min-w-0 p-2 sm:p-3 ${seekOnOwnRow ? 'flex w-full flex-col gap-2' : ''} ${!transportRowFullWidth && panelNeedsFullWidth ? 'text-right' : ''}`}
-        >
-          <div
-            className={`min-w-0 flex-wrap items-center gap-1.5 sm:gap-2 ${transportRowFullWidth ? 'flex w-full' : 'inline-flex max-w-full'} ${transportClusterEnd ? 'justify-end' : ''}`}
-          >
-            <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-              {ttsState.sentences.length > 0 ? (
-                <>
-                  <button
-                    onClick={ttsState.isPlaying ? onPause : () => { onPlay(); }}
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg transition-all hover:scale-105 hover:bg-indigo-500 sm:h-14 sm:w-14"
-                    aria-label={ttsState.isPlaying ? 'Pause' : 'Play'}
-                  >
-                    {ttsState.isPlaying ? <Pause size={24} /> : <Play size={24} fill="currentColor" className="ml-1" />}
-                  </button>
-                  <button
-                    onClick={onStop}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 sm:h-12 sm:w-12"
-                    aria-label="Stop"
-                  >
-                    <Square size={18} fill="currentColor" />
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => { onPlay(); }}
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg transition-all hover:scale-105 hover:bg-indigo-500 sm:h-14 sm:w-14"
-                  aria-label="Play article"
-                >
-                  <Play size={24} fill="currentColor" className="ml-1" />
-                </button>
-              )}
-              {isScrolled && (
-                <button
-                  onClick={onScrollToTop}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 sm:h-12 sm:w-12"
-                  aria-label="Back to top"
-                >
-                  <ChevronUp size={20} />
-                </button>
-              )}
-            </div>
-
-            {totalSentences > 0 && !seekOnOwnRow && (
-              <div className="flex min-h-[44px] min-w-0 flex-1 items-center gap-2">
-                <input
-                  type="range"
-                  min={0}
-                  max={totalSentences - 1}
-                  step={1}
-                  value={clamp(displayIndex, 0, totalSentences - 1)}
-                  onChange={onSeekSliderMove}
-                  onInput={onSeekSliderMove}
-                  onPointerDown={() => setSeekValue(displayIndex)}
-                  onPointerUp={() => {
-                    if (seekValue !== null) {
-                      onSeekToSentence(seekValue)
-                      setSeekValue(null)
-                    }
-                  }}
-                  onTouchEnd={() => {
-                    if (seekValue !== null) {
-                      onSeekToSentence(seekValue)
-                      setSeekValue(null)
-                    }
-                  }}
-                  className={seekRangeClassName}
-                  aria-label="Seek position in article"
-                />
-                <span className="shrink-0 text-xs tabular-nums text-slate-400">
-                  {displayIndex + 1} / {totalSentences}
-                </span>
-              </div>
-            )}
-
+                {ttsState.isPlaying ? <Pause size={24} /> : <Play size={24} fill="currentColor" className="ml-1" />}
+              </button>
+              <button
+                onClick={onStop}
+                className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"
+                aria-label="Stop"
+              >
+                <Square size={18} fill="currentColor" />
+              </button>
+            </>
+          ) : (
             <button
-              onClick={() => setExpanded(!expanded)}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${expanded ? 'bg-indigo-600/30 text-indigo-400' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}
-              aria-label="TTS settings"
-              aria-expanded={expanded}
+              onClick={() => { onScrollToTop(); onPlay(); }}
+              className="w-14 h-14 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-lg transition-all hover:scale-105"
+              aria-label="Play article"
             >
-              <Settings2 size={18} />
+              <Play size={24} fill="currentColor" className="ml-1" />
             </button>
-          </div>
-          {seekOnOwnRow && (
-            <div className="flex min-h-[44px] min-w-0 w-full items-center gap-2 px-0">
+          )}
+          {isScrolled && (
+            <button
+              onClick={onScrollToTop}
+              className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"
+              aria-label="Back to top"
+            >
+              <ChevronUp size={20} />
+            </button>
+          )}
+          {totalSentences > 0 && (
+            <div className="flex-1 min-w-0 flex items-center gap-2 mx-2">
               <input
                 type="range"
                 min={0}
                 max={totalSentences - 1}
                 step={1}
                 value={clamp(displayIndex, 0, totalSentences - 1)}
-                onChange={onSeekSliderMove}
-                onInput={onSeekSliderMove}
+                onChange={(e) => setSeekValue(parseInt(e.target.value, 10))}
                 onPointerDown={() => setSeekValue(displayIndex)}
                 onPointerUp={() => {
                   if (seekValue !== null) {
@@ -346,14 +187,22 @@ export function ArticleTTSOverlay({
                     setSeekValue(null)
                   }
                 }}
-                className={seekRangeClassName}
+                className="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer accent-indigo-500 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-500 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow"
                 aria-label="Seek position in article"
               />
-              <span className="shrink-0 text-xs tabular-nums text-slate-400">
+              <span className="text-xs text-slate-400 tabular-nums shrink-0">
                 {displayIndex + 1} / {totalSentences}
               </span>
             </div>
           )}
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className={`ml-auto w-10 h-10 rounded-full flex items-center justify-center transition-colors ${expanded ? 'bg-indigo-600/30 text-indigo-400' : 'bg-white/5 hover:bg-white/10 text-slate-400'}`}
+            aria-label="TTS settings"
+            aria-expanded={expanded}
+          >
+            <Settings2 size={18} />
+          </button>
         </div>
 
         {/* Settings strip (expandable) */}
