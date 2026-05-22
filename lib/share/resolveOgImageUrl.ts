@@ -7,6 +7,7 @@ import {
   CANONICAL_SITE_ORIGIN,
   OG_SHARE_IMAGE_WIDTH,
 } from '@/lib/canonicalPublicSite'
+import { joinRepoRelativePath } from '@/lib/repoRelativePath'
 import { isRelayOrigin } from '@/lib/relayOptimizedAssetUrl'
 
 export { OG_SHARE_IMAGE_WIDTH }
@@ -80,14 +81,8 @@ export function extractFirstImageUrlFromMarkdown (md: string, basePath: string):
   if (rawSrc.startsWith('http')) {
     return appendOgShareWidthParam(rawSrc)
   }
-  const rootAbsolute = rawSrc.startsWith('/')
-  let src = rawSrc
-  if (rootAbsolute) src = src.slice(1)
-  else if (src.startsWith('./')) src = src.slice(2)
-  const prefix =
-    rootAbsolute ? '' : basePath ? (basePath.endsWith('/') ? basePath : basePath + '/') : ''
-  const path = (prefix + src).replace(/\/+/g, '/')
-  return mirrorRasterOgUrl(path.replace(/^\//, ''))
+  const joined = joinRepoRelativePath(basePath, rawSrc)
+  return mirrorRasterOgUrl(joined.replace(/^\//, ''))
 }
 
 export function resolveOgImageUrl (

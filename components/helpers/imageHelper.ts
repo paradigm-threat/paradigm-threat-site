@@ -4,6 +4,7 @@ interface ImagePropsFormatted {
 }
 
 import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
+import { joinRepoRelativePath } from '@/lib/repoRelativePath'
 import {
     buildLqipOptimizedAssetUrl,
     buildOptimizedAssetUrl,
@@ -94,33 +95,7 @@ export function resolveImagePath(src: string, basePath?: string): string {
     if (typeof src !== 'string') return '';
     if (!src) return '';
     if (src.startsWith('http')) return src;
-
-    // Separate path from query string
-    const [pathPart, queryPart] = src.split('?');
-    const query = queryPart ? '?' + queryPart : '';
-    const prefix = basePath ? (basePath.endsWith('/') ? basePath : basePath + '/') : '';
-
-    if (pathPart.startsWith('/')) {
-        if (basePath?.startsWith('http')) {
-            // Root-relative path: resolve against basePath (works for both localhost and GitHub Pages subdirectories)
-            const relPath = pathPart.slice(1);
-            return (prefix + relPath) + query;
-        }
-        return pathPart + query; // Already absolute on current domain
-    }
-
-    let resolved = pathPart;
-    if (pathPart.startsWith('./')) {
-        resolved = pathPart.slice(2);
-    }
-
-    // When basePath is an absolute URL (e.g. timeline base = same domain as events.json), resolve to full URL
-    if (basePath?.startsWith('http')) {
-        return (prefix + resolved) + query;
-    }
-    // Path-based: combine and ensure it starts with / and has no double slashes
-    const combined = (prefix + resolved).replace(/\/+/g, '/').replace(/^\/+/, '');
-    return '/' + combined + query;
+    return joinRepoRelativePath(basePath, src);
 }
 
 export function processImageProps(props: any, basePath?: string, filesRootUrl?: string): ImagePropsFormatted {

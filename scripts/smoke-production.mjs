@@ -76,6 +76,9 @@ async function main () {
   console.log('smoke-production: files mirror =', FILES_MIRROR)
   console.log('smoke-production: timeline mirror =', TIMELINE_MIRROR)
 
+  await expectHead(`${BASE}/files/index.json`, { status: 404 })
+  await expectHead(`${BASE}/api/image?url=test`, { status: 404 })
+
   await expectHead(`${FILES_MIRROR}/index.json`, { contentTypeIncludes: 'application/json' })
   await expectHead(`${TIMELINE_MIRROR}/data/events.json`, { contentTypeIncludes: 'application/json' })
   await expectHead(

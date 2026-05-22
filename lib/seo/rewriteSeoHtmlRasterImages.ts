@@ -1,17 +1,12 @@
+import { joinRepoRelativePath } from '@/lib/repoRelativePath'
 import { buildOptimizedAssetUrl } from '@/lib/relayOptimizedAssetUrl'
 import { parseImageJsonProps } from '@/lib/parseImageJsonProps'
 
 function repoRelativePath (src: string, basePath: string): string {
   const raw = src.trim()
   if (!raw || raw.startsWith('data:') || /^https?:\/\//i.test(raw)) return raw
-  const [pathPart, queryPart] = raw.split('?')
-  const query = queryPart ? `?${queryPart}` : ''
-  let path = pathPart
-  if (path.startsWith('/')) path = path.slice(1)
-  else if (path.startsWith('./')) path = path.slice(2)
-  const prefix = basePath ? (basePath.endsWith('/') ? basePath : `${basePath}/`) : ''
-  const joined = `${prefix}${path}`.replace(/\/+/g, '/').replace(/^\//, '')
-  return `/${joined}${query}`
+  const joined = joinRepoRelativePath(basePath, raw)
+  return joined.startsWith('/') ? joined : `/${joined}`
 }
 
 function widthFromSrc (src: string): number | undefined {

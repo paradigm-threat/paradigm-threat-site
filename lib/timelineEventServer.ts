@@ -2,6 +2,7 @@
  * Server-side timeline event lookup for metadata (OG, title).
  */
 
+import { mirrorRasterOgUrl } from '@/lib/canonicalPublicSite'
 import { firstTimelineOgMediaPath } from '@/lib/timelineMedia'
 import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
 
@@ -47,7 +48,7 @@ export async function getTimelineEventMeta(eventId: string): Promise<TimelineEve
 
     const ogPath = firstTimelineOgMediaPath(event.media)
     const ogImageUrl = ogPath
-      ? `${TIMELINE_BASE.replace(/\/$/, '')}${ogPath.startsWith('/') ? '' : '/'}${ogPath}`
+      ? mirrorRasterOgUrl(ogPath.replace(/^\//, ''))
       : undefined
 
     return {

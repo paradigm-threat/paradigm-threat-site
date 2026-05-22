@@ -1,4 +1,5 @@
 import { normalizeParadigmMarkdown } from '@/lib/normalizeParadigmMarkdown'
+import { joinRepoRelativePath } from '@/lib/repoRelativePath'
 import { escapeHtml } from '@/lib/seo/escapeHtml'
 import { buildOptimizedAssetUrl } from '@/lib/relayOptimizedAssetUrl'
 import { resolveSeoAssetUrl } from '@/lib/seo/resolveSeoAssetUrl'
@@ -73,19 +74,9 @@ function tagAllowed (html: string): boolean {
 function seoRasterUrl (src: string, basePath: string): string {
   const raw = src.trim()
   if (!raw || raw.startsWith('data:') || /^https?:\/\//i.test(raw)) return raw
-  const [pathPart, queryPart] = raw.split('?')
-  const queryParams = new URLSearchParams(queryPart || '')
-  let path = pathPart
-  const rootAbsolute = path.startsWith('/')
-  if (rootAbsolute) path = path.slice(1)
-  else if (path.startsWith('./')) path = path.slice(2)
-  const prefix = rootAbsolute
-    ? ''
-    : basePath
-      ? (basePath.endsWith('/') ? basePath : `${basePath}/`)
-      : ''
-  const joined = `${prefix}${path}`.replace(/\/+/g, '/').replace(/^\//, '')
-  const pathForApi = `/${joined}`
+  const queryParams = new URLSearchParams(raw.includes('?') ? raw.slice(raw.indexOf('?') + 1) : '')
+  const joined = joinRepoRelativePath(basePath, raw.split('?')[0])
+  const pathForApi = joined.startsWith('/') ? joined : `/${joined}`
   const wRaw = queryParams.get('w') ?? queryParams.get('width')
   const w = wRaw ? parseInt(wRaw, 10) : undefined
   return buildOptimizedAssetUrl(pathForApi, w)

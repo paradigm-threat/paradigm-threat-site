@@ -1,0 +1,94 @@
+import { test, expect } from '@playwright/test'
+
+const INVESTIGATION_ARTICLE =
+  '/events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation.md'
+
+const CRAWLER_UA = 'facebookexternalhit/1.1'
+
+function extractOgImage (html: string): string | null {
+  const m = html.match(/property="og:image"\s+content="([^"]*)"/i)
+  return m ? m[1] : null
+}
+
+test.describe('legacy proxy 404 (local build)', () => {
+  test.skip(
+    ({ baseURL }) => !!baseURL?.includes('paradigmthreat.net'),
+    'Production still serves catch-all until deploy with app/files + app/api/image routes',
+  )
+
+  test('legacy /files/ and /api/image return 404', async ({ request }) => {
+    const filesRes = await request.head('/files/index.json')
+    expect(filesRes.status()).toBe(404)
+
+    const apiRes = await request.head('/api/image?url=test')
+    expect(apiRes.status()).toBe(404)
+  })
+})
+
+test.describe('relay assets SSR (production)', () => {
+  test.skip(
+    ({ baseURL }) => !baseURL?.includes('paradigmthreat.net'),
+    'Set PLAYWRIGHT_BASE_URL=https://paradigmthreat.net',
+  )
+
+  test('investigation article: relay og:image, no /files/', async ({ request }) => {
+    const res = await request.get(INVESTIGATION_ARTICLE, {
+      headers: { 'User-Agent': CRAWLER_UA },
+    })
+    expect(res.status()).toBe(200)
+    const html = await res.text()
+    expect(html).not.toMatch(/paradigmthreat\.net\/files\//)
+
+    const ogImage = extractOgImage(html)
+    expect(ogImage).toBeTruthy()
+    expect(ogImage).toMatch(/\.relaygateway\.net\//)
+    expect(ogImage).toMatch(/\?w=\d+/)
+    expect(ogImage).not.toMatch(/investigations\/events\/false_flag\/investigations\//)
+  })
+
+  test('timeline event og:image is relay raster with ?w=', async ({ request }) => {
+    const res = await request.get('/timeline/evt-introduction', {
+      headers: { 'User-Agent': CRAWLER_UA },
+    })
+    expect(res.status()).toBe(200)
+    const ogImage = extractOgImage(await res.text())
+    expect(ogImage).toBeTruthy()
+    expect(ogImage).toMatch(/paradigm-threat-timeline.*\.relaygateway\.net/)
+    expect(ogImage).toMatch(/\.(png|jpe?g|webp)/i)
+    expect(ogImage).toMatch(/\?w=\d+/)
+  })
+})
+
+test.describe('relay assets browser (production)', () => {
+  test.skip(
+    ({ baseURL }) => !baseURL?.includes('paradigmthreat.net'),
+    'Set PLAYWRIGHT_BASE_URL=https://paradigmthreat.net',
+  )
+
+  test('investigation article images load from relay', async ({ page }) => {
+    test.setTimeout(120_000)
+
+    const failedImages: string[] = []
+    page.on('response', (res) => {
+      if (res.request().resourceType() !== 'image') return
+      if (res.url().includes('relaygateway.net') && res.status() >= 400) {
+        failedImages.push(`${res.status()} ${res.url()}`)
+      }
+    })
+
+    await page.goto(INVESTIGATION_ARTICLE, { waitUntil: 'domcontentloaded' })
+    await expect(page.locator('.relay-markdown-error')).toHaveCount(0)
+
+    const region = page.locator('.article-markdown-region, .relay-markdown').first()
+    await expect(region).toBeVisible({ timeout: 90_000 })
+
+    const figureImg = page.locator('figure img').first()
+    await figureImg.scrollIntoViewIfNeeded()
+    await expect(figureImg).toBeVisible({ timeout: 60_000 })
+    const src = (await figureImg.getAttribute('src')) || ''
+    expect(src).toMatch(/relaygateway\.net/)
+    expect(src).toMatch(/\?w=\d+/)
+    expect(src).not.toMatch(/investigations\/events\/false_flag\/investigations\//)
+    expect(failedImages).toEqual([])
+  })
+})
