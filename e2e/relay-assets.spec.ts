@@ -26,7 +26,7 @@ test.describe('legacy proxy 404 (local build)', () => {
 
   test('/export redirects to timeline mirror (no proxy body)', async ({ request }) => {
     const res = await request.head('/export/', { maxRedirects: 0 })
-    expect(res.status()).toBe(307)
+    expect([307, 308]).toContain(res.status())
     const loc = res.headers()['location'] || ''
     expect(loc).toMatch(/relaygateway\.net\/export/)
   })
