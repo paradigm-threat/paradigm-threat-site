@@ -41,4 +41,26 @@ describe('canonicalSiteAssetToMirrorUrl', () => {
       null,
     )
   })
+
+  it('strips legacy /files/ prefix', async () => {
+    const { relPathFromCanonicalSiteUrl } = await import('./canonicalSiteAssetUrl.ts')
+    assert.equal(
+      relPathFromCanonicalSiteUrl(
+        'https://paradigmthreat.net/files/history/chronology/foo.png',
+      ),
+      'history/chronology/foo.png',
+    )
+  })
+
+  it('rewrites napoleon chronology image path to relay', async () => {
+    const { canonicalSiteAssetToMirrorUrl } = await import('./canonicalSiteAssetUrl.ts')
+    const out = canonicalSiteAssetToMirrorUrl(
+      'https://paradigmthreat.net/history/chronology/napoleon-corpses-dry-egypt-siberian-disease-quote.png',
+      800,
+    )
+    assert.equal(
+      out,
+      'https://atlanta2.relaygateway.net/paradigm-threat-files/history/chronology/napoleon-corpses-dry-egypt-siberian-disease-quote.png?w=800',
+    )
+  })
 })

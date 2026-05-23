@@ -53,6 +53,8 @@ describe('buildOptimizedAssetUrl', () => {
     const expected = buildOptimizedAssetUrl(abs, 800)
     const mirrors = listOptimizedAssetUrls(abs, 800)
     assert.deepEqual(mirrors, [expected])
+    assert.match(expected, /\.relaygateway\.net\//)
     assert.match(expected, /\?w=800$/)
+    assert.doesNotMatch(expected, /paradigmthreat\.net/)
   })
 })

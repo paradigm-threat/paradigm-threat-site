@@ -29,6 +29,15 @@ describe('markdownToSeoHtml', () => {
     )
   })
 
+  it('rewrites paradigmthreat.net absolute image URLs to relay mirror', () => {
+    const html = markdownToSeoHtml(
+      '![x](https://paradigmthreat.net/history/chronology/napoleon-corpses-dry-egypt-siberian-disease-quote.png)',
+      { basePath: 'history/chronology' },
+    )
+    assert.match(html, /relaygateway\.net\/history\/chronology\/napoleon-corpses/)
+    assert.doesNotMatch(html, /paradigmthreat\.net/)
+  })
+
   it('injects changelog placeholder', () => {
     const html = markdownToSeoHtml('## Log\n\n<ChangeLog />', {
       basePath: '',

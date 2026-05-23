@@ -3,6 +3,7 @@
  * Relay gateways run `server.hooks.get` + `optimizeRasterFromGetContext` (see SERVER_HOOKS.md).
  */
 
+import { normalizePathForMirror } from '@/lib/canonicalSiteAssetUrl'
 import { getPrimaryFilesBaseUrl, getPrimaryTimelineBaseUrl, getFilesBaseUrlList } from '@/lib/urlListEnv'
 import { getTimelineOrigins } from '@/lib/timelineOrigins'
 
@@ -68,7 +69,14 @@ function appendWidthQuery (absoluteUrl: string, w: number): string {
 
 function absoluteMirrorUrl (pathForAPI: string): string {
   if (pathForAPI.startsWith('http')) {
-    return pathForAPI
+    const normalized = normalizePathForMirror(pathForAPI)
+    if (!normalized.startsWith('http')) {
+      pathForAPI = normalized
+    } else {
+      return normalized
+    }
+  } else {
+    pathForAPI = normalizePathForMirror(pathForAPI)
   }
   const [clean, ...rest] = pathForAPI.split('?')
   const pathQs = rest.length ? `?${rest.join('?')}` : ''
@@ -83,6 +91,7 @@ function absoluteMirrorUrl (pathForAPI: string): string {
  * `pathForAPI` is repo-relative `/...` or absolute `http(s):`.
  */
 export function buildOptimizedAssetUrl (pathForAPI: string, width?: number): string {
+  pathForAPI = normalizePathForMirror(pathForAPI)
   const isSvg = pathIsSvg(pathForAPI)
   const absolute = absoluteMirrorUrl(pathForAPI)
 
@@ -106,6 +115,7 @@ export function buildLqipOptimizedAssetUrl (
   pathForAPI: string,
   displayWidthPx: number,
 ): string | undefined {
+  pathForAPI = normalizePathForMirror(pathForAPI)
   if (pathIsSvg(pathForAPI) || pathForAPI.startsWith('http')) return undefined
 
   const d = clampWidth(displayWidthPx)

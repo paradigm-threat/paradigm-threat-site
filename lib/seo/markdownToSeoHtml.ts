@@ -1,6 +1,7 @@
 import { normalizeParadigmMarkdown } from '@/lib/normalizeParadigmMarkdown'
 import { joinRepoRelativePath } from '@/lib/repoRelativePath'
 import { escapeHtml } from '@/lib/seo/escapeHtml'
+import { canonicalSiteAssetToMirrorUrl } from '@/lib/canonicalSiteAssetUrl'
 import { buildOptimizedAssetUrl } from '@/lib/relayOptimizedAssetUrl'
 import { resolveSeoAssetUrl } from '@/lib/seo/resolveSeoAssetUrl'
 import { stripYamlFrontmatter } from '@/lib/stripYamlFrontmatter'
@@ -73,12 +74,15 @@ function tagAllowed (html: string): boolean {
 
 function seoRasterUrl (src: string, basePath: string): string {
   const raw = src.trim()
-  if (!raw || raw.startsWith('data:') || /^https?:\/\//i.test(raw)) return raw
+  if (!raw || raw.startsWith('data:')) return raw
   const queryParams = new URLSearchParams(raw.includes('?') ? raw.slice(raw.indexOf('?') + 1) : '')
-  const joined = joinRepoRelativePath(basePath, raw.split('?')[0])
-  const pathForApi = joined.startsWith('/') ? joined : `/${joined}`
   const wRaw = queryParams.get('w') ?? queryParams.get('width')
   const w = wRaw ? parseInt(wRaw, 10) : undefined
+  if (/^https?:\/\//i.test(raw)) {
+    return canonicalSiteAssetToMirrorUrl(raw, w) ?? raw
+  }
+  const joined = joinRepoRelativePath(basePath, raw.split('?')[0])
+  const pathForApi = joined.startsWith('/') ? joined : `/${joined}`
   return buildOptimizedAssetUrl(pathForApi, w)
 }
 

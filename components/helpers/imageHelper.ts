@@ -5,6 +5,7 @@ interface ImagePropsFormatted {
 
 import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
 import { joinRepoRelativePath } from '@/lib/repoRelativePath'
+import { normalizePathForMirror } from '@/lib/canonicalSiteAssetUrl'
 import {
     buildLqipOptimizedAssetUrl,
     buildOptimizedAssetUrl,
@@ -94,7 +95,11 @@ export function getDimensionsFromIndex(index: any, imagePath: string): { width: 
 export function resolveImagePath(src: string, basePath?: string): string {
     if (typeof src !== 'string') return '';
     if (!src) return '';
-    if (src.startsWith('http')) return src;
+    if (src.startsWith('http')) {
+        const normalized = normalizePathForMirror(src);
+        if (!normalized.startsWith('http')) return normalized;
+        return src;
+    }
     return joinRepoRelativePath(basePath, src);
 }
 

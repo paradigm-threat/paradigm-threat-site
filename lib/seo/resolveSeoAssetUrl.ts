@@ -1,3 +1,4 @@
+import { canonicalSiteAssetToMirrorUrl } from '@/lib/canonicalSiteAssetUrl'
 import { mirrorFilesAssetUrl } from '@/lib/canonicalPublicSite'
 import { buildOptimizedAssetUrl } from '@/lib/relayOptimizedAssetUrl'
 
@@ -9,7 +10,9 @@ const RASTER_EXT = /\.(apng|png|jpe?g|gif|webp|avif|bmp|ico)$/i
 export function resolveSeoAssetUrl (href: string, basePath: string): string {
   const raw = href.trim()
   if (!raw || raw.startsWith('#') || raw.startsWith('mailto:') || raw.startsWith('tel:')) return raw
-  if (/^https?:\/\//i.test(raw)) return raw
+  if (/^https?:\/\//i.test(raw)) {
+    return canonicalSiteAssetToMirrorUrl(raw) ?? raw
+  }
 
   let path = raw
   const rootAbsolute = path.startsWith('/')

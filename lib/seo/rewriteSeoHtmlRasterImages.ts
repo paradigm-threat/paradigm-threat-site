@@ -1,3 +1,4 @@
+import { canonicalSiteAssetToMirrorUrl } from '@/lib/canonicalSiteAssetUrl'
 import { joinRepoRelativePath } from '@/lib/repoRelativePath'
 import { buildOptimizedAssetUrl } from '@/lib/relayOptimizedAssetUrl'
 import { parseImageJsonProps } from '@/lib/parseImageJsonProps'
@@ -34,9 +35,13 @@ export function rewriteSeoHtmlRasterImages (html: string, basePath: string): str
       if (!src || src.startsWith('data:')) return match
       const lower = src.split('?')[0].toLowerCase()
       if (lower.endsWith('.svg')) return match
-      if (/^https?:\/\//i.test(src) && !src.includes('relaygateway.net')) return match
-      const rel = repoRelativePath(src, basePath)
       const w = widthFromSrc(src)
+      if (/^https?:\/\//i.test(src) && !src.includes('relaygateway.net')) {
+        const mirrored = canonicalSiteAssetToMirrorUrl(src, w)
+        if (mirrored) return `<img${pre} src="${mirrored}"${post}>`
+        return match
+      }
+      const rel = repoRelativePath(src, basePath)
       const optimized = buildOptimizedAssetUrl(rel, w)
       return `<img${pre} src="${optimized}"${post}>`
     },

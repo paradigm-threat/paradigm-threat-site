@@ -2,6 +2,7 @@
  * OG / share preview image: first markdown image in article body.
  */
 
+import { relPathFromCanonicalSiteUrl } from '@/lib/canonicalSiteAssetUrl'
 import {
   mirrorRasterOgUrl,
   CANONICAL_SITE_ORIGIN,
@@ -37,18 +38,6 @@ function isCanonicalSiteAbsolute (absoluteUrl: string): boolean {
   }
 }
 
-/** Repo-relative path from a canonical-site absolute asset URL (strips legacy `/files/` prefix). */
-function relPathFromCanonicalAbsolute (absoluteUrl: string): string {
-  let pathname = pathnameOfAbsoluteOrPath(absoluteUrl)
-  if (pathname.startsWith('/files/timeline/')) {
-    return pathname.slice('/files/timeline/'.length)
-  }
-  if (pathname.startsWith('/files/')) {
-    return pathname.slice('/files/'.length)
-  }
-  return pathname.replace(/^\//, '')
-}
-
 /** Append `?w=` for raster assets on Relay or legacy canonical-site asset paths. */
 export function appendOgShareWidthParam (absoluteUrl: string): string {
   const base = absoluteUrl.trim().split('?')[0]
@@ -66,8 +55,8 @@ export function appendOgShareWidthParam (absoluteUrl: string): string {
   }
 
   if (isCanonicalSiteAbsolute(base)) {
-    const rel = relPathFromCanonicalAbsolute(base)
-    return mirrorRasterOgUrl(rel)
+    const rel = relPathFromCanonicalSiteUrl(base)
+    if (rel) return mirrorRasterOgUrl(rel)
   }
 
   return base
