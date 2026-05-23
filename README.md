@@ -45,9 +45,10 @@ Opens on [http://localhost:3000](http://localhost:3000).
 | Variable | Default | Description |
 |---|---|---|
 | `NEXT_PUBLIC_TIMELINE_BASE_URL` | `https://paradigm-threat-timeline-a77fe2.gitlab.io` | Timeline Pages origin (`/data/events.json`, `/index.json`). Multiple mirrors: separate with `\|` or newlines (no comma or semicolon). |
-| `TIMELINE_ORIGINS` | (unset) | Optional pipe- or newline-separated timeline static origins, **tried in order**, for proxying `https://paradigmthreat.net/export/...` to `origin/export/...`. If unset, uses `NEXT_PUBLIC_TIMELINE_BASE_URL` (including its multi-URL form). |
+| `TIMELINE_ORIGINS` | (unset) | Optional pipe- or newline-separated timeline static origins, **tried in order**, for timeline mirror failover. `/export/...` on the site origin **307-redirects** to `NEXT_PUBLIC_TIMELINE_BASE_URL/export/...` (no Vercel binary proxy). |
 | `NEXT_PUBLIC_FILES_BASE_URL` | `https://paradigm-threat-files-69f9dc.gitlab.io` | Static files (GitLab Pages or Relay). Multiple mirrors: `\|` or newlines. In the browser, entries are **zipped by index** with the timeline list into relay **pairs**; the fastest pair is chosen at load. Raster images use **`{mirror}/{path}?w=`** (Relay `server.hooks.get` WebP); no `/api/image` proxy on this app. |
-| `PIPER_API_URLS` | (see code) | Piper TTS upstream bases: **space, pipe, or newline**-separated. If unset in the deployment env, `lib/tts/piperUpstream.ts` defaults to `https://atlanta2.relaygateway.net`, `https://atlanta3.relaygateway.net`, and `https://jp-osa.relaygateway.net` (HTTPS :443; Caddy proxies `/tts` and `/voices` to clevertree-tts). Set in Vercel **Environment Variables** if you need overrides. |
+| `NEXT_PUBLIC_PIPER_API_URLS` | (see code) | Browser Piper TTS: **space**-separated relay bases (`/tts`, `/voices`). Defaults match `PIPER_API_URLS`. The client calls relay **directly** (no `/api/tts/piper` proxy). Optional `NEXT_PUBLIC_PIPER_API_SECRET` if mirrors require Bearer auth. |
+| `PIPER_API_URLS` | (see code) | Server/build Piper bases (tests, legacy). Same default hosts: `atlanta2`, `atlanta3`, `jp-osa` `.relaygateway.net`. |
 
 ### Scripts
 

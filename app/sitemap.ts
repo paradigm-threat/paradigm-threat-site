@@ -1,6 +1,10 @@
 import type { MetadataRoute } from 'next'
 import { fetchFromAssetMirrors } from '@/lib/remoteAssetMirrors'
 import { CANONICAL_SITE_ORIGIN } from '@/lib/canonicalPublicSite'
+import {
+  MIRROR_INDEX_REVALIDATE_SEC,
+  mirrorFetchNext,
+} from '@/lib/serverMirrorRevalidate'
 
 const SITE = CANONICAL_SITE_ORIGIN.replace(/\/$/, '')
 
@@ -24,7 +28,9 @@ function collectPaths (node: IndexNode, prefix: string, out: Set<string>): void 
 }
 
 async function loadIndex (): Promise<IndexNode | null> {
-  const res = await fetchFromAssetMirrors('files', '/index.json', { cache: 'no-store' })
+  const res = await fetchFromAssetMirrors('files', '/index.json', {
+    next: mirrorFetchNext(MIRROR_INDEX_REVALIDATE_SEC),
+  })
   if (!res?.ok) return null
   try {
     return (await res.json()) as IndexNode

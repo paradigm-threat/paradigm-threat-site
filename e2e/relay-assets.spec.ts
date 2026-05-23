@@ -23,6 +23,20 @@ test.describe('legacy proxy 404 (local build)', () => {
     const apiRes = await request.head('/api/image?url=test')
     expect(apiRes.status()).toBe(404)
   })
+
+  test('/export redirects to timeline mirror (no proxy body)', async ({ request }) => {
+    const res = await request.head('/export/', { maxRedirects: 0 })
+    expect(res.status()).toBe(307)
+    const loc = res.headers()['location'] || ''
+    expect(loc).toMatch(/relaygateway\.net\/export/)
+  })
+
+  test('/api/tts/piper returns 410', async ({ request }) => {
+    const res = await request.post('/api/tts/piper', {
+      data: { text: 'test', voiceId: 'en' },
+    })
+    expect(res.status()).toBe(410)
+  })
 })
 
 test.describe('relay assets SSR (production)', () => {

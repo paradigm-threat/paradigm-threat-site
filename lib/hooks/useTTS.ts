@@ -4,6 +4,11 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { splitSentences, preprocessSpeechText } from '@/components/Timeline/ttsHelpers'
 import { resolveDefaultPiperVoiceId } from '@/lib/tts/piperVoiceDefaults'
 import {
+    aggregateClientPiperVoices,
+    fetchPiperTtsBlob,
+    isClientPiperConfigured,
+} from '@/lib/tts/piperClient'
+import {
     startSpeechKeepalive,
     stopSpeechKeepalive,
     startAudioWatchdog,
@@ -326,14 +331,18 @@ export function useTTS() {
         }
     }, [])
 
-    // Load Piper voices from server config
+    // Load Piper voices from relay-gateway (direct; no Vercel proxy)
     useEffect(() => {
         if (typeof window === 'undefined') return
         let mounted = true
-        fetch('/api/tts/piper/voices')
-            .then(res => res.ok ? res.json() : null)
+        if (!isClientPiperConfigured()) {
+            setAvailablePiperVoices([])
+            setState(prev => ({ ...prev, provider: 'webSpeech' }))
+            return () => { mounted = false }
+        }
+        aggregateClientPiperVoices()
             .then(data => {
-                if (!mounted || !data) return
+                if (!mounted) return
                 const voices = Array.isArray(data.voices)
                     ? (data.voices as PiperVoice[]).map(normalizePiperVoice)
                     : []
@@ -710,29 +719,21 @@ export function useTTS() {
                             if (!isPlayingRef.current) throw new DOMException('Aborted', 'AbortError')
                         }
                         try {
-                            const res = await fetch('/api/tts/piper', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ text, voiceId, rate: rateRef.current }),
-                                signal: controller.signal,
-                            })
-                            if (!res.ok) {
-                                let detail = `HTTP ${res.status}`
-                                try {
-                                    const errBody = await res.json()
-                                    if (errBody?.error) detail = errBody.error
-                                } catch { /* ignore */ }
-                                const err = new Error(`Piper API error: ${detail}`)
-                                console.error(`[TTS] fetch failed (attempt ${attempt + 1}):`, detail)
-                                if (RETRYABLE_STATUS(res.status) && attempt < MAX_ATTEMPTS - 1) {
-                                    lastErr = err
-                                    continue
-                                }
-                                throw err
-                            }
+                            const blob = await fetchPiperTtsBlob(
+                                { text, voiceId, rate: rateRef.current },
+                                controller.signal,
+                            )
                             setState(prev => prev.error?.startsWith('Piper error — retry') ? { ...prev, error: null } : prev)
-                            return res.blob()
+                            return blob
                         } catch (fetchErr) {
+                            const errMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr)
+                            const statusMatch = errMsg.match(/HTTP (\d+)/)
+                            const status = statusMatch ? Number(statusMatch[1]) : 0
+                            if (status && RETRYABLE_STATUS(status) && attempt < MAX_ATTEMPTS - 1) {
+                                lastErr = fetchErr instanceof Error ? fetchErr : new Error(errMsg)
+                                console.error(`[TTS] fetch failed (attempt ${attempt + 1}):`, errMsg)
+                                continue
+                            }
                             // Re-throw aborts immediately
                             if (fetchErr instanceof DOMException && fetchErr.name === 'AbortError') throw fetchErr
                             // Network / timeout errors are retryable
@@ -775,13 +776,8 @@ export function useTTS() {
                         ? quoteVoice
                         : speakerMap[nextSpeaker] ?? piperVoiceIdRef.current
                     if (!nextVoiceId) return
-                    fetch('/api/tts/piper', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ text: nextText, voiceId: nextVoiceId, rate: rateRef.current }),
-                    })
-                        .then(res => res.ok ? res.blob() : null)
-                        .then(blob => { if (blob) piperCacheRef.current.set(cacheKey, blob) })
+                    fetchPiperTtsBlob({ text: nextText, voiceId: nextVoiceId, rate: rateRef.current })
+                        .then(blob => { piperCacheRef.current.set(cacheKey, blob) })
                         .catch(() => { })  // best-effort, ignore errors
                 }
 

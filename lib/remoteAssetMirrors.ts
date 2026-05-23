@@ -5,6 +5,10 @@
 
 import { getFilesBaseUrlList } from '@/lib/urlListEnv'
 import { getTimelineOrigins } from '@/lib/timelineOrigins'
+import {
+  MIRROR_ARTICLE_REVALIDATE_SEC,
+  mirrorFetchNext,
+} from '@/lib/serverMirrorRevalidate'
 
 const FETCH_TIMEOUT_MS = 45_000
 
@@ -63,8 +67,12 @@ export async function fetchFromAssetMirrors (
           'Accept-Encoding': 'identity',
           ...init.headers,
         },
-        cache: init.cache ?? 'no-store',
-        ...(init.next !== undefined ? { next: init.next } : {}),
+        ...(init.cache !== undefined ? { cache: init.cache } : {}),
+        ...(init.next !== undefined
+          ? { next: init.next }
+          : init.cache === undefined
+            ? { next: mirrorFetchNext(MIRROR_ARTICLE_REVALIDATE_SEC) }
+            : {}),
       })
       attemptOutcomes.push(res.status)
       if (res.ok) return res

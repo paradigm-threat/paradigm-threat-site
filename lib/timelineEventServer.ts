@@ -7,6 +7,10 @@ import { firstTimelineOgMediaPath } from '@/lib/timelineMedia'
 import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
 
 import { getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
+import {
+  MIRROR_TIMELINE_EVENTS_REVALIDATE_SEC,
+  mirrorFetchNext,
+} from '@/lib/serverMirrorRevalidate'
 
 const TIMELINE_BASE = getPrimaryTimelineBaseUrl()
 
@@ -37,7 +41,7 @@ export interface TimelineEventMeta {
 export async function getTimelineEventMeta(eventId: string): Promise<TimelineEventMeta | null> {
   try {
     const res = await fetch(`${TIMELINE_BASE}/data/events.json${timelineManifestCacheQuery()}`, {
-      next: { revalidate: 60 },
+      next: mirrorFetchNext(MIRROR_TIMELINE_EVENTS_REVALIDATE_SEC),
     })
     if (!res.ok) return null
     const data = await res.json()

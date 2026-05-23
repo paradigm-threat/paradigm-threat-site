@@ -1,11 +1,19 @@
 import { getPrimaryFilesBaseUrl, getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
 import { flattenFilesIndex, flattenTimelineEntriesForSearch, type IndexedPathEntry } from '@/components/helpers/indexHelper'
 import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
+import {
+  MIRROR_ARTICLE_REVALIDATE_SEC,
+  MIRROR_INDEX_REVALIDATE_SEC,
+  MIRROR_TIMELINE_EVENTS_REVALIDATE_SEC,
+  mirrorFetchNext,
+} from '@/lib/serverMirrorRevalidate'
 
 const FILES_BASE_URL = getPrimaryFilesBaseUrl();
 
 export async function getFilesIndex() {
-  const res = await fetch(`${FILES_BASE_URL}/index.json`, { cache: 'no-store' });
+  const res = await fetch(`${FILES_BASE_URL}/index.json`, {
+    next: mirrorFetchNext(MIRROR_INDEX_REVALIDATE_SEC),
+  });
   if (!res.ok) return {};
   return res.json() as Promise<any>;
 }
@@ -16,8 +24,10 @@ export async function getMergedSearchIndex(): Promise<IndexedPathEntry[] | null>
   const timelineUrl = getPrimaryTimelineBaseUrl()
   const q = timelineManifestCacheQuery()
   const [filesRes, eventsRes] = await Promise.all([
-    fetch(`${filesUrl}/index.json`, { cache: 'no-store' }),
-    fetch(`${timelineUrl}/data/events.json${q}`, { cache: 'no-store' }),
+    fetch(`${filesUrl}/index.json`, { next: mirrorFetchNext(MIRROR_INDEX_REVALIDATE_SEC) }),
+    fetch(`${timelineUrl}/data/events.json${q}`, {
+      next: mirrorFetchNext(MIRROR_TIMELINE_EVENTS_REVALIDATE_SEC),
+    }),
   ])
   if (!filesRes.ok) return null
   let fromFiles: IndexedPathEntry[] = []
@@ -38,7 +48,9 @@ export async function getMergedSearchIndex(): Promise<IndexedPathEntry[] | null>
 }
 
 export async function getRemoteFile(path: string) {
-  const res = await fetch(`${FILES_BASE_URL}/${path}`, { cache: 'no-store' });
+  const res = await fetch(`${FILES_BASE_URL}/${path}`, {
+    next: mirrorFetchNext(MIRROR_ARTICLE_REVALIDATE_SEC),
+  });
   if (!res.ok) return null;
   return res.text();
 }

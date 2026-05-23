@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { Maximize2, Minimize2 } from 'lucide-react'
 import { useImageGallery } from '@/components/Image/ImageGalleryContext'
+import { canonicalSiteAssetToMirrorUrl } from '@/lib/canonicalSiteAssetUrl'
 import { buildOptimizedAssetUrl } from '@/lib/relayOptimizedAssetUrl'
 import { getPrimaryFilesBaseUrl, getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
 import styles from './ChangeLog.module.css'
@@ -102,7 +103,9 @@ function changelogThumbSrc(src) {
   const publicSrc = changelogPublicImageSrc(src)
   if (!publicSrc) return ''
   if (publicSrc.startsWith('/site/')) return publicSrc
-  if (/^https?:\/\//i.test(publicSrc)) return publicSrc
+  if (/^https?:\/\//i.test(publicSrc)) {
+    return canonicalSiteAssetToMirrorUrl(publicSrc, 160) ?? publicSrc
+  }
   const pathOnly = publicSrc.split('?')[0]
   if (pathOnly.startsWith('/') && CHANGELOG_THUMB_IMAGE_EXT.test(pathOnly)) {
     return buildOptimizedAssetUrl(pathOnly, 160)

@@ -1,19 +1,13 @@
 import { NextResponse } from 'next/server'
-import { aggregatePiperVoices, isPiperConfigured } from '@/lib/tts/piperUpstream'
 
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
-
-export async function GET() {
-    if (!isPiperConfigured()) {
-        return NextResponse.json({ voices: [], defaultVoiceId: null })
-    }
-
-    try {
-        const { voices, defaultVoiceId } = await aggregatePiperVoices()
-        return NextResponse.json({ voices, defaultVoiceId })
-    } catch (err) {
-        console.error('[TTS VOICES]', err instanceof Error ? err.message : err)
-        return NextResponse.json({ voices: [], defaultVoiceId: null })
-    }
+/** Voice list moved to direct relay Piper `/voices` — see `lib/tts/piperClient.ts`. */
+export function GET () {
+  return NextResponse.json(
+    {
+      error: 'TTS voices proxy removed; use relay /voices via NEXT_PUBLIC_PIPER_API_URLS.',
+      voices: [],
+      defaultVoiceId: null,
+    },
+    { status: 410 },
+  )
 }

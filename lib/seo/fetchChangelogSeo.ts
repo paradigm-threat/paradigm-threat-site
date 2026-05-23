@@ -1,4 +1,8 @@
 import { fetchFromAssetMirrors } from '@/lib/remoteAssetMirrors'
+import {
+  MIRROR_ARTICLE_REVALIDATE_SEC,
+  mirrorFetchNext,
+} from '@/lib/serverMirrorRevalidate'
 import { getTimelineOrigins } from '@/lib/timelineOrigins'
 import { escapeHtml } from '@/lib/seo/escapeHtml'
 
@@ -45,7 +49,9 @@ function normalizeEntry (entry: unknown, fallbackRepo: string): ChangelogSeoEntr
 }
 
 async function fetchChangelogJson (repo: 'files' | 'timeline'): Promise<unknown[]> {
-  const res = await fetchFromAssetMirrors(repo, '/changelog.json', { cache: 'no-store' })
+  const res = await fetchFromAssetMirrors(repo, '/changelog.json', {
+    next: mirrorFetchNext(MIRROR_ARTICLE_REVALIDATE_SEC),
+  })
   if (!res?.ok) return []
   try {
     const data = await res.json()

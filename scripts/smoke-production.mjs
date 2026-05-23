@@ -32,8 +32,8 @@ function fail (msg) {
   process.exit(1)
 }
 
-async function expectHead (url, { status = 200, contentTypeIncludes = null }) {
-  const res = await fetch(url, { method: 'HEAD', redirect: 'follow' })
+async function expectHead (url, { status = 200, contentTypeIncludes = null, redirect = 'follow' }) {
+  const res = await fetch(url, { method: 'HEAD', redirect })
   if (res.status !== status) {
     fail(`${url} — expected HTTP ${status}, got ${res.status}`)
   }
@@ -78,6 +78,20 @@ async function main () {
 
   await expectHead(`${BASE}/files/index.json`, { status: 404 })
   await expectHead(`${BASE}/api/image?url=test`, { status: 404 })
+
+  const exportRes = await fetch(`${BASE}/export/`, { method: 'HEAD', redirect: 'manual' })
+  if (exportRes.status !== 307) {
+    fail(`${BASE}/export/ — expected HTTP 307 redirect, got ${exportRes.status}`)
+  }
+  const exportLoc = exportRes.headers.get('location') || ''
+  if (!exportLoc.includes('relaygateway.net') || !exportLoc.includes('/export')) {
+    fail(`${BASE}/export/ — expected Location on timeline mirror /export/, got ${exportLoc}`)
+  }
+
+  const ttsRes = await fetch(`${BASE}/api/tts/piper`, { method: 'POST' })
+  if (ttsRes.status !== 410) {
+    fail(`${BASE}/api/tts/piper — expected HTTP 410 (proxy removed), got ${ttsRes.status}`)
+  }
 
   await expectHead(`${FILES_MIRROR}/index.json`, { contentTypeIncludes: 'application/json' })
   await expectHead(`${TIMELINE_MIRROR}/data/events.json`, { contentTypeIncludes: 'application/json' })

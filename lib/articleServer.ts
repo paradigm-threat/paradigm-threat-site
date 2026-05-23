@@ -52,7 +52,9 @@ export const fetchTextLeaf = cache(async function fetchTextLeaf (
   }
 })
 
-export async function fetchArticle (path: string): Promise<ArticleData | null> {
+export const fetchArticle = cache(async function fetchArticle (
+  path: string,
+): Promise<ArticleData | null> {
   if (isNonArticlePath(path)) return null
 
   let targetPath = ''
@@ -90,4 +92,4 @@ export async function fetchArticle (path: string): Promise<ArticleData | null> {
     basePath,
     ogImageUrl,
   }
-}
+})
