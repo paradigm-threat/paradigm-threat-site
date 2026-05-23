@@ -1,6 +1,10 @@
 import React, { Suspense } from 'react'
+import { redirect } from 'next/navigation'
 import { extractShareMetadata } from '@/lib/share'
 import { fetchArticle, fetchTextLeaf } from '@/lib/articleServer'
+import { relPathFromCanonicalSiteUrl } from '@/lib/canonicalSiteAssetUrl'
+import { shouldRedirectPathToMirrorAsset } from '@/lib/isNonArticlePath'
+import { buildOptimizedAssetUrl } from '@/lib/relayOptimizedAssetUrl'
 import { buildArticleSeoHtml } from '@/lib/seo/buildArticleSeoHtml'
 import { ArticleMarkdownRegion } from '@/components/ArticleMarkdownRegion'
 import { ArticleJsonLd } from '@/components/ArticleJsonLd'
@@ -108,6 +112,11 @@ export async function generateMetadata ({ params }: PageProps): Promise<Metadata
 export default async function CatchAllPage ({ params }: PageProps) {
   const resolved = await params
   const path = getPathFromParams(resolved)
+
+  if (shouldRedirectPathToMirrorAsset(path)) {
+    const rel = relPathFromCanonicalSiteUrl(`/${path}`)
+    if (rel) redirect(buildOptimizedAssetUrl(`/${rel}`))
+  }
 
   // Try to fetch article server-side for SSR (crawlers get full HTML); path '' → root page.md
   const article = await fetchArticle(path)

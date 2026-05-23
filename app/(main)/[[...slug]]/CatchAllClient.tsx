@@ -16,6 +16,7 @@ import { shouldPersistVisit } from '@/lib/visitResumeStorage'
 import { ShareLinks, ShareLinksFloating, TextLeafClientShell } from '@/components'
 import { useMobileHubTtsChrome } from '@/lib/hooks/useMobileHubTtsChrome'
 import { resolveOgImageUrl } from '@/lib/share/resolveOgImageUrl'
+import { isNonArticlePath } from '@/lib/isNonArticlePath'
 import { remoteRelay } from '@/lib/remoteRelayStore'
 import { mirrorRasterOgUrl } from '@/lib/canonicalPublicSite'
 
@@ -119,7 +120,9 @@ export const CatchAllClient = memo(function CatchAllClient() {
 
         let articleLoaded = false
         let articleFetchStatus: number | null = null
+        const skipMdArticleProbe = isNonArticlePath(requestPath)
         try {
+          if (!skipMdArticleProbe) {
           const articleRes = await remoteRelay.fetchFilesMd(requestPath, vParam, abortController.signal)
           articleFetchStatus = articleRes.status
           if (loadingPathRef.current !== requestPath || !isMounted) return
@@ -173,6 +176,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
               if (isMounted && loadingPathRef.current === requestPath) setUnusedImages(unused)
             }
             articleLoaded = true
+          }
           }
         } catch {
           /* fall through to index / 404 handling */

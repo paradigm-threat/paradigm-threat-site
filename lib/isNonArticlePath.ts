@@ -12,3 +12,13 @@ export function isNonArticlePath (path: string): boolean {
   const segment = path.split('/').filter(Boolean).pop() || ''
   return STATIC_ASSET_EXT.test(segment)
 }
+
+/** Raster/SVG paths that should 307 to Relay mirrors (not .txt / .cs text leaves). */
+const MIRROR_REDIRECT_EXT =
+  /\.(apng|png|jpe?g|gif|webp|avif|bmp|ico|svg|pdf|woff2?|ttf|eot|mp4|webm)$/i
+
+export function shouldRedirectPathToMirrorAsset (path: string): boolean {
+  if (!path || path === '/') return false
+  const segment = path.split('/').filter(Boolean).pop() || ''
+  return MIRROR_REDIRECT_EXT.test(segment)
+}

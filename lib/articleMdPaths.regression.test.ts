@@ -20,4 +20,13 @@ describe('buildArticleMdCandidatePaths', () => {
   it('explicit md path is single candidate', () => {
     assert.deepEqual(buildArticleMdCandidatePaths('blog/post.md'), ['blog/post.md'])
   })
+
+  it('does not probe .png paths as .png.md', () => {
+    assert.deepEqual(
+      buildArticleMdCandidatePaths(
+        'history/chronology/napoleon-corpses-dry-egypt-siberian-disease-quote.png',
+      ),
+      [],
+    )
+  })
 })

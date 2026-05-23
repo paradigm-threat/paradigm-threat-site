@@ -7,6 +7,7 @@ import {
 import { sendClientTelemetry } from '@/lib/clientTelemetrySend'
 import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
 import { buildArticleMdCandidatePaths } from '@/lib/articleMdPaths'
+import { isRelayRepoNotFoundJson } from '@/lib/relayRepoError'
 
 export function relayHostLabel(origin: string): string {
   if (!origin) return ''
@@ -370,10 +371,16 @@ class RemoteRelayStore {
         try {
           const res = await fetch(url, { signal })
           if (!res.ok) continue
+          const body = await res.text()
+          if (isRelayRepoNotFoundJson(body)) continue
           if (p.files !== this.filesOrigin || p.timeline !== this.timelineOrigin) {
             this.switchToPair(p, 'md_failover')
           }
-          return res
+          return new Response(body, {
+            status: res.status,
+            statusText: res.statusText,
+            headers: res.headers,
+          })
         } catch (e) {
           lastErr = e instanceof Error ? e : new Error(String(e))
         }

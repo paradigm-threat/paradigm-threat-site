@@ -1,9 +1,13 @@
+import { isNonArticlePath } from '@/lib/isNonArticlePath'
+
 /**
  * Ordered markdown paths to try for a site URL path (no leading slash).
  * Shared by SSR article fetch and client mirror fetch.
  */
 export function buildArticleMdCandidatePaths (path: string): string[] {
   const normalized = path.replace(/^\//, '').replace(/\/$/, '')
+  if (isNonArticlePath(normalized)) return []
+
   const out: string[] = []
 
   if (normalized.endsWith('.md') || normalized.endsWith('.mdx')) {
