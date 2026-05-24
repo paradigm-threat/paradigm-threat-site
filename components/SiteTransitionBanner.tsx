@@ -2,20 +2,15 @@
 
 import React from 'react'
 import { Info } from 'lucide-react'
-import {
-  isChatDisabled,
-  isSearchDisabled,
-  isSsrMirrorRedirectEnabled,
-} from '@/lib/siteOpsFeature'
+import { isChatDisabled, isSearchDisabled } from '@/lib/siteOpsFeature'
 import {
   RELAY_TRANSITION_BODY,
   RELAY_TRANSITION_HEADLINE,
 } from '@/lib/siteOpsMessages'
 
-/** Shown when any ops flag is active (search, chat, or SSR→mirror redirect). */
+/** Shown when search or chat ops flags are active. */
 export function SiteTransitionBanner () {
-  const active =
-    isSearchDisabled() || isChatDisabled() || isSsrMirrorRedirectEnabled()
+  const active = isSearchDisabled() || isChatDisabled()
   if (!active) return null
 
   return (

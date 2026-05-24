@@ -8,6 +8,10 @@ export function isChatDisabled (): boolean {
   return process.env.NEXT_PUBLIC_CHAT_DISABLED === '1'
 }
 
+/**
+ * Reserved for a future Relay-hosted HTML + SEO phase. Must stay off while articles
+ * use the Next app shell — redirecting to mirror md2ast HTML breaks client components.
+ */
 export function isSsrMirrorRedirectEnabled (): boolean {
-  return process.env.NEXT_PUBLIC_SSR_MIRROR_REDIRECT === '1'
+  return false
 }

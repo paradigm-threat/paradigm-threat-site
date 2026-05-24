@@ -29,16 +29,21 @@ test.describe('Relay transition (production)', () => {
     })
   })
 
-  test('article path redirects to relay mirror and content loads', async ({ page }) => {
+  test('home and articles stay on paradigmthreat.net with app shell', async ({ page }) => {
     test.setTimeout(120_000)
+    await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' })
+    await expect(page).toHaveURL(/paradigmthreat\.net\/?$/)
+    await expect(page.locator('body')).toContainText(/Welcome to Paradigm Threat/i, {
+      timeout: 90_000,
+    })
+    await expect(page.locator('body')).not.toContainText('<ChangeLog />')
+
     await page.goto(`${BASE}${INVESTIGATION_ARTICLE}`, { waitUntil: 'domcontentloaded' })
-    await expect
-      .poll(() => page.url(), { timeout: 60_000 })
-      .toMatch(/relaygateway\.net/)
+    expect(page.url()).toMatch(/paradigmthreat\.net/)
+    expect(page.url()).not.toMatch(/relaygateway\.net/)
     await expect(page.locator('body')).toContainText(/controlled demolition|AE911|Richard Gage/i, {
       timeout: 90_000,
     })
-    expect(page.url()).toMatch(/\.md$|controlled-demolition-investigation\.md/)
   })
 
   test('raster on site origin redirects to relay and decodes', async ({ request }) => {

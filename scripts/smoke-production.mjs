@@ -163,20 +163,17 @@ async function main () {
     if (chatRes.status !== 503) {
       fail(`${BASE}/api/chat/getChannels — expected HTTP 503 when ops disabled, got ${chatRes.status}`)
     }
+    const homeRes = await fetch(`${BASE}/`, { redirect: 'manual' })
+    if (homeRes.status !== 200) {
+      fail(`${BASE}/ — expected HTTP 200 (Next app shell), got ${homeRes.status}`)
+    }
     const samplePath =
       '/events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation'
-    const articleRedirect = await fetch(`${BASE}${samplePath}`, {
-      method: 'HEAD',
-      redirect: 'manual',
-    })
-    if (articleRedirect.status !== 307 && articleRedirect.status !== 308) {
+    const articleRes = await fetch(`${BASE}${samplePath}`, { redirect: 'manual' })
+    if (articleRes.status === 307 || articleRes.status === 308) {
       fail(
-        `${BASE}${samplePath} — expected HTTP 307/308 mirror redirect when SSR flag on, got ${articleRedirect.status}`,
+        `${BASE}${samplePath} — articles must not redirect to mirror HTML (breaks client shell), got ${articleRes.status}`,
       )
-    }
-    const loc = articleRedirect.headers.get('location') || ''
-    if (!loc.includes('relaygateway.net')) {
-      fail(`${BASE}${samplePath} — expected mirror Location, got ${loc}`)
     }
     console.log('smoke-production: ops-disabled checks passed')
   }

@@ -44,7 +44,7 @@ describe('siteOpsFeature flags', () => {
     process.env.NEXT_PUBLIC_SSR_MIRROR_REDIRECT = '1'
     assert.equal(isSearchDisabled(), true)
     assert.equal(isChatDisabled(), true)
-    assert.equal(isSsrMirrorRedirectEnabled(), true)
+    assert.equal(isSsrMirrorRedirectEnabled(), false)
   })
 })
 
