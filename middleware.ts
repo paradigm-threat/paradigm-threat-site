@@ -4,7 +4,10 @@ import { buildOptimizedAssetUrl } from '@/lib/relayOptimizedAssetUrl'
 import { relPathFromCanonicalSiteUrl } from '@/lib/canonicalSiteAssetUrl'
 import { mirrorFilesAssetUrl } from '@/lib/canonicalPublicSite'
 import { isSsrMirrorRedirectEnabled } from '@/lib/siteOpsFeature'
-import { shouldRedirectPathToFilesMirror } from '@/lib/ssrMirrorRedirect'
+import {
+  shouldRedirectPathToFilesMirror,
+  sitePathToMirrorHtmlRel,
+} from '@/lib/ssrMirrorRedirect'
 import { logOpsEvent } from '@/lib/opsServerLog'
 
 const RASTER_EXT = /\.(apng|png|jpe?g|gif|webp|avif|bmp|ico|svg)$/i
@@ -35,7 +38,7 @@ export function middleware (request: NextRequest) {
       isSsrMirrorRedirectEnabled() &&
       shouldRedirectPathToFilesMirror(pathname)
     ) {
-      const rel = pathname === '/' ? '' : pathname.replace(/^\//, '')
+      const rel = sitePathToMirrorHtmlRel(pathname)
       const dest = mirrorFilesAssetUrl(rel) + request.nextUrl.search
       logOpsEvent({
         kind: 'pt_ssr_redirect',

@@ -38,6 +38,7 @@ test.describe('Relay transition (production)', () => {
     await expect(page.locator('body')).toContainText(/controlled demolition|AE911|Richard Gage/i, {
       timeout: 90_000,
     })
+    expect(page.url()).toMatch(/\.md$|controlled-demolition-investigation\.md/)
   })
 
   test('raster on site origin redirects to relay and decodes', async ({ request }) => {

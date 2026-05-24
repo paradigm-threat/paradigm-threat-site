@@ -20,6 +20,18 @@ const EXCLUDED_EXACT = new Set(['/robots.txt', '/sitemap.xml', '/favicon.ico'])
 const STATIC_ASSET_EXT =
   /\.(apng|png|jpe?g|gif|webp|avif|bmp|ico|svg|pdf|woff2?|ttf|eot|mp4|webm|txt|cs|md|mdx)$/i
 
+/**
+ * Map a pretty site path to the files-repo path Relay serves as HTML (md2ast).
+ * Extensionless article URLs use `<slug>.md`; root uses `page.md`.
+ */
+export function sitePathToMirrorHtmlRel (pathname: string): string {
+  if (!pathname || pathname === '/') return 'page.md'
+  const rel = pathname.replace(/^\//, '')
+  const segment = rel.split('/').filter(Boolean).pop() || ''
+  if (/\.(md|mdx|txt|cs)$/i.test(segment)) return rel
+  return `${rel}.md`
+}
+
 export function shouldRedirectPathToFilesMirror (pathname: string): boolean {
   if (!pathname || pathname === '/') return true
   if (EXCLUDED_EXACT.has(pathname)) return false

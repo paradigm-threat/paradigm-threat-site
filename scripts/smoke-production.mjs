@@ -114,6 +114,9 @@ async function main () {
     if (!loc.includes('relaygateway.net')) {
       fail(`${articleUrl} — expected mirror redirect Location, got ${loc}`)
     }
+    if (!loc.includes('controlled-demolition-investigation.md')) {
+      fail(`${articleUrl} — redirect should target .md on mirror, got ${loc}`)
+    }
     console.log('smoke-production: article SSR redirect to mirror OK —', loc)
   } else {
     const articleHtml = await fetch(articleUrl, { redirect: 'follow' }).then((r) => {

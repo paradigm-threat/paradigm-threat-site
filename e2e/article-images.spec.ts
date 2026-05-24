@@ -33,8 +33,9 @@ async function expectRasterLoaded (img: Locator): Promise<void> {
 }
 
 test.describe('article images (absolute https URLs)', () => {
-  test('Cave Story essay PopImages load decoded rasters', async ({ page }) => {
+  test('Cave Story essay PopImages load decoded rasters', async ({ page, baseURL }) => {
     test.setTimeout(120_000)
+    const onProd = baseURL?.includes('paradigmthreat.net') ?? false
 
     const failedRequests: string[] = []
     page.on('response', (res) => {
@@ -45,6 +46,23 @@ test.describe('article images (absolute https URLs)', () => {
     })
 
     await page.goto(CAVE_STORY_ARTICLE, { waitUntil: 'domcontentloaded' })
+
+    if (onProd) {
+      await expect.poll(() => page.url(), { timeout: 60_000 }).toMatch(/relaygateway\.net/)
+      await expect(page.locator('body')).toContainText('You do not have to stop loving', {
+        timeout: 90_000,
+      })
+      const imgs = page.locator('img[src*="relaygateway.net"]')
+      await expect(imgs.first()).toBeVisible({ timeout: 90_000 })
+      const count = await imgs.count()
+      expect(count, 'mirror HTML should include relay-hosted images').toBeGreaterThanOrEqual(1)
+      for (let i = 0; i < Math.min(count, 3); i++) {
+        await expectRasterLoaded(imgs.nth(i))
+      }
+      expect(failedRequests, 'cave-story image HTTP failures').toEqual([])
+      return
+    }
+
     await expect(page.locator('.relay-markdown-error')).toHaveCount(0)
     await expect(page.locator('.article-markdown-region').first()).toContainText(
       'You do not have to stop loving',

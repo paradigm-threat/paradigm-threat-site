@@ -5,7 +5,10 @@ import {
   isChatDisabled,
   isSsrMirrorRedirectEnabled,
 } from './siteOpsFeature.ts'
-import { shouldRedirectPathToFilesMirror } from './ssrMirrorRedirect.ts'
+import {
+  shouldRedirectPathToFilesMirror,
+  sitePathToMirrorHtmlRel,
+} from './ssrMirrorRedirect.ts'
 
 describe('siteOpsFeature flags', () => {
   const prev = {
@@ -42,6 +45,17 @@ describe('siteOpsFeature flags', () => {
     assert.equal(isSearchDisabled(), true)
     assert.equal(isChatDisabled(), true)
     assert.equal(isSsrMirrorRedirectEnabled(), true)
+  })
+})
+
+describe('sitePathToMirrorHtmlRel', () => {
+  it('maps extensionless slugs to .md', () => {
+    assert.equal(
+      sitePathToMirrorHtmlRel(
+        '/events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation',
+      ),
+      'events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation.md',
+    )
   })
 })
 

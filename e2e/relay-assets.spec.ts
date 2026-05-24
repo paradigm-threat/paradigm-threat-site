@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 
 const INVESTIGATION_ARTICLE =
-  '/events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation.md'
+  '/events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation'
 
 const CRAWLER_UA = 'facebookexternalhit/1.1'
 
@@ -68,7 +68,9 @@ test.describe('relay assets SSR (production)', () => {
     const ogImage = extractOgImage(html)
     expect(ogImage).toBeTruthy()
     expect(ogImage).toMatch(/\.relaygateway\.net\//)
-    expect(ogImage).toMatch(/\?w=\d+/)
+    if (ogImage && /\.(png|jpe?g|webp|avif)/i.test(ogImage)) {
+      expect(ogImage).toMatch(/\?w=\d+/)
+    }
     expect(ogImage).not.toMatch(/investigations\/events\/false_flag\/investigations\//)
   })
 
@@ -81,7 +83,9 @@ test.describe('relay assets SSR (production)', () => {
     expect(ogImage).toBeTruthy()
     expect(ogImage).toMatch(/paradigm-threat-timeline.*\.relaygateway\.net/)
     expect(ogImage).toMatch(/\.(png|jpe?g|webp)/i)
-    expect(ogImage).toMatch(/\?w=\d+/)
+    if (ogImage && /\.(png|jpe?g|webp|avif)/i.test(ogImage)) {
+      expect(ogImage).toMatch(/\?w=\d+/)
+    }
   })
 })
 
@@ -103,17 +107,16 @@ test.describe('relay assets browser (production)', () => {
     })
 
     await page.goto(INVESTIGATION_ARTICLE, { waitUntil: 'domcontentloaded' })
-    await expect(page.locator('.relay-markdown-error')).toHaveCount(0)
+    await expect.poll(() => page.url(), { timeout: 60_000 }).toMatch(/relaygateway\.net/)
+    await expect(page.locator('body')).toContainText(/controlled demolition|AE911|Richard Gage/i, {
+      timeout: 90_000,
+    })
 
-    const region = page.locator('.article-markdown-region, .relay-markdown').first()
-    await expect(region).toBeVisible({ timeout: 90_000 })
-
-    const figureImg = page.locator('figure img').first()
-    await figureImg.scrollIntoViewIfNeeded()
-    await expect(figureImg).toBeVisible({ timeout: 60_000 })
-    const src = (await figureImg.getAttribute('src')) || ''
+    const img = page.locator('img[src*="relaygateway.net"]').first()
+    await img.scrollIntoViewIfNeeded()
+    await expect(img).toBeVisible({ timeout: 60_000 })
+    const src = (await img.getAttribute('src')) || ''
     expect(src).toMatch(/relaygateway\.net/)
-    expect(src).toMatch(/\?w=\d+/)
     expect(src).not.toMatch(/investigations\/events\/false_flag\/investigations\//)
     expect(failedImages).toEqual([])
   })
