@@ -98,7 +98,13 @@ test.describe('relay assets (production)', () => {
       timeout: 90_000,
     })
 
-    const img = page.locator('img[src*="richard-gage-ae911truth-controlled-demolition-investigation"]').first()
+    await expect
+      .poll(
+        async () => page.locator('img[src*="relaygateway.net"][src*="investigation"]').count(),
+        { timeout: 90_000 },
+      )
+      .toBeGreaterThan(0)
+    const img = page.locator('img[src*="relaygateway.net"][src*="investigation"]').first()
     await expectRasterLoaded(img)
     const src = (await img.getAttribute('src')) || ''
     expect(src).toMatch(/relaygateway\.net/i)
@@ -107,10 +113,13 @@ test.describe('relay assets (production)', () => {
     expect(failedImages).toEqual([])
   })
 
-  test('homepage hero image loads from relay', async ({ page }) => {
-    test.setTimeout(90_000)
+  test('homepage markdown images load from relay after client render', async ({ page }) => {
+    test.setTimeout(120_000)
     await page.goto('/', { waitUntil: 'domcontentloaded' })
     await expect(page.locator('body')).toContainText(/Welcome to Paradigm Threat/i, { timeout: 90_000 })
+    await expect
+      .poll(async () => page.locator('img[src*="relaygateway.net"]').count(), { timeout: 90_000 })
+      .toBeGreaterThan(0)
     const img = page.locator('img[src*="relaygateway.net"]').first()
     await expectRasterLoaded(img)
   })
