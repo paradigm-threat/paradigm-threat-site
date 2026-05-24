@@ -20,6 +20,8 @@ export interface ImageGalleryContextType {
     setCurrentIndex: (index: number) => void
     isOpen: boolean
     setIsOpen: (isOpen: boolean) => void
+    openGallery: (items: GalleryImage[], startIndex?: number) => void
+    clearGalleryOverride: () => void
 }
 
 const ImageGalleryContext = createContext<ImageGalleryContextType | undefined>(undefined)
@@ -29,6 +31,7 @@ export function ImageGalleryProvider({ children }: { children: React.ReactNode }
     const [images, setImages] = useState<GalleryImage[]>([])
     const [currentIndex, setCurrentIndex] = useState(-1)
     const [isOpen, setIsOpen] = useState(false)
+    const [overrideImages, setOverrideImages] = useState<GalleryImage[] | null>(null)
 
     // Using a ref to track images to avoid re-renders during registration loop
     const imagesRef = useRef<GalleryImage[]>([])
@@ -49,15 +52,31 @@ export function ImageGalleryProvider({ children }: { children: React.ReactNode }
         setImages([...imagesRef.current])
     }, [])
 
+    const clearGalleryOverride = useCallback(() => {
+        setOverrideImages(null)
+    }, [])
+
+    const openGallery = useCallback((items: GalleryImage[], startIndex = 0) => {
+        const list = items.filter((i): i is GalleryImage => Boolean(i?.src))
+        if (list.length === 0) return
+        setOverrideImages(list)
+        setCurrentIndex(Math.min(Math.max(0, startIndex), list.length - 1))
+        setIsOpen(true)
+    }, [])
+
+    const activeImages = overrideImages ?? images
+
     const contextValue = useMemo(() => ({
-        images,
+        images: activeImages,
         registerImage,
         unregisterImage,
         currentIndex,
         setCurrentIndex,
         isOpen,
-        setIsOpen
-    }), [images, registerImage, unregisterImage, currentIndex, isOpen]);
+        setIsOpen,
+        openGallery,
+        clearGalleryOverride,
+    }), [activeImages, registerImage, unregisterImage, currentIndex, isOpen, openGallery, clearGalleryOverride]);
 
     return (
         <ImageGalleryContext.Provider value={contextValue}>
@@ -169,7 +188,7 @@ function GalleryImageItem({
 }
 
 export function ImageGalleryOverlay() {
-    const { images, currentIndex, setCurrentIndex, isOpen, setIsOpen } = useImageGallery()
+    const { images, currentIndex, setCurrentIndex, isOpen, setIsOpen, clearGalleryOverride } = useImageGallery()
     const [direction, setDirection] = useState(0)
     const [remoteCaption, setRemoteCaption] = useState<string | null>(null)
 
@@ -236,8 +255,9 @@ export function ImageGalleryOverlay() {
         if (window.location.hash.startsWith('#img=')) {
             window.history.replaceState(null, '', window.location.pathname + window.location.search);
         }
+        clearGalleryOverride()
         setIsOpen(false)
-    }, [setIsOpen])
+    }, [setIsOpen, clearGalleryOverride])
 
     useEffect(() => {
         if (!isOpen) return;
@@ -270,7 +290,7 @@ export function ImageGalleryOverlay() {
         }
     }, [isOpen])
 
-    if (!currentImage) return null
+    if (!isOpen || !currentImage) return null
 
     const prevImage = images.length > 1 ? images[(currentIndex - 1 + images.length) % images.length] : null;
     const nextImage = images.length > 1 ? images[(currentIndex + 1) % images.length] : null;
