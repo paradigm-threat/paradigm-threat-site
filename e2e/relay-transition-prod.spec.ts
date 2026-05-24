@@ -86,7 +86,8 @@ test.describe('Relay transition (production)', () => {
     await btn.click()
     await expect
       .poll(() => page.url(), { timeout: 90_000 })
-      .toMatch(/paradigmthreat\.net\/(timeline\/|events\/|blog\/|history\/|science\/|governance\/)/)
+      .toMatch(/^https:\/\/paradigmthreat\.net\/[^?#]+\/?$/)
+    expect(page.url()).not.toMatch(/paradigmthreat\.net\/?$/)
     expect(luckyApiCalls).toBe(0)
   })
 })
