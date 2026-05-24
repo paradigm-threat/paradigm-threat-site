@@ -41,68 +41,47 @@ test.describe('legacy proxy 404 (local build)', () => {
     expect(loc).toMatch(/relaygateway\.net\/export/)
   })
 
-  test('/api/tts/piper returns 410', async ({ request }) => {
+  test('/api/tts/piper returns 410 or 503', async ({ request }) => {
     const res = await request.post('/api/tts/piper', {
       data: { text: 'test', voiceId: 'en' },
     })
-    expect(res.status()).toBe(410)
+    expect([410, 503]).toContain(res.status())
   })
 })
 
-test.describe('relay assets SSR (production)', () => {
+test.describe('relay assets (production)', () => {
   test.skip(
     ({ baseURL }) => !baseURL?.includes('paradigmthreat.net'),
     'Set PLAYWRIGHT_BASE_URL=https://paradigmthreat.net',
   )
 
-  test('investigation article: relay mirror (redirect or SSR og:image), no /files/', async ({
-    request,
-  }) => {
+  test('investigation article stays on site origin', async ({ request }) => {
     const res = await request.get(INVESTIGATION_ARTICLE, {
       headers: { 'User-Agent': CRAWLER_UA },
       maxRedirects: 0,
     })
-    if ([307, 308].includes(res.status())) {
-      const loc = res.headers()['location'] || ''
-      expect(loc).toMatch(/relaygateway\.net/)
-      const mirror = await request.get(loc, { headers: { 'User-Agent': CRAWLER_UA } })
-      expect(mirror.status()).toBe(200)
-      const html = await mirror.text()
-      expect(html).not.toMatch(/paradigmthreat\.net\/files\//)
-      return
-    }
     expect(res.status()).toBe(200)
     const html = await res.text()
     expect(html).not.toMatch(/paradigmthreat\.net\/files\//)
-
     const ogImage = extractOgImage(html)
-    expect(ogImage).toBeTruthy()
-    expect(ogImage).toMatch(/\.relaygateway\.net\//)
-    if (ogImage && /\.(png|jpe?g|webp|avif)/i.test(ogImage)) {
-      expect(ogImage).toMatch(/\?w=\d+/)
+    if (ogImage) {
+      expect(ogImage).toMatch(/\.relaygateway\.net\//)
+      if (/\.(png|jpe?g|webp|avif)/i.test(ogImage)) {
+        expect(ogImage).toMatch(/\?w=\d+/)
+      }
+      expect(ogImage).not.toMatch(/investigations\/events\/false_flag\/investigations\//)
     }
-    expect(ogImage).not.toMatch(/investigations\/events\/false_flag\/investigations\//)
   })
 
-  test('timeline event og:image is relay raster with ?w=', async ({ request }) => {
+  test('timeline event page loads on site origin', async ({ request }) => {
     const res = await request.get('/timeline/evt-introduction', {
       headers: { 'User-Agent': CRAWLER_UA },
     })
     expect(res.status()).toBe(200)
-    const ogImage = extractOgImage(await res.text())
-    expect(ogImage).toBeTruthy()
-    expect(ogImage).toMatch(/paradigm-threat-timeline.*\.relaygateway\.net/)
-    expect(ogImage).toMatch(/\.(png|jpe?g|webp)/i)
+    expect(res.url()).toMatch(/paradigmthreat\.net/)
   })
-})
 
-test.describe('relay assets browser (production)', () => {
-  test.skip(
-    ({ baseURL }) => !baseURL?.includes('paradigmthreat.net'),
-    'Set PLAYWRIGHT_BASE_URL=https://paradigmthreat.net',
-  )
-
-  test('investigation article images load from relay', async ({ page }) => {
+  test('investigation article images load from relay in browser', async ({ page }) => {
     test.setTimeout(120_000)
 
     const failedImages: string[] = []
@@ -114,7 +93,7 @@ test.describe('relay assets browser (production)', () => {
     })
 
     await page.goto(INVESTIGATION_ARTICLE, { waitUntil: 'domcontentloaded' })
-    await expect.poll(() => page.url(), { timeout: 60_000 }).toMatch(/relaygateway\.net/)
+    await expect(page).toHaveURL(/paradigmthreat\.net/)
     await expect(page.locator('body')).toContainText(/controlled demolition|AE911|Richard Gage/i, {
       timeout: 90_000,
     })
@@ -122,8 +101,17 @@ test.describe('relay assets browser (production)', () => {
     const img = page.locator('img[src*="richard-gage-ae911truth-controlled-demolition-investigation"]').first()
     await expectRasterLoaded(img)
     const src = (await img.getAttribute('src')) || ''
+    expect(src).toMatch(/relaygateway\.net/i)
     expect(src).toMatch(/investigation.*\.png/i)
     expect(src).not.toMatch(/investigations\/events\/false_flag\/investigations\//)
     expect(failedImages).toEqual([])
+  })
+
+  test('homepage hero image loads from relay', async ({ page }) => {
+    test.setTimeout(90_000)
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+    await expect(page.locator('body')).toContainText(/Welcome to Paradigm Threat/i, { timeout: 90_000 })
+    const img = page.locator('img[src*="relaygateway.net"]').first()
+    await expectRasterLoaded(img)
   })
 })

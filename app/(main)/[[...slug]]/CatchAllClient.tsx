@@ -19,6 +19,8 @@ import { resolveOgImageUrl } from '@/lib/share/resolveOgImageUrl'
 import { isNonArticlePath } from '@/lib/isNonArticlePath'
 import { remoteRelay } from '@/lib/remoteRelayStore'
 import { mirrorRasterOgUrl } from '@/lib/canonicalPublicSite'
+import { applyClientPageMeta } from '@/lib/clientPageMeta'
+import { isServerRelayFetchDisabled } from '@/lib/siteOpsFeature'
 
 const DIRECT_IMAGE_EXT = /\.(jpg|jpeg|png|gif|svg|webp|avif|ico)$/i
 const DIRECT_PLAINTEXT_LEAF_EXT = /\.(txt|cs)$/i
@@ -88,6 +90,16 @@ export const CatchAllClient = memo(function CatchAllClient() {
     if (!content || !articleMeta) return undefined
     return resolveOgImageUrl(content, basePath)
   }, [content, basePath, articleMeta])
+
+  useEffect(() => {
+    if (!isServerRelayFetchDisabled() || !content || !articleTitle) return
+    applyClientPageMeta({
+      title: `${articleTitle} | Paradigm Threat`,
+      description: `Read ${articleTitle} on Paradigm Threat.`,
+      ogImageUrl: ogImageUrlForShare,
+      canonicalPath: pathname || '/',
+    })
+  }, [content, articleTitle, ogImageUrlForShare, pathname])
 
   /** Index / generated listing pages (no article MDX) — same label as the page title (h1). */
   const listingPageTitle = useMemo(() => path.split('/').pop() || 'Home', [path])

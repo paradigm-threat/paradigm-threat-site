@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
+import { buildOptimizedAssetUrl } from '@/lib/relayOptimizedAssetUrl'
 
 const CENSORSHIP_IMAGES = [
   'influence/censorship/github-ban.png',
@@ -15,9 +15,9 @@ const GITLAB_BLOB_URLS = [
   'https://gitlab.com/clevertree/paradigm-threat-files/-/blob/main/influence/censorship/github-ban2.png',
 ] as const
 
-function filesAssetUrl(relativePath: string): string {
-  const base = getPrimaryFilesBaseUrl()
-  return `${base}/${relativePath.replace(/^\//, '')}`
+function filesAssetUrl (relativePath: string): string {
+  const rel = relativePath.replace(/^\//, '')
+  return buildOptimizedAssetUrl(`/${rel}`, 800)
 }
 
 export interface ArticleRemote404NoticeProps {

@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react'
 import { Search, Loader2 } from 'lucide-react'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
 import { filterIndexedEntriesByQuery } from '@/lib/searchIndexFilter'
+import { fetchMergedSearchIndexClient } from '@/lib/clientMergedSearchIndex'
 import { SearchResultLinks } from '@/components/search'
 
 interface FileSearchFormProps {
@@ -20,12 +21,11 @@ export default function FileSearchForm({ keywords = "" }: FileSearchFormProps) {
         const fetchIndex = async () => {
             try {
                 setLoading(true)
-                const res = await fetch('/api/search-index')
-                if (!res.ok) throw new Error('search index unavailable')
-                const payload = await res.json() as IndexedPathEntry[] | { error?: string }
-                setFileIndex(Array.isArray(payload) ? payload : [])
+                const entries = await fetchMergedSearchIndexClient()
+                if (entries === null) throw new Error('search index unavailable')
+                setFileIndex(entries)
                 setError(null)
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error('Failed to fetch file index:', err)
                 setError('Failed to load search index')
             } finally {
@@ -105,10 +105,3 @@ export default function FileSearchForm({ keywords = "" }: FileSearchFormProps) {
         </div>
     )
 }
-
-function processKeywordList(keywordString: string) {
-    return (keywordString || '').split(/[;, /]+/g)
-        .map(s => s.replace(/[^a-zA-Z]+/g, ''))
-        .filter(i => !!i)
-}
-

@@ -336,11 +336,8 @@ export function useTTS() {
         if (typeof window === 'undefined') return
         let mounted = true
         const loadVoices = async () => {
-            if (isClientPiperConfigured()) {
-                return aggregateClientPiperVoices()
-            }
-            const res = await fetch('/api/tts/piper/voices')
-            return res.ok ? res.json() : null
+            if (!isClientPiperConfigured()) return null
+            return aggregateClientPiperVoices()
         }
         loadVoices()
             .then(data => {

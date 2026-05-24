@@ -93,9 +93,9 @@ async function main () {
   }
 
   const ttsRes = await fetch(`${BASE}/api/tts/piper`, { method: 'POST' })
-  // 410 after deploy; 400 may appear briefly on older builds that still parsed the body
-  if (ttsRes.status !== 410 && ttsRes.status !== 400) {
-    fail(`${BASE}/api/tts/piper — expected HTTP 410 (proxy removed), got ${ttsRes.status}`)
+  // 503 when server Relay fetch disabled; 410 when proxy removed but flag allows route
+  if (![410, 400, 503].includes(ttsRes.status)) {
+    fail(`${BASE}/api/tts/piper — expected HTTP 410/503 (use relay Piper in browser), got ${ttsRes.status}`)
   }
 
   await expectHead(`${FILES_MIRROR}/index.json`, { contentTypeIncludes: 'application/json' })
@@ -110,22 +110,23 @@ async function main () {
   const articleUrl = `${BASE}${articlePath}`
   const articleProbe = await fetch(articleUrl, { redirect: 'manual' })
   if ([307, 308].includes(articleProbe.status)) {
-    const loc = articleProbe.headers.get('location') || ''
-    if (!loc.includes('relaygateway.net')) {
-      fail(`${articleUrl} — expected mirror redirect Location, got ${loc}`)
-    }
-    if (!loc.includes('controlled-demolition-investigation.md')) {
-      fail(`${articleUrl} — redirect should target .md on mirror, got ${loc}`)
-    }
-    console.log('smoke-production: article SSR redirect to mirror OK —', loc)
-  } else {
-    const articleHtml = await fetch(articleUrl, { redirect: 'follow' }).then((r) => {
-      if (!r.ok) fail(`${articleUrl} — expected 200 or 307, got ${r.status}`)
-      return r.text()
-    })
-    const ogImage = extractMeta(articleHtml, 'og:image')
+    fail(
+      `${articleUrl} — articles must stay on ${BASE} (client shell), got redirect ${articleProbe.headers.get('location')}`,
+    )
+  }
+  const articleHtml = await fetch(articleUrl, { redirect: 'follow' }).then((r) => {
+    if (!r.ok) fail(`${articleUrl} — expected HTTP 200, got ${r.status}`)
+    return r.text()
+  })
+  if (!/Paradigm Threat/i.test(articleHtml)) {
+    fail(`${articleUrl} — expected Next app shell in HTML`)
+  }
+  const ogImage = extractMeta(articleHtml, 'og:image')
+  if (ogImage) {
     assertRelayOg(ogImage, articleUrl)
     await expectHead(ogImage, { contentTypeIncludes: 'image/' })
+  } else {
+    console.log('smoke-production: article has no server og:image (client load — OK)')
   }
 
   const rasterUrl = `${BASE}/events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation.png`

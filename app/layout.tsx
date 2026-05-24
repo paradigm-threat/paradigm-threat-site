@@ -7,6 +7,7 @@ import { useScrollToTopOnPathnameUnlessHistory } from "@/lib/hooks/useScrollToTo
 import { DynamicNav, FloatingDiv, ThemeToggle, Navbar, ImageGalleryProvider, FilesProvider, useFiles, ClientErrorReporter } from "@/components";
 import { RelayServerToast } from "@/components/RelayServerToast";
 import { RelayFooterAttribution } from "@/components/RelayFooterAttribution";
+import { FooterSiteNav } from "@/components/FooterSiteNav";
 import PwaRedirect from "@/components/PwaRedirect";
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from "@vercel/speed-insights/next"
@@ -65,17 +66,7 @@ function RootLayoutInner({ children }: { children: React.ReactNode }) {
 
                 <footer className="flex-shrink-0 w-full min-w-0 max-w-full bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-12">
                     <div className="max-w-7xl mx-auto min-w-0 px-4 text-center space-y-6">
-                        <nav
-                            aria-label="Site"
-                            className="flex max-w-full flex-wrap justify-center gap-x-4 gap-y-2 px-1 text-sm text-slate-600 dark:text-slate-400 sm:gap-x-6 sm:text-base"
-                        >
-                            <Link href="/search" className="shrink-0 hover:text-slate-900 dark:hover:text-white transition-colors">Search</Link>
-                            <Link href="/" className="shrink-0 hover:text-slate-900 dark:hover:text-white transition-colors">Home</Link>
-                            <Link href="/timeline" className="shrink-0 hover:text-slate-900 dark:hover:text-white transition-colors">Timeline</Link>
-                            <Link href="/chat" className="shrink-0 hover:text-slate-900 dark:hover:text-white transition-colors">Chat</Link>
-                            <Link href="https://paradigmthreat2.substack.com/" target="_blank" rel="noopener noreferrer" className="shrink-0 hover:text-slate-900 dark:hover:text-white transition-colors">Substack</Link>
-                            <Link href="https://www.bitchute.com/channel/paradigmthreat" target="_blank" rel="noopener noreferrer" className="shrink-0 hover:text-slate-900 dark:hover:text-white transition-colors">Videos</Link>
-                        </nav>
+                        <FooterSiteNav />
                         <div className="text-slate-500 text-sm">
                             Created by <a href="https://clevertree.net/" className="text-blue-500 hover:underline font-semibold">Ari Asulin</a>
                         </div>
