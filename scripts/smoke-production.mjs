@@ -157,11 +157,23 @@ async function main () {
   if (process.env.SMOKE_OPS_DISABLED === '1') {
     const searchRes = await fetch(`${BASE}/api/search-index`)
     if (searchRes.status !== 503) {
-      fail(`${BASE}/api/search-index — expected HTTP 503 when ops disabled, got ${searchRes.status}`)
+      fail(`${BASE}/api/search-index — expected HTTP 503 (client-side search), got ${searchRes.status}`)
+    }
+    const luckyRes = await fetch(`${BASE}/api/feeling-lucky`)
+    if (luckyRes.status !== 503) {
+      fail(`${BASE}/api/feeling-lucky — expected HTTP 503 (client-side lucky), got ${luckyRes.status}`)
     }
     const chatRes = await fetch(`${BASE}/api/chat/getChannels`)
     if (chatRes.status !== 503) {
       fail(`${BASE}/api/chat/getChannels — expected HTTP 503 when ops disabled, got ${chatRes.status}`)
+    }
+    const searchPage = await fetch(`${BASE}/search`)
+    if (!searchPage.ok) {
+      fail(`${BASE}/search — expected HTTP 200 (search UI enabled), got ${searchPage.status}`)
+    }
+    const searchHtml = await searchPage.text()
+    if (searchHtml.includes('Search paused during Relay transition')) {
+      fail(`${BASE}/search — search UI should not show paused banner`)
     }
     const homeRes = await fetch(`${BASE}/`, { redirect: 'manual' })
     if (homeRes.status !== 200) {

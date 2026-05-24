@@ -2,15 +2,15 @@
 
 import React from 'react'
 import { Info } from 'lucide-react'
-import { isChatDisabled, isSearchDisabled } from '@/lib/siteOpsFeature'
+import { isChatDisabled } from '@/lib/siteOpsFeature'
 import {
   RELAY_TRANSITION_BODY,
   RELAY_TRANSITION_HEADLINE,
 } from '@/lib/siteOpsMessages'
 
-/** Shown when search or chat ops flags are active. */
+/** Shown when chat ops flag is active (search uses client-side Relay index). */
 export function SiteTransitionBanner () {
-  const active = isSearchDisabled() || isChatDisabled()
+  const active = isChatDisabled()
   if (!active) return null
 
   return (

@@ -14,12 +14,12 @@ test.describe('Relay transition (production)', () => {
     'Set PLAYWRIGHT_BASE_URL=https://paradigmthreat.net',
   )
 
-  test('site shows transition banner on search', async ({ page }) => {
+  test('search UI enabled (client-side index, no pause banner)', async ({ page }) => {
     await page.goto(`${BASE}/search`, { waitUntil: 'domcontentloaded' })
-    await expect(page.getByText(/Transitioning to full Relay-powered delivery/i)).toBeVisible({
-      timeout: 30_000,
-    })
-    await expect(page.getByText(/Search paused during Relay transition/i)).toBeVisible()
+    await expect(page.getByText(/Search paused during Relay transition/i)).toHaveCount(0)
+    const searchInput = page.getByPlaceholder(/Type keywords/i)
+    await expect(searchInput).toBeVisible({ timeout: 30_000 })
+    await expect(searchInput).toBeEnabled()
   })
 
   test('chat shows paused message', async ({ page }) => {
@@ -65,10 +65,28 @@ test.describe('Relay transition (production)', () => {
     expect(page.url()).not.toMatch(/relaygateway\.net/)
   })
 
-  test('search and chat APIs return 503 when paused', async ({ request }) => {
+  test('legacy search APIs return 503 (use client index)', async ({ request }) => {
     const search = await request.get(`${BASE}/api/search-index`)
     expect(search.status()).toBe(503)
+    const lucky = await request.get(`${BASE}/api/feeling-lucky`)
+    expect(lucky.status()).toBe(503)
     const chat = await request.get(`${BASE}/api/chat/getChannels`)
     expect(chat.status()).toBe(503)
+  })
+
+  test('Feeling Lucky uses client index not API', async ({ page }) => {
+    test.setTimeout(120_000)
+    let luckyApiCalls = 0
+    page.on('request', (req) => {
+      if (req.url().includes('/api/feeling-lucky')) luckyApiCalls++
+    })
+    await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' })
+    const btn = page.getByRole('button', { name: /I'm Feeling Lucky/i })
+    await expect(btn).toBeEnabled({ timeout: 30_000 })
+    await btn.click()
+    await expect
+      .poll(() => page.url(), { timeout: 90_000 })
+      .toMatch(/paradigmthreat\.net\/(timeline\/|events\/|blog\/|history\/|science\/|governance\/)/)
+    expect(luckyApiCalls).toBe(0)
   })
 })

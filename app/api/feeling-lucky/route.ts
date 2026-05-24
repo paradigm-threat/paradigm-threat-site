@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { unstable_cache } from 'next/cache'
 import { getMergedSearchIndex } from '@/server/remoteFiles'
 import { feelingLuckyPathToHref, isFeelingLuckyCandidate } from '@/lib/feelingLucky'
-import { isSearchDisabled } from '@/lib/siteOpsFeature'
+import { isSearchServerApiDisabled } from '@/lib/siteOpsFeature'
 import { logOpsEvent } from '@/lib/opsServerLog'
 import { API_SEARCH_DISABLED_ERROR } from '@/lib/siteOpsMessages'
 
@@ -22,7 +22,7 @@ const getCachedHrefs = unstable_cache(
 )
 
 export async function GET () {
-  if (isSearchDisabled()) {
+  if (isSearchServerApiDisabled()) {
     logOpsEvent({
       kind: 'pt_search',
       route: 'feeling-lucky',

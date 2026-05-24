@@ -1,7 +1,13 @@
 /** Vercel ops flags — set `NEXT_PUBLIC_*=1` in Production to enable. */
 
-export function isSearchDisabled (): boolean {
+/** Blocks /api/search-index and /api/feeling-lucky only (not the /search UI). */
+export function isSearchServerApiDisabled (): boolean {
   return process.env.NEXT_PUBLIC_SEARCH_DISABLED === '1'
+}
+
+/** @deprecated Use isSearchServerApiDisabled for APIs; search UI is always client-side. */
+export function isSearchDisabled (): boolean {
+  return isSearchServerApiDisabled()
 }
 
 export function isChatDisabled (): boolean {

@@ -4,6 +4,7 @@ import React from 'react'
 import Link from 'next/link'
 import { FileText, Image as ImageIcon } from 'lucide-react'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
+import { feelingLuckyPathToHref } from '@/lib/feelingLucky'
 
 function isImagePath(path: string): boolean {
   return /\.(jpg|jpeg|png|gif|svg|webp)$/i.test(path)
@@ -29,7 +30,7 @@ export function SearchResultLinks({ entries, maxItems, className }: SearchResult
       {rows.map((entry) => (
         <Link
           key={entry.path}
-          href={`/${entry.path}`}
+          href={feelingLuckyPathToHref(entry.path)}
           className="flex items-center gap-4 p-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-md transition-all group"
         >
           <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-900 group-hover:bg-blue-600/10 group-hover:text-blue-500 transition-colors">

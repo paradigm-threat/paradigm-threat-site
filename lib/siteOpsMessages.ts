@@ -4,7 +4,7 @@ export const RELAY_TRANSITION_HEADLINE =
   'Transitioning to full Relay-powered delivery'
 
 export const RELAY_TRANSITION_BODY =
-  'Paradigm Threat is moving more delivery to our Relay mirrors (images and assets already load from Relay). Articles still open here with the full site experience. A few rarely-used features—site search, chat, and “I’m Feeling Lucky”—are paused on this domain while we finish the migration.'
+  'Paradigm Threat is moving more delivery to our Relay mirrors (images and assets already load from Relay). Articles and search still run here with the full site experience. Community chat is paused on this domain while we finish the migration.'
 
 export const SEARCH_DISABLED_HEADLINE = 'Search paused during Relay transition'
 

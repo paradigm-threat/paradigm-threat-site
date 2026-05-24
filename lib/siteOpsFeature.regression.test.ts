@@ -2,6 +2,7 @@ import { describe, it, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   isSearchDisabled,
+  isSearchServerApiDisabled,
   isChatDisabled,
   isSsrMirrorRedirectEnabled,
 } from './siteOpsFeature.ts'
@@ -34,6 +35,7 @@ describe('siteOpsFeature flags', () => {
 
   it('flags default off', () => {
     assert.equal(isSearchDisabled(), false)
+    assert.equal(isSearchServerApiDisabled(), false)
     assert.equal(isChatDisabled(), false)
     assert.equal(isSsrMirrorRedirectEnabled(), false)
   })
@@ -42,6 +44,7 @@ describe('siteOpsFeature flags', () => {
     process.env.NEXT_PUBLIC_SEARCH_DISABLED = '1'
     process.env.NEXT_PUBLIC_CHAT_DISABLED = '1'
     process.env.NEXT_PUBLIC_SSR_MIRROR_REDIRECT = '1'
+    assert.equal(isSearchServerApiDisabled(), true)
     assert.equal(isSearchDisabled(), true)
     assert.equal(isChatDisabled(), true)
     assert.equal(isSsrMirrorRedirectEnabled(), false)
