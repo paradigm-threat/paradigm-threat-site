@@ -12,6 +12,7 @@ import { ArticleClientShell } from '@/components/ArticleClientShell'
 import { TextLeafClientShell } from '@/components/TextLeafClientShell'
 import { CatchAllClient } from './CatchAllClient'
 import { SuspenseLoader } from '@client'
+import { isServerRelayFetchDisabled } from '@/lib/siteOpsFeature'
 import type { Metadata } from 'next'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://paradigmthreat.net'
@@ -32,6 +33,34 @@ function firstNonEmptyLine (plain: string): string {
   return line.trim()
 }
 
+function staticMetadataForPath (path: string): Metadata {
+  const label = path
+    ? path.split('/').filter(Boolean).pop()?.replace(/-/g, ' ') ?? 'Paradigm Threat'
+    : 'Paradigm Threat'
+  const title = path ? `${label} | Paradigm Threat` : 'Paradigm Threat'
+  const canonicalUrl = path
+    ? `${SITE_URL.replace(/\/$/, '')}/${path}`
+    : SITE_URL.replace(/\/$/, '')
+  const description =
+    'Alternate history, chronology, and investigation — Paradigm Threat (client-loaded from Relay during migration).'
+  return {
+    title,
+    description,
+    alternates: { canonical: canonicalUrl },
+    openGraph: {
+      title,
+      description,
+      url: canonicalUrl,
+      siteName: 'Paradigm Threat',
+    },
+    twitter: {
+      card: 'summary',
+      title,
+      description,
+    },
+  }
+}
+
 interface PageProps {
   params: Promise<{ slug?: string | string[] }>
 }
@@ -45,6 +74,10 @@ function getPathFromParams (params: { slug?: string | string[] }): string {
 export async function generateMetadata ({ params }: PageProps): Promise<Metadata> {
   const resolved = await params
   const path = getPathFromParams(resolved)
+
+  if (isServerRelayFetchDisabled()) {
+    return staticMetadataForPath(path)
+  }
 
   const article = await fetchArticle(path)
   if (article) {
@@ -68,14 +101,14 @@ export async function generateMetadata ({ params }: PageProps): Promise<Metadata
         description,
         url: canonicalUrl,
         siteName: 'Paradigm Threat',
-        ...(article.ogImageUrl && { images: [{ url: article.ogImageUrl }] })
+        ...(article.ogImageUrl && { images: [{ url: article.ogImageUrl }] }),
       },
       twitter: {
         card: article.ogImageUrl ? 'summary_large_image' : 'summary',
         title,
         description,
-        ...(article.ogImageUrl && { images: [article.ogImageUrl] })
-      }
+        ...(article.ogImageUrl && { images: [article.ogImageUrl] }),
+      },
     }
   }
 
@@ -109,6 +142,20 @@ export async function generateMetadata ({ params }: PageProps): Promise<Metadata
   return { title: 'Paradigm Threat' }
 }
 
+function ClientCatchAll () {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <SuspenseLoader />
+        </div>
+      }
+    >
+      <CatchAllClient />
+    </Suspense>
+  )
+}
+
 export default async function CatchAllPage ({ params }: PageProps) {
   const resolved = await params
   const path = getPathFromParams(resolved)
@@ -118,7 +165,10 @@ export default async function CatchAllPage ({ params }: PageProps) {
     if (rel) redirect(buildOptimizedAssetUrl(`/${rel}`))
   }
 
-  // Try to fetch article server-side for SSR (crawlers get full HTML); path '' → root page.md
+  if (isServerRelayFetchDisabled()) {
+    return <ClientCatchAll />
+  }
+
   const article = await fetchArticle(path)
 
   if (article) {
@@ -164,10 +214,5 @@ export default async function CatchAllPage ({ params }: PageProps) {
     )
   }
 
-  // Directory listing or 404: use client-side logic (requires fileList)
-  return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><SuspenseLoader /></div>}>
-      <CatchAllClient />
-    </Suspense>
-  )
+  return <ClientCatchAll />
 }

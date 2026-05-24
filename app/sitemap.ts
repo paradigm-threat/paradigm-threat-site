@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { fetchFromAssetMirrors } from '@/lib/remoteAssetMirrors'
 import { CANONICAL_SITE_ORIGIN } from '@/lib/canonicalPublicSite'
+import { isServerRelayFetchDisabled } from '@/lib/siteOpsFeature'
 import {
   MIRROR_INDEX_REVALIDATE_SEC,
   mirrorFetchNext,
@@ -39,7 +40,22 @@ async function loadIndex (): Promise<IndexNode | null> {
   }
 }
 
+function staticSitemapEntries (): MetadataRoute.Sitemap {
+  const now = new Date()
+  const routes = ['', '/timeline', '/search', '/blog']
+  return routes.map((r) => ({
+    url: r ? `${SITE}${r}` : SITE,
+    lastModified: now,
+    changeFrequency: 'weekly' as const,
+    priority: r === '' ? 1 : 0.8,
+  }))
+}
+
 export default async function sitemap (): Promise<MetadataRoute.Sitemap> {
+  if (isServerRelayFetchDisabled()) {
+    return staticSitemapEntries()
+  }
+
   const index = await loadIndex()
   const paths = new Set<string>([''])
   if (index) collectPaths(index, '', paths)
@@ -48,14 +64,14 @@ export default async function sitemap (): Promise<MetadataRoute.Sitemap> {
   for (const r of staticRoutes) paths.add(r.replace(/^\//, ''))
 
   const entries: MetadataRoute.Sitemap = []
+  const now = new Date()
   for (const p of Array.from(paths)) {
-    const loc = p ? `${SITE}/${p}` : SITE
     entries.push({
-      url: loc,
+      url: p ? `${SITE}/${p}` : SITE,
+      lastModified: now,
       changeFrequency: 'weekly',
       priority: p === '' ? 1 : 0.6,
     })
   }
-
   return entries
 }

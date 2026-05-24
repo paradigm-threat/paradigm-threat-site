@@ -163,6 +163,10 @@ async function main () {
     if (luckyRes.status !== 503) {
       fail(`${BASE}/api/feeling-lucky — expected HTTP 503 (client-side lucky), got ${luckyRes.status}`)
     }
+    const timelineJsonRes = await fetch(`${BASE}/api/timeline-json`)
+    if (timelineJsonRes.status !== 503) {
+      fail(`${BASE}/api/timeline-json — expected HTTP 503 (client timeline), got ${timelineJsonRes.status}`)
+    }
     const chatRes = await fetch(`${BASE}/api/chat/getChannels`)
     if (chatRes.status !== 503) {
       fail(`${BASE}/api/chat/getChannels — expected HTTP 503 when ops disabled, got ${chatRes.status}`)

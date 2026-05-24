@@ -14,6 +14,12 @@ test.describe('Relay transition (production)', () => {
     'Set PLAYWRIGHT_BASE_URL=https://paradigmthreat.net',
   )
 
+  test('transition banner mentions chat and client-side pages', async ({ page }) => {
+    await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' })
+    await expect(page.getByText(/client-side pages/i)).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByText(/Server-side rendering is off/i)).toBeVisible()
+  })
+
   test('search UI enabled (client-side index, no pause banner)', async ({ page }) => {
     await page.goto(`${BASE}/search`, { waitUntil: 'domcontentloaded' })
     await expect(page.getByText(/Search paused during Relay transition/i)).toHaveCount(0)
@@ -65,11 +71,13 @@ test.describe('Relay transition (production)', () => {
     expect(page.url()).not.toMatch(/relaygateway\.net/)
   })
 
-  test('legacy search APIs return 503 (use client index)', async ({ request }) => {
+  test('legacy server APIs return 503 (client uses Relay)', async ({ request }) => {
     const search = await request.get(`${BASE}/api/search-index`)
     expect(search.status()).toBe(503)
     const lucky = await request.get(`${BASE}/api/feeling-lucky`)
     expect(lucky.status()).toBe(503)
+    const timelineJson = await request.get(`${BASE}/api/timeline-json`)
+    expect(timelineJson.status()).toBe(503)
     const chat = await request.get(`${BASE}/api/chat/getChannels`)
     expect(chat.status()).toBe(503)
   })

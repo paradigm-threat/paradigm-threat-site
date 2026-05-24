@@ -11,13 +11,11 @@ test.describe('relay-markdown WASM glue', () => {
     expect(wasm.headers()['content-type'] ?? '').toMatch(/wasm/i)
   })
 
-  test('homepage SSR includes seo article HTML', async ({ request }) => {
+  test('homepage HTML shell loads (client-rendered articles when SSR off)', async ({ request }) => {
     const res = await request.get('/')
     expect(res.status()).toBeLessThan(500)
     const html = await res.text()
-    expect(html).toContain('data-seo-fallback')
-    expect(html).toContain('Welcome to Paradigm Threat')
-    expect(html).toContain('Change Log')
+    expect(html).toMatch(/Paradigm Threat/i)
   })
 
   test('homepage renders page.md with ChangeLog', async ({ page }) => {

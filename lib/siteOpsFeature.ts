@@ -1,5 +1,13 @@
 /** Vercel ops flags — set `NEXT_PUBLIC_*=1` in Production to enable. */
 
+/**
+ * When true (default), no server→Relay fetches: article SSR, sitemap index walk,
+ * timeline metadata, /api/timeline-json, /api/tts/piper. Set `NEXT_PUBLIC_SERVER_RELAY_FETCH=1` to re-enable.
+ */
+export function isServerRelayFetchDisabled (): boolean {
+  return process.env.NEXT_PUBLIC_SERVER_RELAY_FETCH !== '1'
+}
+
 /** Blocks /api/search-index and /api/feeling-lucky only (not the /search UI). */
 export function isSearchServerApiDisabled (): boolean {
   return process.env.NEXT_PUBLIC_SEARCH_DISABLED === '1'

@@ -2,15 +2,15 @@
 
 import React from 'react'
 import { Info } from 'lucide-react'
-import { isChatDisabled } from '@/lib/siteOpsFeature'
+import { isChatDisabled, isServerRelayFetchDisabled } from '@/lib/siteOpsFeature'
 import {
   RELAY_TRANSITION_BODY,
   RELAY_TRANSITION_HEADLINE,
 } from '@/lib/siteOpsMessages'
 
-/** Shown when chat ops flag is active (search uses client-side Relay index). */
+/** Shown when chat or server Relay fetch ops flags are active. */
 export function SiteTransitionBanner () {
-  const active = isChatDisabled()
+  const active = isChatDisabled() || isServerRelayFetchDisabled()
   if (!active) return null
 
   return (

@@ -1,10 +1,10 @@
 /** Shared copy while site ops flags reduce Vercel compute (see lib/siteOpsFeature.ts). */
 
 export const RELAY_TRANSITION_HEADLINE =
-  'Community chat temporarily paused'
+  'Relay transition — chat paused, client-side pages'
 
 export const RELAY_TRANSITION_BODY =
-  'Community chat is off on paradigmthreat.net while we finish the Relay migration.'
+  'Community chat is paused. Server-side rendering is off during the migration—articles and images load in your browser from Relay mirrors. Search and I’m Feeling Lucky work on this domain.'
 
 export const CHAT_DISABLED_HEADLINE = 'Chat paused during Relay transition'
 
@@ -17,3 +17,6 @@ export const API_SEARCH_DISABLED_ERROR =
 
 export const API_CHAT_DISABLED_ERROR =
   'Chat is paused during the Relay transition.'
+
+export const API_SERVER_RELAY_DISABLED_ERROR =
+  'Server Relay fetch is disabled during the transition; use the site UI (browser loads from Relay mirrors).'
