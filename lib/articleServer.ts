@@ -1,95 +1,136 @@
 /**
  * Server-side article fetching for SSR/crawling.
+ * Mirrors logic from app/api/article/route.ts.
  */
 
-import { cache } from 'react'
 import { isNonArticlePath } from '@/lib/isNonArticlePath'
-import { resolveOgImageUrl } from '@/lib/share/resolveOgImageUrl'
-import { fetchFilesTextFromMirrors } from '@/lib/serverFilesMirror'
-import { buildArticleMdCandidatePaths } from '@/lib/articleMdPaths'
-import { extractFirstHeading, prepareArticleMarkdown } from '@/lib/articleBody'
+import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
+
+const FILES_BASE_URL = getPrimaryFilesBaseUrl()
 
 export interface ArticleData {
   mdxSource: string
   targetPath: string
   title: string
   basePath: string
+  frontmatter: Record<string, unknown>
   /** Absolute URL for OG image, or undefined */
   ogImageUrl?: string
 }
 
-export interface TextLeafData {
-  text: string
-  title: string
-  basePath: string
-  targetPath: string
+/** Extract first markdown image URL: ![alt](url) */
+function extractFirstImageUrl(md: string, basePath: string): string | undefined {
+  const match = md.match(/!\[[^\]]*\]\(([^)]+)\)/)
+  if (!match) return undefined
+  let src = match[1].trim().split('?')[0]
+  if (src.startsWith('http')) return src
+  if (src.startsWith('/')) src = src.slice(1)
+  else if (src.startsWith('./')) src = src.slice(2)
+  const prefix = basePath ? (basePath.endsWith('/') ? basePath : basePath + '/') : ''
+  const path = (prefix + src).replace(/\/+/g, '/')
+  const base = getPrimaryFilesBaseUrl()
+  return `${base.replace(/\/$/, '')}/${path.replace(/^\//, '')}`
 }
 
-function titleFromPlainLeafPath (filePath: string): string {
-  const seg = filePath.split('/').filter(Boolean).pop() || filePath
-  return (
-    seg
-      .replace(/_/g, ' ')
-      .replace(/\.(txt|cs)$/i, '')
-      .trim() || 'Document'
-  )
-}
-
-/** Plain .txt and Relay hook .cs leaves (not MDX). Cached for generateMetadata + page. */
-export const fetchTextLeaf = cache(async function fetchTextLeaf (
-  path: string,
-): Promise<TextLeafData | null> {
-  if (!path || (!path.toLowerCase().endsWith('.txt') && !path.toLowerCase().endsWith('.cs'))) return null
-  const fileContent = await fetchFilesTextFromMirrors(path, '')
-  if (fileContent == null) return null
-
-  const basePath = path.includes('/') ? path.split('/').slice(0, -1).join('/') : ''
-  return {
-    text: fileContent,
-    title: titleFromPlainLeafPath(path),
-    basePath,
-    targetPath: path,
-  }
-})
-
-export const fetchArticle = cache(async function fetchArticle (
-  path: string,
-): Promise<ArticleData | null> {
+export async function fetchArticle(path: string): Promise<ArticleData | null> {
   if (isNonArticlePath(path)) return null
 
   let targetPath = ''
   let fileContent: string | null = null
-  const vParam = ''
 
-  for (const candidate of buildArticleMdCandidatePaths(path)) {
-    fileContent = await fetchFilesTextFromMirrors(candidate, vParam)
-    if (fileContent) {
-      targetPath = candidate
-      break
+  // 1. Try direct .md/.mdx
+  if (path.endsWith('.md') || path.endsWith('.mdx')) {
+    const res = await fetch(`${FILES_BASE_URL}/${path}`, { cache: 'no-store' })
+    if (res.ok) {
+      fileContent = await res.text()
+      targetPath = path
+    }
+  }
+
+  // 2. Try path.md then path.mdx (extension omitted in URL)
+  if (!fileContent && path && !path.endsWith('.md') && !path.endsWith('.mdx')) {
+    for (const ext of ['.md', '.mdx']) {
+      const p = `${path}${ext}`
+      const res = await fetch(`${FILES_BASE_URL}/${p}`, { cache: 'no-store' })
+      if (res.ok) {
+        fileContent = await res.text()
+        targetPath = p
+        break
+      }
+    }
+  }
+
+  // 3. Try page.md then page.mdx (directory index)
+  if (!fileContent) {
+    const base = path ? `${path}/` : ''
+    for (const name of ['page.md', 'page.mdx']) {
+      const p = `${base}${name}`
+      const res = await fetch(`${FILES_BASE_URL}/${p}`, { cache: 'no-store' })
+      if (res.ok) {
+        fileContent = await res.text()
+        targetPath = p
+        break
+      }
     }
   }
 
   if (!fileContent) return null
 
-  const mdxSource = prepareArticleMarkdown(fileContent)
+  const matter = await import('gray-matter')
+  const { content: rawContent, data: frontMatter } = matter.default(fileContent)
   const basePath = targetPath.includes('/')
     ? targetPath.split('/').slice(0, -1).join('/')
     : ''
   const titleFromPath = basePath
     ? basePath.split('/').pop()?.replace(/_/g, ' ')
     : 'Article'
-  const title =
-    extractFirstHeading(mdxSource) ||
-    titleFromPath ||
-    'Article'
+  const title = (frontMatter?.title as string) || titleFromPath || 'Article'
 
-  const ogImageUrl = resolveOgImageUrl(mdxSource, basePath)
+  // Same autolink transform as API (MDX treats < as JSX)
+  const mdxSource = rawContent.replace(/<(https?:\/\/[^>]+)>/g, (_, url) => `[${url}](${url})`)
+
+  // OG image: frontmatter.image or first image in content
+  const filesBase = getPrimaryFilesBaseUrl()
+  let ogImageUrl: string | undefined
+  if (frontMatter?.image && typeof frontMatter.image === 'string') {
+    const img = frontMatter.image as string
+    if (img.startsWith('http')) {
+      ogImageUrl = img
+    } else if (img.startsWith('/')) {
+      ogImageUrl = `${filesBase}${img}`
+    } else {
+      const rel = basePath ? `${basePath}/${img.replace(/^\.\//, '')}` : img.replace(/^\.\//, '')
+      ogImageUrl = `${filesBase}/${rel}`.replace(/\/+/g, '/')
+    }
+  } else {
+    ogImageUrl = extractFirstImageUrl(rawContent, basePath)
+  }
 
   return {
     mdxSource,
     targetPath,
     title,
     basePath,
-    ogImageUrl,
+    frontmatter: frontMatter as Record<string, unknown>,
+    ogImageUrl
   }
-})
+}
+
+export interface TextLeafData {
+  title: string
+  text: string
+}
+
+/** Plain .txt or hooks .cs leaves from the files mirror. */
+export async function fetchTextLeaf (path: string): Promise<TextLeafData | null> {
+  if (!path || path === '/') return null
+  const segment = path.split('/').filter(Boolean).pop() || ''
+  if (!/\.(txt|cs)$/i.test(segment)) return null
+
+  const res = await fetch(`${FILES_BASE_URL}/${path}`, { cache: 'no-store' })
+  if (!res.ok) return null
+  const text = await res.text()
+  const baseName = segment.replace(/\.(txt|cs)$/i, '')
+  const title = baseName.replace(/_/g, ' ') || 'Document'
+  return { title, text }
+}

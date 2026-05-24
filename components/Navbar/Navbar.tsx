@@ -8,6 +8,7 @@ import { ThemeToggle, FontToggle, DynamicNav, DynamicIndex } from '@/components'
 import { FeelingLuckyButton } from '@/components/FeelingLucky/FeelingLuckyButton'
 import { ResumeInvestigationPanel } from '@/components/ResumeInvestigationPanel'
 import { remoteRelay, relayHostLabel } from '@/lib/remoteRelayStore'
+import { isChatDisabled } from '@/lib/siteOpsFeature'
 
 interface NavbarProps {
     fileList: any
@@ -117,7 +118,9 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
         { href: '/search', label: 'Search', icon: Search },
         { href: '/', label: 'Home', icon: Home },
         { href: '/timeline', label: 'Timeline', icon: Clock },
-        { href: '/chat', label: 'Chat', icon: MessageSquare },
+        ...(!isChatDisabled()
+            ? [{ href: '/chat', label: 'Chat', icon: MessageSquare }]
+            : []),
         { href: 'https://paradigmthreat2.substack.com/', label: 'Substack', icon: Rss, external: true },
         { href: 'https://www.bitchute.com/channel/paradigmthreat', label: 'Videos', icon: Video, external: true },
         { href: 'https://www.patreon.com/c/ahsctimeline', label: 'Donate', icon: Heart, external: true },

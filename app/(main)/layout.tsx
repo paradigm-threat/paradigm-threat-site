@@ -6,6 +6,7 @@ import { DynamicNav, FloatingDiv, DynamicIndex, useFiles } from "@/components";
 import { FeelingLuckyButton } from "@/components/FeelingLucky/FeelingLuckyButton";
 import { ResumeInvestigationPanel } from "@/components/ResumeInvestigationPanel";
 import { RemoteFileIndexBanner } from "@/components/RemoteFileIndexBanner";
+import { SiteTransitionBanner } from "@/components/SiteTransitionBanner";
 import { SuspenseLoader } from "@client";
 import { BottomChromeProvider } from "@/lib/BottomChromeContext";
 import { isMarkdownHubPath } from "@/lib/visitResumeStorage";
@@ -44,6 +45,7 @@ export default function MainLayout({
                 </aside>
 
                 <main className="mx-auto w-full min-w-0 max-w-4xl flex-grow">
+                    <SiteTransitionBanner />
                     <RemoteFileIndexBanner />
                     <Suspense fallback={<SuspenseLoader />}>
                         {children}

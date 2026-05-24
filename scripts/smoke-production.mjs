@@ -105,14 +105,35 @@ async function main () {
     { contentTypeIncludes: 'image/' },
   )
 
-  const articleUrl = `${BASE}/events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation.md`
-  const articleHtml = await fetch(articleUrl, { redirect: 'follow' }).then((r) => {
-    if (!r.ok) fail(`${articleUrl} — expected 200, got ${r.status}`)
-    return r.text()
-  })
-  const ogImage = extractMeta(articleHtml, 'og:image')
-  assertRelayOg(ogImage, articleUrl)
-  await expectHead(ogImage, { contentTypeIncludes: 'image/' })
+  const articlePath =
+    '/events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation'
+  const articleUrl = `${BASE}${articlePath}`
+  const articleProbe = await fetch(articleUrl, { redirect: 'manual' })
+  if ([307, 308].includes(articleProbe.status)) {
+    const loc = articleProbe.headers.get('location') || ''
+    if (!loc.includes('relaygateway.net')) {
+      fail(`${articleUrl} — expected mirror redirect Location, got ${loc}`)
+    }
+    console.log('smoke-production: article SSR redirect to mirror OK —', loc)
+  } else {
+    const articleHtml = await fetch(articleUrl, { redirect: 'follow' }).then((r) => {
+      if (!r.ok) fail(`${articleUrl} — expected 200 or 307, got ${r.status}`)
+      return r.text()
+    })
+    const ogImage = extractMeta(articleHtml, 'og:image')
+    assertRelayOg(ogImage, articleUrl)
+    await expectHead(ogImage, { contentTypeIncludes: 'image/' })
+  }
+
+  const rasterUrl = `${BASE}/events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation.png`
+  const rasterHead = await fetch(rasterUrl, { method: 'HEAD', redirect: 'manual' })
+  if ([307, 308].includes(rasterHead.status)) {
+    const loc = rasterHead.headers.get('location') || ''
+    if (!loc.includes('relaygateway.net')) {
+      fail(`${rasterUrl} — expected mirror redirect, got ${loc}`)
+    }
+    await expectHead(loc, { contentTypeIncludes: 'image/' })
+  }
 
   const timelinePageUrl = `${BASE}/timeline/evt-introduction`
   const timelineHtml = await fetch(timelinePageUrl, {
@@ -128,6 +149,33 @@ async function main () {
     await expectHead(tlOg, { contentTypeIncludes: 'image/' })
   } else {
     console.log('smoke-production: timeline page has no og:image (skipped)')
+  }
+
+  if (process.env.SMOKE_OPS_DISABLED === '1') {
+    const searchRes = await fetch(`${BASE}/api/search-index`)
+    if (searchRes.status !== 503) {
+      fail(`${BASE}/api/search-index — expected HTTP 503 when ops disabled, got ${searchRes.status}`)
+    }
+    const chatRes = await fetch(`${BASE}/api/chat/getChannels`)
+    if (chatRes.status !== 503) {
+      fail(`${BASE}/api/chat/getChannels — expected HTTP 503 when ops disabled, got ${chatRes.status}`)
+    }
+    const samplePath =
+      '/events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation'
+    const articleRedirect = await fetch(`${BASE}${samplePath}`, {
+      method: 'HEAD',
+      redirect: 'manual',
+    })
+    if (articleRedirect.status !== 307 && articleRedirect.status !== 308) {
+      fail(
+        `${BASE}${samplePath} — expected HTTP 307/308 mirror redirect when SSR flag on, got ${articleRedirect.status}`,
+      )
+    }
+    const loc = articleRedirect.headers.get('location') || ''
+    if (!loc.includes('relaygateway.net')) {
+      fail(`${BASE}${samplePath} — expected mirror Location, got ${loc}`)
+    }
+    console.log('smoke-production: ops-disabled checks passed')
   }
 
   console.log('smoke-production: all checks passed')

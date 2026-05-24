@@ -1,9 +1,13 @@
 import { getAllRecentPosts } from "@/server/chatDB";
 import getCORSHeaders from "@/app/api/cors";
+import { chatDisabledResponse } from "@/lib/chatApiGuard";
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
+    const disabled = chatDisabledResponse(req, 'getRecentPosts');
+    if (disabled) return disabled;
+
     try {
         const { searchParams } = new URL(req.url);
         const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 100);

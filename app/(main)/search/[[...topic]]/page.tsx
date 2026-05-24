@@ -3,45 +3,53 @@
 import React, { useEffect, useState, useMemo, Suspense, useRef, useCallback } from 'react'
 import { getMergedSearchIndex, getRemoteFile } from '@/server/remoteFiles'
 import { SearchHeader, FolderGrid, ArticleStack, ImageGallery } from '@/components/search'
-import { prepareArticleMarkdown, extractFirstHeading } from '@/lib/articleBody'
+import matter from 'gray-matter'
 import { Loader2, Search } from 'lucide-react'
 import { useRouter, useSearchParams, useParams } from 'next/navigation'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
-import { filterIndexedEntriesByQuery } from '@/lib/searchIndexFilter'
+import { isSearchDisabled } from '@/lib/siteOpsFeature'
+import {
+  SEARCH_DISABLED_BODY,
+  SEARCH_DISABLED_HEADLINE,
+} from '@/lib/siteOpsMessages'
+
+const DEBOUNCE_MS = 350
 
 function SearchContent() {
+    const searchDisabled = isSearchDisabled()
     const router = useRouter()
     const params = useParams()
     const searchParams = useSearchParams()
-    const topicFromPath = Array.isArray(params?.topic)
-        ? (params.topic as string[]).join('/')
-        : ((params?.topic as string) || '')
+    const topicFromPath = Array.isArray(params?.topic) ? params.topic[0] : (params?.topic as string)
     const queryFromPath = topicFromPath ? decodeURIComponent(topicFromPath) : ''
     const queryFromSearch = searchParams.get('q') || ''
     const urlQuery = queryFromPath || queryFromSearch
 
-    const [debouncedSearch, setDebouncedSearch] = useState(urlQuery)
-    const lastPushedRef = useRef(urlQuery)
+    // Local state for input - avoids router.replace on every keystroke (prevents mobile keyboard dismiss)
+    const [inputValue, setInputValue] = useState(urlQuery)
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const lastUrlUpdateRef = useRef<string>(urlQuery)
+    const isDebounsingRef = useRef<boolean>(false)
 
     const [filesIndex, setFilesIndex] = useState<IndexedPathEntry[]>([])
     const [renderedMds, setRenderedMds] = useState<any[]>([])
-    const [loading, setLoading] = useState(true)
+    const [loading, setLoading] = useState(!searchDisabled)
     const [error, setError] = useState<string | null>(null)
     const [contentLoading, setContentLoading] = useState(false)
 
-    // Sync list state when URL changes without our replace completing to the same value (e.g. back/forward, deep link).
+    // Sync from URL to input only when URL changed externally (back/forward), not from our debounce
     useEffect(() => {
-        if (urlQuery === lastPushedRef.current) {
-            return
+        // Only sync if URL changed externally (not from our own updateUrl call) and we're not actively debouncing
+        if (urlQuery !== lastUrlUpdateRef.current && !isDebounsingRef.current && urlQuery !== inputValue.trim()) {
+            queueMicrotask(() => setInputValue(urlQuery))
         }
-        queueMicrotask(() => {
-            setDebouncedSearch(urlQuery)
-            lastPushedRef.current = urlQuery
-        })
-    }, [urlQuery])
+        // Update ref to track what we expect the URL to be
+        lastUrlUpdateRef.current = urlQuery
+    }, [urlQuery, inputValue])
 
     // Fetch index once
     useEffect(() => {
+        if (searchDisabled) return
         queueMicrotask(() => setLoading(true))
         getMergedSearchIndex()
             .then((entries) => {
@@ -58,22 +66,34 @@ function SearchContent() {
             .finally(() => {
                 setLoading(false)
             })
-    }, [])
+    }, [searchDisabled])
 
+    // Trigger DynamicIndex update when content changes
     useEffect(() => {
         if (!loading && !contentLoading) {
-            window.setTimeout(() => {
-                window.dispatchEvent(new Event('dynamic-index-update'))
-            }, 500)
+            setTimeout(() => {
+                window.dispatchEvent(new Event('dynamic-index-update'));
+            }, 500);
         }
-    }, [loading, contentLoading, renderedMds])
+    }, [loading, contentLoading, renderedMds]);
 
     const searchResults = useMemo(() => {
-        return filterIndexedEntriesByQuery(filesIndex, debouncedSearch)
-    }, [debouncedSearch, filesIndex])
+        if (!filesIndex || !Array.isArray(filesIndex)) return []
+        const cleanQuery = inputValue.trim().toLowerCase()
+        if (cleanQuery.length < 2) return []
+
+        const searchTerms = cleanQuery.split(/\s+/).filter(Boolean)
+        return filesIndex.filter((entry) => {
+            if (!entry || typeof entry.path !== 'string') return false
+            if (entry.path.includes('.auto.md')) return false
+            const haystack = entry.searchText.toLowerCase()
+            return searchTerms.every((term) => haystack.includes(term))
+        })
+    }, [inputValue, filesIndex])
 
     // Fetch MD content for the top results when search results change
     useEffect(() => {
+        if (searchDisabled) return
         const mds = searchResults.filter((e) =>
             e.path.endsWith('.md') &&
             !e.path.endsWith('page.md') &&
@@ -91,17 +111,17 @@ function SearchContent() {
             const path = e.path
             const content = await getRemoteFile(path)
             if (!content) return null
-            const mdxSource = prepareArticleMarkdown(content)
+            const { content: mdxSource, data: frontMatter } = matter(content)
             const basePath = path.includes('/') ? path.split('/').slice(0, -1).join('/') : ''
-            return { path, mdxSource, basePath, title: extractFirstHeading(mdxSource) }
+            return { path, mdxSource, frontMatter, basePath }
         })).then(results => {
             setRenderedMds(results.filter(Boolean))
             setContentLoading(false)
         })
-    }, [searchResults])
+    }, [searchResults, searchDisabled])
 
     const updateUrl = useCallback((val: string) => {
-        lastPushedRef.current = val
+        lastUrlUpdateRef.current = val
         if (val && !val.includes(' ')) {
             router.replace(`/search/${encodeURIComponent(val)}`, { scroll: false })
         } else if (val) {
@@ -111,13 +131,25 @@ function SearchContent() {
         }
     }, [router])
 
-    const onDebouncedSearchQuery = useCallback((trimmed: string) => {
-        setDebouncedSearch(trimmed)
-    }, [])
-
-    const onDebouncedUrl = useCallback((trimmed: string) => {
-        updateUrl(trimmed)
+    const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value
+        setInputValue(val)
+        const trimmed = val.trim()
+        if (debounceRef.current) clearTimeout(debounceRef.current)
+        isDebounsingRef.current = true
+        debounceRef.current = setTimeout(() => {
+            debounceRef.current = null
+            isDebounsingRef.current = false
+            updateUrl(trimmed)
+        }, DEBOUNCE_MS)
     }, [updateUrl])
+
+    useEffect(() => () => {
+        if (debounceRef.current) {
+            clearTimeout(debounceRef.current)
+            isDebounsingRef.current = false
+        }
+    }, [])
 
     // Extract unique folders
     const folderPaths = Array.from(new Set(searchResults.map((e) => {
@@ -130,19 +162,24 @@ function SearchContent() {
         .filter((e) => /\.(jpg|jpeg|png|gif|svg|webp)$/i.test(e.path))
         .map((e) => e.path)
 
-    const ds = debouncedSearch.trim()
-
     return (
         <div className="w-full min-h-screen bg-white dark:bg-slate-950">
             <div className="max-w-[90rem] mx-auto px-4 py-12 space-y-16">
                 <SearchHeader
-                    initialQuery={urlQuery}
+                    query={inputValue}
                     loading={loading}
-                    onDebouncedSearchQuery={onDebouncedSearchQuery}
-                    onDebouncedUrl={onDebouncedUrl}
+                    onChange={handleSearchChange}
+                    disabled={searchDisabled}
                 />
 
-                {error && (
+                {searchDisabled && (
+                    <div className="max-w-2xl mx-auto p-6 bg-amber-500/10 border border-amber-500/25 text-amber-900 dark:text-amber-200 rounded-3xl text-center">
+                        <p className="font-semibold text-lg mb-1">{SEARCH_DISABLED_HEADLINE}</p>
+                        <p className="text-sm opacity-90">{SEARCH_DISABLED_BODY}</p>
+                    </div>
+                )}
+
+                {!searchDisabled && error && (
                     <div className="max-w-2xl mx-auto p-6 bg-red-500/10 border border-red-500/20 text-red-500 rounded-3xl text-center">
                         <div className="font-bold text-lg mb-2">Error</div>
                         <p>{error}</p>
@@ -155,7 +192,13 @@ function SearchContent() {
                     </div>
                 )}
 
-                {!loading && ds.length >= 2 && searchResults.length === 0 && (
+                {!searchDisabled && inputValue.length > 0 && inputValue.trim().length < 2 && (
+                    <div className="text-center py-20 text-slate-400">
+                        Please enter at least 2 characters to search...
+                    </div>
+                )}
+
+                {!searchDisabled && !loading && inputValue.trim().length >= 2 && searchResults.length === 0 && (
                     <div className="text-center py-24 bg-slate-50 dark:bg-slate-900/30 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800 max-w-2xl mx-auto">
                         <Search size={48} className="mx-auto text-slate-300 dark:text-slate-700 mb-4" />
                         <div className="text-xl font-bold text-slate-900 dark:text-white mb-2">No matching files found</div>
@@ -163,7 +206,7 @@ function SearchContent() {
                     </div>
                 )}
 
-                {searchResults.length > 0 && (
+                {!searchDisabled && searchResults.length > 0 && (
                     <div className="space-y-20">
                         <FolderGrid folders={folders} />
 

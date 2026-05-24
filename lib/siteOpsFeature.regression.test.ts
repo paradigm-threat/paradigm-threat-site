@@ -1,0 +1,62 @@
+import { describe, it, beforeEach, afterEach } from 'node:test'
+import assert from 'node:assert/strict'
+import {
+  isSearchDisabled,
+  isChatDisabled,
+  isSsrMirrorRedirectEnabled,
+} from './siteOpsFeature.ts'
+import { shouldRedirectPathToFilesMirror } from './ssrMirrorRedirect.ts'
+
+describe('siteOpsFeature flags', () => {
+  const prev = {
+    search: process.env.NEXT_PUBLIC_SEARCH_DISABLED,
+    chat: process.env.NEXT_PUBLIC_CHAT_DISABLED,
+    ssr: process.env.NEXT_PUBLIC_SSR_MIRROR_REDIRECT,
+  }
+
+  afterEach(() => {
+    if (prev.search === undefined) delete process.env.NEXT_PUBLIC_SEARCH_DISABLED
+    else process.env.NEXT_PUBLIC_SEARCH_DISABLED = prev.search
+    if (prev.chat === undefined) delete process.env.NEXT_PUBLIC_CHAT_DISABLED
+    else process.env.NEXT_PUBLIC_CHAT_DISABLED = prev.chat
+    if (prev.ssr === undefined) delete process.env.NEXT_PUBLIC_SSR_MIRROR_REDIRECT
+    else process.env.NEXT_PUBLIC_SSR_MIRROR_REDIRECT = prev.ssr
+  })
+
+  beforeEach(() => {
+    delete process.env.NEXT_PUBLIC_SEARCH_DISABLED
+    delete process.env.NEXT_PUBLIC_CHAT_DISABLED
+    delete process.env.NEXT_PUBLIC_SSR_MIRROR_REDIRECT
+  })
+
+  it('flags default off', () => {
+    assert.equal(isSearchDisabled(), false)
+    assert.equal(isChatDisabled(), false)
+    assert.equal(isSsrMirrorRedirectEnabled(), false)
+  })
+
+  it('flags on when env is 1', () => {
+    process.env.NEXT_PUBLIC_SEARCH_DISABLED = '1'
+    process.env.NEXT_PUBLIC_CHAT_DISABLED = '1'
+    process.env.NEXT_PUBLIC_SSR_MIRROR_REDIRECT = '1'
+    assert.equal(isSearchDisabled(), true)
+    assert.equal(isChatDisabled(), true)
+    assert.equal(isSsrMirrorRedirectEnabled(), true)
+  })
+})
+
+describe('shouldRedirectPathToFilesMirror', () => {
+  it('redirects article paths and root', () => {
+    assert.equal(shouldRedirectPathToFilesMirror('/'), true)
+    assert.equal(shouldRedirectPathToFilesMirror('/history/foo/bar'), true)
+  })
+
+  it('excludes app routes and static assets', () => {
+    assert.equal(shouldRedirectPathToFilesMirror('/timeline/evt-x'), false)
+    assert.equal(shouldRedirectPathToFilesMirror('/search'), false)
+    assert.equal(shouldRedirectPathToFilesMirror('/chat/general'), false)
+    assert.equal(shouldRedirectPathToFilesMirror('/api/foo'), false)
+    assert.equal(shouldRedirectPathToFilesMirror('/history/x.png'), false)
+    assert.equal(shouldRedirectPathToFilesMirror('/hooks/foo.cs'), false)
+  })
+})

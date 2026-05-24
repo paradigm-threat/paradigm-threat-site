@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { getChannelInfo, getOrCreateUserInfo, insertPost, deletePost } from "@/server/chatDB";
 import getCORSHeaders from "@/app/api/cors";
+import { chatDisabledResponse } from "@/lib/chatApiGuard";
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,9 @@ const RequestDataValidation = z.object({
 export async function POST(
     req: Request
 ) {
+    const disabled = chatDisabledResponse(req, 'createGuestPost');
+    if (disabled) return disabled;
+
     try {
         const body = await req.json();
         const { content, username, mode, channel: bodyChannel } = RequestDataValidation.parse(body);

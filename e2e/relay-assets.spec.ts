@@ -45,10 +45,22 @@ test.describe('relay assets SSR (production)', () => {
     'Set PLAYWRIGHT_BASE_URL=https://paradigmthreat.net',
   )
 
-  test('investigation article: relay og:image, no /files/', async ({ request }) => {
+  test('investigation article: relay mirror (redirect or SSR og:image), no /files/', async ({
+    request,
+  }) => {
     const res = await request.get(INVESTIGATION_ARTICLE, {
       headers: { 'User-Agent': CRAWLER_UA },
+      maxRedirects: 0,
     })
+    if ([307, 308].includes(res.status())) {
+      const loc = res.headers()['location'] || ''
+      expect(loc).toMatch(/relaygateway\.net/)
+      const mirror = await request.get(loc, { headers: { 'User-Agent': CRAWLER_UA } })
+      expect(mirror.status()).toBe(200)
+      const html = await mirror.text()
+      expect(html).not.toMatch(/paradigmthreat\.net\/files\//)
+      return
+    }
     expect(res.status()).toBe(200)
     const html = await res.text()
     expect(html).not.toMatch(/paradigmthreat\.net\/files\//)

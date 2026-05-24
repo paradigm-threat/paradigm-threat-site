@@ -7,29 +7,38 @@ const SEARCH_DEBOUNCE_MS = 120
 const URL_DEBOUNCE_MS = 350
 
 interface SearchHeaderProps {
-    initialQuery: string
+    initialQuery?: string
+    /** @deprecated Use initialQuery */
+    query?: string
     loading: boolean
-    onDebouncedSearchQuery: (trimmed: string) => void
-    onDebouncedUrl: (trimmed: string) => void
+    onDebouncedSearchQuery?: (trimmed: string) => void
+    onDebouncedUrl?: (trimmed: string) => void
+    /** @deprecated Use onDebouncedUrl */
+    onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
+    disabled?: boolean
 }
 
 export const SearchHeader = memo(function SearchHeader({
     initialQuery,
+    query,
     loading,
     onDebouncedSearchQuery,
     onDebouncedUrl,
+    onChange,
+    disabled = false,
 }: SearchHeaderProps) {
-    const [local, setLocal] = useState(initialQuery)
-    const prevInitial = useRef(initialQuery)
+    const resolvedInitial = initialQuery ?? query ?? ''
+    const [local, setLocal] = useState(resolvedInitial)
+    const prevInitial = useRef(resolvedInitial)
     const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
     const urlTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     useEffect(() => {
-        if (initialQuery !== prevInitial.current) {
-            prevInitial.current = initialQuery
-            queueMicrotask(() => setLocal(initialQuery))
+        if (resolvedInitial !== prevInitial.current) {
+            prevInitial.current = resolvedInitial
+            queueMicrotask(() => setLocal(resolvedInitial))
         }
-    }, [initialQuery])
+    }, [resolvedInitial])
 
     useEffect(
         () => () => {
@@ -41,23 +50,28 @@ export const SearchHeader = memo(function SearchHeader({
 
     const onInputChange = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>) => {
+            if (disabled) return
             const val = e.target.value
             setLocal(val)
+            if (onChange) {
+                onChange(e)
+                return
+            }
             const trimmed = val.trim()
 
             if (searchTimer.current) clearTimeout(searchTimer.current)
             searchTimer.current = setTimeout(() => {
                 searchTimer.current = null
-                onDebouncedSearchQuery(trimmed)
+                onDebouncedSearchQuery?.(trimmed)
             }, SEARCH_DEBOUNCE_MS)
 
             if (urlTimer.current) clearTimeout(urlTimer.current)
             urlTimer.current = setTimeout(() => {
                 urlTimer.current = null
-                onDebouncedUrl(trimmed)
+                onDebouncedUrl?.(trimmed)
             }, URL_DEBOUNCE_MS)
         },
-        [onDebouncedSearchQuery, onDebouncedUrl]
+        [disabled, onChange, onDebouncedSearchQuery, onDebouncedUrl]
     )
 
     const trimmed = local.trim()
@@ -78,12 +92,14 @@ export const SearchHeader = memo(function SearchHeader({
                 <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={28} />
                 <input
                     type="search"
-                    autoFocus
+                    autoFocus={!disabled}
                     enterKeyHint="search"
                     value={local}
                     onChange={onInputChange}
+                    disabled={disabled}
+                    readOnly={disabled}
                     placeholder="Type keywords (e.g. '911 physics', 'mars water')..."
-                    className="w-full pl-16 pr-6 py-6 bg-slate-100 dark:bg-slate-900/50 border-2 border-slate-200 dark:border-slate-800 rounded-3xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-semibold text-xl shadow-lg"
+                    className="w-full pl-16 pr-6 py-6 bg-slate-100 dark:bg-slate-900/50 border-2 border-slate-200 dark:border-slate-800 rounded-3xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-semibold text-xl shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
                 />
                 {loading && (
                     <div className="absolute right-6 top-1/2 -translate-y-1/2">
