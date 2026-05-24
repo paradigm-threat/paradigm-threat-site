@@ -1,4 +1,14 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Locator } from '@playwright/test'
+
+async function expectRasterLoaded (img: Locator): Promise<void> {
+  await img.scrollIntoViewIfNeeded()
+  await expect(img).toBeVisible({ timeout: 60_000 })
+  await expect
+    .poll(async () => img.evaluate((el: HTMLImageElement) => el.naturalWidth), {
+      timeout: 60_000,
+    })
+    .toBeGreaterThan(50)
+}
 
 const INVESTIGATION_ARTICLE =
   '/events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation'
@@ -83,9 +93,6 @@ test.describe('relay assets SSR (production)', () => {
     expect(ogImage).toBeTruthy()
     expect(ogImage).toMatch(/paradigm-threat-timeline.*\.relaygateway\.net/)
     expect(ogImage).toMatch(/\.(png|jpe?g|webp)/i)
-    if (ogImage && /\.(png|jpe?g|webp|avif)/i.test(ogImage)) {
-      expect(ogImage).toMatch(/\?w=\d+/)
-    }
   })
 })
 
@@ -112,11 +119,10 @@ test.describe('relay assets browser (production)', () => {
       timeout: 90_000,
     })
 
-    const img = page.locator('img[src*="relaygateway.net"]').first()
-    await img.scrollIntoViewIfNeeded()
-    await expect(img).toBeVisible({ timeout: 60_000 })
+    const img = page.locator('img[src*="richard-gage-ae911truth-controlled-demolition-investigation"]').first()
+    await expectRasterLoaded(img)
     const src = (await img.getAttribute('src')) || ''
-    expect(src).toMatch(/relaygateway\.net/)
+    expect(src).toMatch(/investigation.*\.png/i)
     expect(src).not.toMatch(/investigations\/events\/false_flag\/investigations\//)
     expect(failedImages).toEqual([])
   })

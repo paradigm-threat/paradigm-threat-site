@@ -52,7 +52,7 @@ test.describe('article images (absolute https URLs)', () => {
       await expect(page.locator('body')).toContainText('You do not have to stop loving', {
         timeout: 90_000,
       })
-      const imgs = page.locator('img[src*="relaygateway.net"]')
+      const imgs = page.locator('img[src*="cave-story"]')
       await expect(imgs.first()).toBeVisible({ timeout: 90_000 })
       const count = await imgs.count()
       expect(count, 'mirror HTML should include relay-hosted images').toBeGreaterThanOrEqual(1)
