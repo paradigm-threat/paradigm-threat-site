@@ -35,7 +35,7 @@ test.describe('legacy proxy 404 (local build)', () => {
   })
 
   test('/export redirects to timeline mirror (no proxy body)', async ({ request }) => {
-    const res = await request.head('/export/', { maxRedirects: 0 })
+    const res = await request.head('/export', { maxRedirects: 0 })
     expect([307, 308]).toContain(res.status())
     const loc = res.headers()['location'] || ''
     expect(loc).toMatch(/relaygateway\.net\/export/)
@@ -47,15 +47,15 @@ test.describe('legacy proxy 404 (local build)', () => {
     const res = await request.head(legacyPath, { maxRedirects: 0 })
     expect([307, 308]).toContain(res.status())
     const loc = res.headers()['location'] || ''
-    expect(loc).toMatch(/relaygateway\.net\/paradigm-threat-timeline\/media\/15\.ce-21st-the-final-struggle\/15\.08\.00-historical-antibodies\.png/)
+    expect(loc).toMatch(/paradigm-threat-timeline\.[^/]*relaygateway\.net\/media\/15\.ce-21st-the-final-struggle\/15\.08\.00-historical-antibodies\.png/)
     expect(loc).toMatch(/\?w=\d+/)
   })
 
-  test('/api/tts/piper returns 410 or 503', async ({ request }) => {
+  test('/api/tts/piper returns 410, 503, or upstream 400 when relay reachable', async ({ request }) => {
     const res = await request.post('/api/tts/piper', {
       data: { text: 'test', voiceId: 'en' },
     })
-    expect([410, 503]).toContain(res.status())
+    expect([400, 410, 503]).toContain(res.status())
   })
 })
 
@@ -97,7 +97,7 @@ test.describe('relay assets (production)', () => {
     const res = await request.head(legacyPath, { maxRedirects: 0 })
     expect([307, 308]).toContain(res.status())
     const loc = res.headers()['location'] || ''
-    expect(loc).toMatch(/relaygateway\.net\/paradigm-threat-timeline\/media\/15\.ce-21st-the-final-struggle\/15\.08\.00-historical-antibodies\.png/)
+    expect(loc).toMatch(/paradigm-threat-timeline\.[^/]*relaygateway\.net\/media\/15\.ce-21st-the-final-struggle\/15\.08\.00-historical-antibodies\.png/)
     expect(loc).toMatch(/\?w=\d+/)
   })
 

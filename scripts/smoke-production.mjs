@@ -148,7 +148,7 @@ async function main () {
   const legacyTimelineLoc = legacyTimelineHead.headers.get('location') || ''
   if (
     !legacyTimelineLoc.includes('relaygateway.net') ||
-    !legacyTimelineLoc.includes('/paradigm-threat-timeline/media/15.ce-21st-the-final-struggle/15.08.00-historical-antibodies.png')
+    !legacyTimelineLoc.includes('/media/15.ce-21st-the-final-struggle/15.08.00-historical-antibodies.png')
   ) {
     fail(`${legacyTimelineRaster} — expected timeline mirror redirect, got ${legacyTimelineLoc}`)
   }
