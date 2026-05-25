@@ -1,36 +1,57 @@
 /**
- * Server-side Piper helpers (tests, legacy imports). Prefer **piperClient** in the browser.
+ * Multi-host Piper / clevertree-tts upstream: failover on synthesis, merge voice lists.
+ *
+ * Env:
+ *   PIPER_API_URLS — whitespace-separated base URLs (no trailing slash), e.g.
+ *     http://host:5590 https://other.example.com
+ *   PIPER_API_URL — optional legacy single host (used when PIPER_API_URLS is empty)
+ *   PIPER_API_SECRET — optional Bearer token for all hosts (same as .env.local / Vercel)
  */
 
-import {
-  getServerPiperApiBaseUrls,
-  getServerPiperApiSecret,
-} from '@/lib/tts/piperBases'
-
-export {
-  getServerPiperApiBaseUrls as getPiperApiBaseUrls,
-  getServerPiperApiSecret as getPiperApiSecret,
+function normalizeBaseUrl(raw: string): string {
+  return raw.trim().replace(/\/+$/, '')
 }
 
-export function isPiperConfigured (): boolean {
-  return getServerPiperApiBaseUrls().length > 0
+export function getPiperApiBaseUrls(): string[] {
+  const listRaw = (process.env.PIPER_API_URLS ?? '').trim()
+  const fromList = listRaw
+    .split(/\s+/)
+    .map((s) => normalizeBaseUrl(s))
+    .filter(Boolean)
+  if (fromList.length > 0) return fromList
+
+  const single = normalizeBaseUrl(process.env.PIPER_API_URL ?? '')
+  return single ? [single] : []
 }
 
-export function piperAuthHeaders (): Record<string, string> {
-  const secret = getServerPiperApiSecret()
+export function getPiperApiSecret(): string {
+  return process.env.PIPER_API_SECRET ?? ''
+}
+
+export function isPiperConfigured(): boolean {
+  return getPiperApiBaseUrls().length > 0
+}
+
+export function piperAuthHeaders(): Record<string, string> {
+  const secret = getPiperApiSecret()
   if (!secret) return {}
   return { Authorization: `Bearer ${secret}` }
 }
 
-function shouldFailoverToNextHost (status: number): boolean {
+/** Retry next host on timeout, network error, 429, or 5xx */
+function shouldFailoverToNextHost(status: number): boolean {
   return status === 429 || status >= 500
 }
 
-export async function fetchPiperTtsUpstream (
+/**
+ * POST /tts on each base until success. Does not failover on 4xx (except 429).
+ * @throws Error when every host fails with a thrown error (no HTTP response to return)
+ */
+export async function fetchPiperTtsUpstream(
   body: Record<string, unknown>,
   timeoutMs = 28_000,
 ): Promise<Response> {
-  const bases = getServerPiperApiBaseUrls()
+  const bases = getPiperApiBaseUrls()
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...piperAuthHeaders(),
@@ -73,10 +94,11 @@ export interface PiperVoicesPayload {
   defaultVoiceId: string | null
 }
 
-export async function aggregatePiperVoices (
-  timeoutMs = 15_000,
-): Promise<PiperVoicesPayload> {
-  const bases = getServerPiperApiBaseUrls()
+/**
+ * Query /voices on each base; merge voices by `id` (first wins); first non-null defaultVoiceId wins.
+ */
+export async function aggregatePiperVoices(timeoutMs = 15_000): Promise<PiperVoicesPayload> {
+  const bases = getPiperApiBaseUrls()
   const headers: Record<string, string> = {
     'Cache-Control': 'no-cache',
     ...piperAuthHeaders(),

@@ -1,12 +1,10 @@
 import { getPrimaryFilesBaseUrl, getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
 import { flattenFilesIndex, flattenTimelineEntriesForSearch, type IndexedPathEntry } from '@/components/helpers/indexHelper'
 import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
-import { isServerRelayFetchDisabled } from '@/lib/siteOpsFeature'
 
 const FILES_BASE_URL = getPrimaryFilesBaseUrl();
 
 export async function getFilesIndex() {
-  if (isServerRelayFetchDisabled()) return {}
   const res = await fetch(`${FILES_BASE_URL}/index.json`, { cache: 'no-store' });
   if (!res.ok) return {};
   return res.json() as Promise<any>;
@@ -14,7 +12,6 @@ export async function getFilesIndex() {
 
 /** Files index + timeline events.json merged for search (keywords on both). Returns null if files index.json fails. */
 export async function getMergedSearchIndex(): Promise<IndexedPathEntry[] | null> {
-  if (isServerRelayFetchDisabled()) return null
   const filesUrl = getPrimaryFilesBaseUrl()
   const timelineUrl = getPrimaryTimelineBaseUrl()
   const q = timelineManifestCacheQuery()
@@ -41,7 +38,6 @@ export async function getMergedSearchIndex(): Promise<IndexedPathEntry[] | null>
 }
 
 export async function getRemoteFile(path: string) {
-  if (isServerRelayFetchDisabled()) return null
   const res = await fetch(`${FILES_BASE_URL}/${path}`, { cache: 'no-store' });
   if (!res.ok) return null;
   return res.text();

@@ -81,6 +81,16 @@ test.describe('relay assets (production)', () => {
     expect(res.url()).toMatch(/paradigmthreat\.net/)
   })
 
+  test('legacy /files/timeline raster redirects to timeline relay mirror', async ({ request }) => {
+    const legacyPath =
+      '/files/timeline/media/15.ce-21st-the-final-struggle/15.08.00-historical-antibodies.png'
+    const res = await request.head(legacyPath, { maxRedirects: 0 })
+    expect([307, 308]).toContain(res.status())
+    const loc = res.headers()['location'] || ''
+    expect(loc).toMatch(/relaygateway\.net\/paradigm-threat-timeline\/media\/15\.ce-21st-the-final-struggle\/15\.08\.00-historical-antibodies\.png/)
+    expect(loc).toMatch(/\?w=\d+/)
+  })
+
   test('investigation article images load from relay in browser', async ({ page }) => {
     test.setTimeout(120_000)
 

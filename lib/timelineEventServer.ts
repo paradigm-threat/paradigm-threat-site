@@ -2,15 +2,10 @@
  * Server-side timeline event lookup for metadata (OG, title).
  */
 
-import { mirrorRasterOgUrl } from '@/lib/canonicalPublicSite'
 import { firstTimelineOgMediaPath } from '@/lib/timelineMedia'
 import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
 
 import { getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
-import {
-  MIRROR_TIMELINE_EVENTS_REVALIDATE_SEC,
-  mirrorFetchNext,
-} from '@/lib/serverMirrorRevalidate'
 
 const TIMELINE_BASE = getPrimaryTimelineBaseUrl()
 
@@ -41,7 +36,7 @@ export interface TimelineEventMeta {
 export async function getTimelineEventMeta(eventId: string): Promise<TimelineEventMeta | null> {
   try {
     const res = await fetch(`${TIMELINE_BASE}/data/events.json${timelineManifestCacheQuery()}`, {
-      next: mirrorFetchNext(MIRROR_TIMELINE_EVENTS_REVALIDATE_SEC),
+      next: { revalidate: 60 },
     })
     if (!res.ok) return null
     const data = await res.json()
@@ -52,7 +47,7 @@ export async function getTimelineEventMeta(eventId: string): Promise<TimelineEve
 
     const ogPath = firstTimelineOgMediaPath(event.media)
     const ogImageUrl = ogPath
-      ? mirrorRasterOgUrl(ogPath.replace(/^\//, ''))
+      ? `${TIMELINE_BASE.replace(/\/$/, '')}${ogPath.startsWith('/') ? '' : '/'}${ogPath}`
       : undefined
 
     return {

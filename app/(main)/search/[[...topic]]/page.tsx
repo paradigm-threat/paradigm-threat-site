@@ -1,14 +1,14 @@
 'use client'
 
 import React, { useEffect, useState, useMemo, Suspense, useRef, useCallback } from 'react'
-import { fetchMergedSearchIndexClient } from '@/lib/clientMergedSearchIndex'
-import { SearchHeader, FolderGrid, ImageGallery, SearchResultLinks } from '@/components/search'
+import { getMergedSearchIndex, getRemoteFile } from '@/server/remoteFiles'
+import { SearchHeader, FolderGrid, ArticleStack, ImageGallery } from '@/components/search'
+import matter from 'gray-matter'
 import { Loader2, Search } from 'lucide-react'
 import { useRouter, useSearchParams, useParams } from 'next/navigation'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
 
 const DEBOUNCE_MS = 350
-const MAX_RESULT_LINKS = 80
 
 function SearchContent() {
     const router = useRouter()
@@ -19,25 +19,32 @@ function SearchContent() {
     const queryFromSearch = searchParams.get('q') || ''
     const urlQuery = queryFromPath || queryFromSearch
 
+    // Local state for input - avoids router.replace on every keystroke (prevents mobile keyboard dismiss)
     const [inputValue, setInputValue] = useState(urlQuery)
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const lastUrlUpdateRef = useRef<string>(urlQuery)
     const isDebounsingRef = useRef<boolean>(false)
 
     const [filesIndex, setFilesIndex] = useState<IndexedPathEntry[]>([])
+    const [renderedMds, setRenderedMds] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [contentLoading, setContentLoading] = useState(false)
 
+    // Sync from URL to input only when URL changed externally (back/forward), not from our debounce
     useEffect(() => {
+        // Only sync if URL changed externally (not from our own updateUrl call) and we're not actively debouncing
         if (urlQuery !== lastUrlUpdateRef.current && !isDebounsingRef.current && urlQuery !== inputValue.trim()) {
             queueMicrotask(() => setInputValue(urlQuery))
         }
+        // Update ref to track what we expect the URL to be
         lastUrlUpdateRef.current = urlQuery
     }, [urlQuery, inputValue])
 
+    // Fetch index once
     useEffect(() => {
         queueMicrotask(() => setLoading(true))
-        fetchMergedSearchIndexClient()
+        getMergedSearchIndex()
             .then((entries) => {
                 if (entries !== null) {
                     setFilesIndex(entries)
@@ -45,7 +52,7 @@ function SearchContent() {
                     setError('Received invalid file index')
                 }
             })
-            .catch((err) => {
+            .catch(err => {
                 console.error('Search index fetch error:', err)
                 setError('Failed to load search index')
             })
@@ -54,13 +61,14 @@ function SearchContent() {
             })
     }, [])
 
+    // Trigger DynamicIndex update when content changes
     useEffect(() => {
-        if (!loading) {
+        if (!loading && !contentLoading) {
             setTimeout(() => {
-                window.dispatchEvent(new Event('dynamic-index-update'))
-            }, 500)
+                window.dispatchEvent(new Event('dynamic-index-update'));
+            }, 500);
         }
-    }, [loading])
+    }, [loading, contentLoading, renderedMds]);
 
     const searchResults = useMemo(() => {
         if (!filesIndex || !Array.isArray(filesIndex)) return []
@@ -76,14 +84,31 @@ function SearchContent() {
         })
     }, [inputValue, filesIndex])
 
-    const linkResults = useMemo(() => {
-        return searchResults.filter((e) => {
-            if (/\.(jpg|jpeg|png|gif|svg|webp)$/i.test(e.path)) return false
-            if (e.path.startsWith('timeline/')) return true
-            if (e.path.endsWith('.md') && !e.path.endsWith('page.md') && !e.path.endsWith('index.md')) {
-                return true
-            }
-            return false
+    // Fetch MD content for the top results when search results change
+    useEffect(() => {
+        const mds = searchResults.filter((e) =>
+            e.path.endsWith('.md') &&
+            !e.path.endsWith('page.md') &&
+            !e.path.endsWith('index.md') &&
+            !e.path.includes('.auto.md')
+        ).slice(0, 5)
+
+        if (mds.length === 0) {
+            queueMicrotask(() => setRenderedMds([]))
+            return
+        }
+
+        queueMicrotask(() => setContentLoading(true))
+        Promise.all(mds.map(async (e) => {
+            const path = e.path
+            const content = await getRemoteFile(path)
+            if (!content) return null
+            const { content: mdxSource, data: frontMatter } = matter(content)
+            const basePath = path.includes('/') ? path.split('/').slice(0, -1).join('/') : ''
+            return { path, mdxSource, frontMatter, basePath }
+        })).then(results => {
+            setRenderedMds(results.filter(Boolean))
+            setContentLoading(false)
         })
     }, [searchResults])
 
@@ -118,6 +143,7 @@ function SearchContent() {
         }
     }, [])
 
+    // Extract unique folders
     const folderPaths = Array.from(new Set(searchResults.map((e) => {
         const parts = e.path.split('/')
         return parts.length > 1 ? parts.slice(0, -1).join('/') : null
@@ -168,20 +194,11 @@ function SearchContent() {
                     <div className="space-y-20">
                         <FolderGrid folders={folders} />
 
-                        {linkResults.length > 0 && (
-                            <section className="space-y-4">
-                                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-                                    Matches
-                                    {linkResults.length > MAX_RESULT_LINKS
-                                        ? ` (showing first ${MAX_RESULT_LINKS})`
-                                        : ''}
-                                </h2>
-                                <SearchResultLinks
-                                    entries={linkResults}
-                                    maxItems={MAX_RESULT_LINKS}
-                                />
-                            </section>
-                        )}
+                        <ArticleStack
+                            renderedMds={renderedMds}
+                            contentLoading={contentLoading}
+                            totalArticles={searchResults.filter((f) => f.path.endsWith('.md')).length}
+                        />
 
                         <ImageGallery images={images} />
                     </div>

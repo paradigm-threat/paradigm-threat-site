@@ -139,6 +139,21 @@ async function main () {
     await expectHead(loc, { contentTypeIncludes: 'image/' })
   }
 
+  const legacyTimelineRaster =
+    `${BASE}/files/timeline/media/15.ce-21st-the-final-struggle/15.08.00-historical-antibodies.png`
+  const legacyTimelineHead = await fetch(legacyTimelineRaster, { method: 'HEAD', redirect: 'manual' })
+  if (![307, 308].includes(legacyTimelineHead.status)) {
+    fail(`${legacyTimelineRaster} — expected HTTP 307/308 redirect to timeline mirror, got ${legacyTimelineHead.status}`)
+  }
+  const legacyTimelineLoc = legacyTimelineHead.headers.get('location') || ''
+  if (
+    !legacyTimelineLoc.includes('relaygateway.net') ||
+    !legacyTimelineLoc.includes('/paradigm-threat-timeline/media/15.ce-21st-the-final-struggle/15.08.00-historical-antibodies.png')
+  ) {
+    fail(`${legacyTimelineRaster} — expected timeline mirror redirect, got ${legacyTimelineLoc}`)
+  }
+  await expectHead(legacyTimelineLoc, { contentTypeIncludes: 'image/' })
+
   const timelinePageUrl = `${BASE}/timeline/evt-introduction`
   const timelineHtml = await fetch(timelinePageUrl, {
     headers: { 'User-Agent': 'facebookexternalhit/1.1' },

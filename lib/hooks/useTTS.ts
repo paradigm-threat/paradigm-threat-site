@@ -4,11 +4,6 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { splitSentences, preprocessSpeechText } from '@/components/Timeline/ttsHelpers'
 import { resolveDefaultPiperVoiceId } from '@/lib/tts/piperVoiceDefaults'
 import {
-    aggregateClientPiperVoices,
-    fetchPiperTtsBlob,
-    isClientPiperConfigured,
-} from '@/lib/tts/piperClient'
-import {
     startSpeechKeepalive,
     stopSpeechKeepalive,
     startAudioWatchdog,
@@ -335,11 +330,8 @@ export function useTTS() {
     useEffect(() => {
         if (typeof window === 'undefined') return
         let mounted = true
-        const loadVoices = async () => {
-            if (!isClientPiperConfigured()) return null
-            return aggregateClientPiperVoices()
-        }
-        loadVoices()
+        fetch('/api/tts/piper/voices')
+            .then(res => res.ok ? res.json() : null)
             .then(data => {
                 if (!mounted || !data) return
                 const voices = Array.isArray(data.voices)
@@ -718,14 +710,6 @@ export function useTTS() {
                             if (!isPlayingRef.current) throw new DOMException('Aborted', 'AbortError')
                         }
                         try {
-                            if (isClientPiperConfigured()) {
-                                const blob = await fetchPiperTtsBlob(
-                                    { text, voiceId, rate: rateRef.current },
-                                    controller.signal,
-                                )
-                                setState(prev => prev.error?.startsWith('Piper error — retry') ? { ...prev, error: null } : prev)
-                                return blob
-                            }
                             const res = await fetch('/api/tts/piper', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -791,14 +775,12 @@ export function useTTS() {
                         ? quoteVoice
                         : speakerMap[nextSpeaker] ?? piperVoiceIdRef.current
                     if (!nextVoiceId) return
-                    const prefetch = isClientPiperConfigured()
-                        ? fetchPiperTtsBlob({ text: nextText, voiceId: nextVoiceId, rate: rateRef.current })
-                        : fetch('/api/tts/piper', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ text: nextText, voiceId: nextVoiceId, rate: rateRef.current }),
-                        }).then(res => res.ok ? res.blob() : null)
-                    prefetch
+                    fetch('/api/tts/piper', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: nextText, voiceId: nextVoiceId, rate: rateRef.current }),
+                    })
+                        .then(res => res.ok ? res.blob() : null)
                         .then(blob => { if (blob) piperCacheRef.current.set(cacheKey, blob) })
                         .catch(() => { })  // best-effort, ignore errors
                 }

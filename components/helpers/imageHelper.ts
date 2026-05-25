@@ -4,12 +4,6 @@ interface ImagePropsFormatted {
 }
 
 import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
-import { joinRepoRelativePath } from '@/lib/repoRelativePath'
-import { normalizePathForMirror } from '@/lib/canonicalSiteAssetUrl'
-import {
-    buildLqipOptimizedAssetUrl,
-    buildOptimizedAssetUrl,
-} from '@/lib/relayOptimizedAssetUrl'
 
 const DEFAULT_FILES_BASE_URL = getPrimaryFilesBaseUrl()
 
@@ -95,12 +89,34 @@ export function getDimensionsFromIndex(index: any, imagePath: string): { width: 
 export function resolveImagePath(src: string, basePath?: string): string {
     if (typeof src !== 'string') return '';
     if (!src) return '';
-    if (src.startsWith('http')) {
-        const normalized = normalizePathForMirror(src);
-        if (!normalized.startsWith('http')) return normalized;
-        return src;
+    if (src.startsWith('http')) return src;
+
+    // Separate path from query string
+    const [pathPart, queryPart] = src.split('?');
+    const query = queryPart ? '?' + queryPart : '';
+    const prefix = basePath ? (basePath.endsWith('/') ? basePath : basePath + '/') : '';
+
+    if (pathPart.startsWith('/')) {
+        if (basePath?.startsWith('http')) {
+            // Root-relative path: resolve against basePath (works for both localhost and GitHub Pages subdirectories)
+            const relPath = pathPart.slice(1);
+            return (prefix + relPath) + query;
+        }
+        return pathPart + query; // Already absolute on current domain
     }
-    return joinRepoRelativePath(basePath, src);
+
+    let resolved = pathPart;
+    if (pathPart.startsWith('./')) {
+        resolved = pathPart.slice(2);
+    }
+
+    // When basePath is an absolute URL (e.g. timeline base = same domain as events.json), resolve to full URL
+    if (basePath?.startsWith('http')) {
+        return (prefix + resolved) + query;
+    }
+    // Path-based: combine and ensure it starts with / and has no double slashes
+    const combined = (prefix + resolved).replace(/\/+/g, '/').replace(/^\/+/, '');
+    return '/' + combined + query;
 }
 
 export function processImageProps(props: any, basePath?: string, filesRootUrl?: string): ImagePropsFormatted {
@@ -196,28 +212,21 @@ export function processImageProps(props: any, basePath?: string, filesRootUrl?: 
                     }
                 })());
 
-        const displayWidth =
-            w != null && w !== ''
+        // SVG: proxy only — sharp/WebP destroys fonts/text; do not pass w= to the image API
+        if (isSvg) {
+            finalProps.optimizedSrc = `/api/image?path=${encodeURIComponent(pathForAPI)}`;
+            finalProps.width = w
                 ? typeof w === 'string'
-                    ? parseInt(w, 10) || 800
+                    ? parseInt(w, 10)
                     : w
-                : 800
-
-        finalProps.optimizedSrc = buildOptimizedAssetUrl(
-            pathForAPI,
-            isSvg ? undefined : displayWidth,
-        )
-        finalProps.width = Number.isFinite(displayWidth) ? displayWidth : 800
-
-        const hasAuthorBlur =
-            typeof (finalProps as { blurDataURL?: string }).blurDataURL === 'string' &&
-            (finalProps as { blurDataURL?: string }).blurDataURL!.length > 0
-
-        if (!isSvg && !hasAuthorBlur) {
-            const lqipSrc = buildLqipOptimizedAssetUrl(pathForAPI, finalProps.width as number)
-            if (lqipSrc) {
-                ;(finalProps as Record<string, unknown>).lqipOptimizedSrc = lqipSrc
-            }
+                : 800;
+        } else if (w) {
+            finalProps.optimizedSrc = `/api/image?path=${encodeURIComponent(pathForAPI)}&w=${w}`;
+            finalProps.width = typeof w === 'string' ? parseInt(w) : w;
+        } else {
+            // Default optimization width
+            finalProps.optimizedSrc = `/api/image?path=${encodeURIComponent(pathForAPI)}&w=800`;
+            finalProps.width = 800;
         }
 
         // Reserve correct aspect ratio for LQIP placeholder when intrinsic dimensions available
@@ -225,7 +234,8 @@ export function processImageProps(props: any, basePath?: string, filesRootUrl?: 
             finalProps.height = Math.round(finalProps.width * (intrinsicHeight / intrinsicWidth));
         }
 
-        finalProps.highResSrc = buildOptimizedAssetUrl(pathForAPI, 1600)
+        // High res for popout (full URL)
+        finalProps.highResSrc = pathForAPI.startsWith('http') ? pathForAPI : `${FILES_BASE_URL}${pathForAPI}`;
 
         return { src: pathForAPI, ...finalProps, title, alt, className } as ImagePropsFormatted;
     }

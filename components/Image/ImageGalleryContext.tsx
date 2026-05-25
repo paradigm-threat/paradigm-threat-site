@@ -1,9 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react'
-import { createPortal } from 'react-dom'
 import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
-import { buildOptimizedAssetUrl } from '@/lib/relayOptimizedAssetUrl'
 
 export interface GalleryImage {
     src: string
@@ -20,8 +18,6 @@ export interface ImageGalleryContextType {
     setCurrentIndex: (index: number) => void
     isOpen: boolean
     setIsOpen: (isOpen: boolean) => void
-    openGallery: (items: GalleryImage[], startIndex?: number) => void
-    clearGalleryOverride: () => void
 }
 
 const ImageGalleryContext = createContext<ImageGalleryContextType | undefined>(undefined)
@@ -31,7 +27,6 @@ export function ImageGalleryProvider({ children }: { children: React.ReactNode }
     const [images, setImages] = useState<GalleryImage[]>([])
     const [currentIndex, setCurrentIndex] = useState(-1)
     const [isOpen, setIsOpen] = useState(false)
-    const [overrideImages, setOverrideImages] = useState<GalleryImage[] | null>(null)
 
     // Using a ref to track images to avoid re-renders during registration loop
     const imagesRef = useRef<GalleryImage[]>([])
@@ -52,31 +47,15 @@ export function ImageGalleryProvider({ children }: { children: React.ReactNode }
         setImages([...imagesRef.current])
     }, [])
 
-    const clearGalleryOverride = useCallback(() => {
-        setOverrideImages(null)
-    }, [])
-
-    const openGallery = useCallback((items: GalleryImage[], startIndex = 0) => {
-        const list = items.filter((i): i is GalleryImage => Boolean(i?.src))
-        if (list.length === 0) return
-        setOverrideImages(list)
-        setCurrentIndex(Math.min(Math.max(0, startIndex), list.length - 1))
-        setIsOpen(true)
-    }, [])
-
-    const activeImages = overrideImages ?? images
-
     const contextValue = useMemo(() => ({
-        images: activeImages,
+        images,
         registerImage,
         unregisterImage,
         currentIndex,
         setCurrentIndex,
         isOpen,
-        setIsOpen,
-        openGallery,
-        clearGalleryOverride,
-    }), [activeImages, registerImage, unregisterImage, currentIndex, isOpen, openGallery, clearGalleryOverride]);
+        setIsOpen
+    }), [images, registerImage, unregisterImage, currentIndex, isOpen]);
 
     return (
         <ImageGalleryContext.Provider value={contextValue}>
@@ -90,20 +69,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { checkFileExists } from '@/components/helpers/imageHelper'
 
-const REPO_IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg)$/i
-
-function galleryDisplaySrc (image: GalleryImage): string {
-    const rawSrc = typeof image.src === 'string' ? image.src : ''
-    const hi = typeof image.highResSrc === 'string' ? image.highResSrc : ''
-    if (!rawSrc) return hi
-    if (/^https?:\/\//i.test(rawSrc)) return hi || rawSrc
-    const pathOnly = rawSrc.split('?')[0]
-    if (pathOnly.startsWith('/') && REPO_IMAGE_EXT.test(pathOnly)) {
-        return buildOptimizedAssetUrl(pathOnly, 1600)
-    }
-    return hi || rawSrc
-}
-
 /**
  * Individual image item in the gallery to handle its own loading state
  * and prevent jumpy layout shifts during carousel transitions.
@@ -111,11 +76,13 @@ function galleryDisplaySrc (image: GalleryImage): string {
 function GalleryImageItem({
     image,
     direction,
+    displayCaption,
     goNext,
     goPrev
 }: {
     image: GalleryImage,
     direction: number,
+    displayCaption: React.ReactNode,
     goNext: () => void,
     goPrev: () => void
 }) {
@@ -162,16 +129,16 @@ function GalleryImageItem({
                 else if (swipe > 100) goPrev()
             }}
             onClick={(e) => e.stopPropagation()}
-            className="relative z-10 max-w-[99vw] lg:max-w-[80vw] flex items-center justify-center pointer-events-none"
-            style={{ willChange: 'transform, opacity', maxHeight: 'var(--gallery-image-max-h, calc(100vh - 6rem))' }}
+            className={`relative z-10 max-w-[99vw] ${aspectRatio && aspectRatio < 1 ? 'lg:max-w-[90vw]' : 'lg:max-w-[80vw]'} flex ${aspectRatio && aspectRatio < 1 ? 'flex-col lg:flex-row' : 'flex-col'} items-center justify-center gap-4 lg:gap-6 pointer-events-none`}
+            style={{ willChange: 'transform, opacity', maxHeight: 'calc(100vh - 8rem)' }}
         >
-            <div className="relative flex items-center justify-center min-h-[200px] w-full" style={{ maxHeight: 'var(--gallery-image-max-h, calc(100vh - 6rem))' }}>
+            <div className="relative flex items-center justify-center min-h-[200px] w-full" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element -- gallery overlay: dynamic highResSrc, next/image not used here */}
                 <img
                     ref={imgRef}
-                    src={galleryDisplaySrc(image)}
+                    src={image.highResSrc || image.src}
                     className="max-w-full object-contain shadow-2xl rounded-lg pointer-events-auto cursor-grab active:cursor-grabbing transition-opacity duration-300"
-                    style={{ opacity: (aspectRatio !== null || isHighResLoaded) ? 1 : 0, maxHeight: 'var(--gallery-image-max-h, calc(100vh - 6rem))' }}
+                    style={{ opacity: (aspectRatio !== null || isHighResLoaded) ? 1 : 0, maxHeight: 'calc(100vh - 8rem)' }}
                     alt={image.alt}
                     onDragStart={(e) => e.preventDefault()}
                     onLoad={(e) => {
@@ -183,12 +150,17 @@ function GalleryImageItem({
                     }}
                 />
             </div>
+            {displayCaption && (
+                <div className={`text-white/90 font-medium px-4 ${aspectRatio && aspectRatio < 1 ? 'lg:max-w-xs lg:text-left' : 'max-w-2xl text-center'} text-shadow-lg pointer-events-auto max-h-[20vh] lg:max-h-full overflow-y-auto`}>
+                    {displayCaption}
+                </div>
+            )}
         </motion.div>
     )
 }
 
 export function ImageGalleryOverlay() {
-    const { images, currentIndex, setCurrentIndex, isOpen, setIsOpen, clearGalleryOverride } = useImageGallery()
+    const { images, currentIndex, setCurrentIndex, isOpen, setIsOpen } = useImageGallery()
     const [direction, setDirection] = useState(0)
     const [remoteCaption, setRemoteCaption] = useState<string | null>(null)
 
@@ -201,9 +173,9 @@ export function ImageGalleryOverlay() {
             const prevIdx = (currentIndex - 1 + images.length) % images.length;
 
             [images[nextIdx], images[prevIdx]].forEach(img => {
-                if (img) {
+                if (img && (img.highResSrc || img.src)) {
                     const preload = new Image();
-                    preload.src = galleryDisplaySrc(img);
+                    preload.src = img.highResSrc || img.src;
                 }
             });
         }
@@ -255,9 +227,8 @@ export function ImageGalleryOverlay() {
         if (window.location.hash.startsWith('#img=')) {
             window.history.replaceState(null, '', window.location.pathname + window.location.search);
         }
-        clearGalleryOverride()
         setIsOpen(false)
-    }, [setIsOpen, clearGalleryOverride])
+    }, [setIsOpen])
 
     useEffect(() => {
         if (!isOpen) return;
@@ -281,16 +252,7 @@ export function ImageGalleryOverlay() {
         }
     }, [isOpen, currentIndex, currentImage]);
 
-    useEffect(() => {
-        if (!isOpen) return
-        const prev = document.body.style.overflow
-        document.body.style.overflow = 'hidden'
-        return () => {
-            document.body.style.overflow = prev
-        }
-    }, [isOpen])
-
-    if (!isOpen || !currentImage) return null
+    if (!currentImage) return null
 
     const prevImage = images.length > 1 ? images[(currentIndex - 1 + images.length) % images.length] : null;
     const nextImage = images.length > 1 ? images[(currentIndex + 1) % images.length] : null;
@@ -299,45 +261,35 @@ export function ImageGalleryOverlay() {
             ? currentImage.src.split('/').pop()?.split('.')[0]?.replace(/_/g, ' ')
             : '';
     const displayCaption =
-        currentImage.children != null && currentImage.children !== ''
+        typeof currentImage.children === 'string'
             ? currentImage.children
             : remoteCaption || currentImage.alt || fallbackCaption;
-    const hasCaption = Boolean(displayCaption)
 
-    /** Body portal: #site-main-scroll uses z-0, which traps fixed overlays below the sticky header (z-100). */
-    const overlay = (
+    return (
         <AnimatePresence>
             {isOpen && (
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-[200] bg-black flex flex-col select-none"
+                    className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center pt-16 pb-4 px-2 md:px-12 select-none"
                     onClick={closeFullscreen}
-                    style={{
-                        ['--gallery-image-max-h' as string]: hasCaption
-                            ? 'calc(100vh - 3.5rem - min(22vh, 9rem))'
-                            : 'calc(100vh - 3.5rem)',
-                    }}
                 >
                     {/* Header Controls */}
-                    <div className="flex-shrink-0 h-14 px-4 flex justify-between items-center border-b border-white/10 bg-black/95 z-50">
+                    <div className="absolute top-0 inset-x-0 p-4 flex justify-between items-center z-50">
                         <div className="text-white/50 text-sm font-mono whitespace-nowrap overflow-hidden text-ellipsis mr-4">
                             {currentIndex + 1} / {images.length} — {currentImage.src}
                         </div>
                         <button
                             onClick={closeFullscreen}
-                            className="text-white/60 hover:text-white transition-colors p-2 z-50 pointer-events-auto"
-                            aria-label="Close image gallery"
+                            className="text-white/60 hover:text-white transition-colors p-4 -m-4 z-50 pointer-events-auto"
                         >
-                            <X size={28} />
+                            <X size={32} />
                         </button>
                     </div>
 
-                    {/* Main image stage */}
-                    <div className="relative flex-1 min-h-0 flex items-center justify-center px-2 md:px-12">
-                        {/* Navigation Previews */}
-                        <div className="absolute inset-x-0 inset-y-0 pointer-events-none flex items-center justify-between px-4 z-40">
+                    {/* Navigation Previews */}
+                    <div className="absolute inset-x-0 inset-y-0 pointer-events-none flex items-center justify-between px-4 z-40">
                         {/* Prev Preview */}
                         <div className="w-1/4 h-full flex items-center justify-start overflow-hidden">
                             <AnimatePresence initial={false} custom={direction}>
@@ -362,10 +314,7 @@ export function ImageGalleryOverlay() {
                                         >
                                             {/* eslint-disable-next-line @next/next/no-img-element -- nav thumbnail: API proxy path */}
                                             <img
-                                                src={buildOptimizedAssetUrl(
-                                                    (prevImage.src || '').split('?')[0],
-                                                    400,
-                                                )}
+                                                src={`/api/image?path=${encodeURIComponent(prevImage.src)}&w=400`}
                                                 className="absolute inset-0 w-full h-full object-cover"
                                                 alt="prev"
                                                 loading="lazy"
@@ -403,10 +352,7 @@ export function ImageGalleryOverlay() {
                                         >
                                             {/* eslint-disable-next-line @next/next/no-img-element -- nav thumbnail: API proxy path */}
                                             <img
-                                                src={buildOptimizedAssetUrl(
-                                                    (nextImage.src || '').split('?')[0],
-                                                    400,
-                                                )}
+                                                src={`/api/image?path=${encodeURIComponent(nextImage.src)}&w=400`}
                                                 className="absolute inset-0 w-full h-full object-cover"
                                                 alt="next"
                                                 loading="lazy"
@@ -427,13 +373,14 @@ export function ImageGalleryOverlay() {
                             key={currentImage.src}
                             image={currentImage}
                             direction={direction}
+                            displayCaption={displayCaption}
                             goNext={goNext}
                             goPrev={goPrev}
                         />
                     </AnimatePresence>
 
                     {/* Mobile Controls */}
-                    <div className="absolute bottom-4 left-0 right-0 md:hidden flex justify-center gap-12 pointer-events-none z-50">
+                    <div className="absolute bottom-10 left-0 right-0 md:hidden flex justify-center gap-12 pointer-events-none z-50">
                         <button onClick={(e) => { e.stopPropagation(); goPrev(); }} className={`p-4 rounded-full bg-white/10 backdrop-blur-md text-white pointer-events-auto ${!prevImage && 'opacity-20'}`} disabled={!prevImage}>
                             <ChevronLeft size={32} />
                         </button>
@@ -441,25 +388,10 @@ export function ImageGalleryOverlay() {
                             <ChevronRight size={32} />
                         </button>
                     </div>
-                    </div>
-
-                    {hasCaption && (
-                        <div
-                            className="flex-shrink-0 max-h-[22vh] overflow-y-auto border-t border-white/10 bg-black/95 px-4 py-3 text-sm text-white/90 leading-relaxed pointer-events-auto"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="mx-auto max-w-3xl text-center md:text-left">
-                                {displayCaption}
-                            </div>
-                        </div>
-                    )}
                 </motion.div>
             )}
         </AnimatePresence>
     )
-
-    if (typeof document === 'undefined') return null
-    return createPortal(overlay, document.body)
 }
 
 export function useImageGallery() {

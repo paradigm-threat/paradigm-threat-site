@@ -35,6 +35,7 @@ export function middleware (request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next|api|timeline|chat|search|export|files|site|robots\\.txt|sitemap\\.xml|favicon\\.ico).*)\\.(png|jpg|jpeg|gif|webp|avif|bmp|ico|svg|apng)',
+    // Legacy `/files/timeline/media/...` and `/files/history/...` rasters (pre-Relay mirror URLs).
+    '/((?!_next|api|timeline|chat|search|export|site|robots\\.txt|sitemap\\.xml|favicon\\.ico).*)\\.(png|jpg|jpeg|gif|webp|avif|bmp|ico|svg|apng)',
   ],
 }
