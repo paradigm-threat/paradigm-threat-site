@@ -115,3 +115,22 @@ export async function fetchArticle(path: string): Promise<ArticleData | null> {
     ogImageUrl
   }
 }
+
+export interface TextLeafData {
+  title: string
+  text: string
+}
+
+/** Plain .txt or hooks .cs leaves from the files mirror. */
+export async function fetchTextLeaf (path: string): Promise<TextLeafData | null> {
+  if (!path || path === '/') return null
+  const segment = path.split('/').filter(Boolean).pop() || ''
+  if (!/\.(txt|cs)$/i.test(segment)) return null
+
+  const res = await fetch(`${FILES_BASE_URL}/${path}`, { cache: 'no-store' })
+  if (!res.ok) return null
+  const text = await res.text()
+  const baseName = segment.replace(/\.(txt|cs)$/i, '')
+  const title = baseName.replace(/_/g, ' ') || 'Document'
+  return { title, text }
+}

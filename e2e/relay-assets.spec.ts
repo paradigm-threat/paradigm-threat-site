@@ -41,6 +41,16 @@ test.describe('legacy proxy 404 (local build)', () => {
     expect(loc).toMatch(/relaygateway\.net\/export/)
   })
 
+  test('legacy /files/timeline raster redirects to timeline relay mirror', async ({ request }) => {
+    const legacyPath =
+      '/files/timeline/media/15.ce-21st-the-final-struggle/15.08.00-historical-antibodies.png'
+    const res = await request.head(legacyPath, { maxRedirects: 0 })
+    expect([307, 308]).toContain(res.status())
+    const loc = res.headers()['location'] || ''
+    expect(loc).toMatch(/relaygateway\.net\/paradigm-threat-timeline\/media\/15\.ce-21st-the-final-struggle\/15\.08\.00-historical-antibodies\.png/)
+    expect(loc).toMatch(/\?w=\d+/)
+  })
+
   test('/api/tts/piper returns 410 or 503', async ({ request }) => {
     const res = await request.post('/api/tts/piper', {
       data: { text: 'test', voiceId: 'en' },
