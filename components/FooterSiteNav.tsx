@@ -22,7 +22,7 @@ export function FooterSiteNav () {
         Timeline
       </Link>
       {isChatDisabled() ? (
-        <span className="shrink-0 text-slate-400 dark:text-slate-500" title="Chat paused during Relay transition">
+        <span className="shrink-0 text-slate-400 dark:text-slate-500" title="Chat disabled until Relay migration">
           Chat (paused)
         </span>
       ) : (

@@ -14,10 +14,10 @@ test.describe('Relay transition (production)', () => {
     'Set PLAYWRIGHT_BASE_URL=https://paradigmthreat.net',
   )
 
-  test('transition banner mentions chat and client-side pages', async ({ page }) => {
+  test('home has no site-wide relay transition banner', async ({ page }) => {
     await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' })
-    await expect(page.getByText(/client-side pages/i)).toBeVisible({ timeout: 30_000 })
-    await expect(page.getByText(/Server-side rendering is off/i)).toBeVisible()
+    await expect(page.getByText(/client-side pages/i)).toHaveCount(0)
+    await expect(page.getByText(/Server-side rendering is off/i)).toHaveCount(0)
   })
 
   test('search UI enabled (client-side index, no pause banner)', async ({ page }) => {
@@ -28,11 +28,12 @@ test.describe('Relay transition (production)', () => {
     await expect(searchInput).toBeEnabled()
   })
 
-  test('chat shows paused message', async ({ page }) => {
+  test('chat shows disabled overlay on chat component', async ({ page }) => {
     await page.goto(`${BASE}/chat`, { waitUntil: 'domcontentloaded' })
-    await expect(page.getByText(/Chat paused during Relay transition/i)).toBeVisible({
+    await expect(page.getByText(/Chat disabled until Relay migration/i)).toBeVisible({
       timeout: 30_000,
     })
+    await expect(page.getByText(/Public Repository Chat/i)).toBeVisible()
   })
 
   test('home and articles stay on paradigmthreat.net with app shell', async ({ page }) => {

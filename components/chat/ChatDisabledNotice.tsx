@@ -5,19 +5,23 @@ import {
   CHAT_DISABLED_HEADLINE,
 } from '@/lib/siteOpsMessages'
 
+/** Overlay banner shown on top of ChatRoom when chat ops flag is active. */
 export function ChatDisabledNotice () {
   return (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center px-4 py-20">
-      <div className="max-w-xl w-full rounded-3xl border-2 border-amber-200/80 bg-amber-50/90 dark:border-amber-900/50 dark:bg-amber-950/30 p-10 text-center space-y-4">
+    <div
+      role="status"
+      className="absolute inset-0 z-20 flex items-start justify-center rounded-2xl bg-slate-950/50 p-4 backdrop-blur-[2px]"
+    >
+      <div className="w-full max-w-lg space-y-3 rounded-xl border border-amber-200/90 bg-amber-50/95 px-5 py-4 text-center shadow-lg dark:border-amber-900/50 dark:bg-amber-950/90">
         <MessageSquare
-          size={48}
-          className="mx-auto text-amber-600/80 dark:text-amber-500/80"
+          size={36}
+          className="mx-auto text-amber-600/90 dark:text-amber-500/90"
           aria-hidden
         />
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white">
           {CHAT_DISABLED_HEADLINE}
-        </h1>
-        <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
+        </h2>
+        <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
           {CHAT_DISABLED_BODY}
         </p>
       </div>

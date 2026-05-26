@@ -5,6 +5,8 @@ import { usePathname } from 'next/navigation'
 import ErrorBoundary from '../ErrorBoundary/ErrorBoundary'
 import SuspenseLoader from '../atoms/SuspenseLoader/SuspenseLoader'
 import { ChatMarkdown } from './ChatMarkdown'
+import { ChatDisabledNotice } from '@/components/chat/ChatDisabledNotice'
+import { isChatDisabled } from '@/lib/siteOpsFeature'
 import { Send, User, MessageSquare, AlertCircle, RefreshCcw, Maximize2, Minimize2, ArrowLeft } from 'lucide-react'
 
 interface ChatRoomProps {
@@ -73,6 +75,7 @@ type ChatView = 'channel' | 'recent' | 'user'
 export default function ChatRoom({ channel: channelProp, title, className, mode }: ChatRoomProps) {
     const pathname = usePathname()
     const channelFromPath = getChannelFromPath(pathname)
+    const chatOpsDisabled = isChatDisabled()
 
     const [channelContent, setChannelContent] = useState<ChannelContent | null>(null)
     const [channelList, setChannelList] = useState<ChannelList>([])
@@ -114,7 +117,7 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
     }, [])
 
     const fetchPosts = useCallback(() => {
-        if (!currentChannelName) return
+        if (chatOpsDisabled || !currentChannelName) return
         setLoading(true)
         fetch(`/api/chat/getPosts?channel=${encodeURIComponent(currentChannelName)}&limit=50`)
             .then(res => res.json())
@@ -127,7 +130,7 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
                 addError(error.message)
             })
             .finally(() => setLoading(false))
-    }, [currentChannelName, addError])
+    }, [chatOpsDisabled, currentChannelName, addError])
 
     useEffect(() => { fetchPosts() }, [fetchPosts, postCount])
 
@@ -139,6 +142,10 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
     }, [channelFromPath, currentChannelName])
 
     useEffect(() => {
+        if (chatOpsDisabled) {
+            setLoading(false)
+            return
+        }
         if (mode === 'full') {
             setLoading(true)
             fetch(`/api/chat/getChannels`)
@@ -166,7 +173,7 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
                 })
                 .finally(() => setLoading(false))
         }
-    }, [mode, channelFromPath, addError])
+    }, [chatOpsDisabled, mode, channelFromPath, addError])
 
     const goToChannel = useCallback((name: string) => {
         setView('channel')
@@ -175,6 +182,7 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
     }, [])
 
     const showRecent = useCallback(() => {
+        if (chatOpsDisabled) return
         setView('recent')
         setRecentLoading(true)
         setRecentError(null)
@@ -186,9 +194,10 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
             })
             .catch((err) => setRecentError(err.message))
             .finally(() => setRecentLoading(false))
-    }, [])
+    }, [chatOpsDisabled])
 
     const showUser = useCallback((userId: number) => {
+        if (chatOpsDisabled) return
         setView('user')
         setSelectedUserId(userId)
         setUserLoading(true)
@@ -202,7 +211,7 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
             })
             .catch((err) => setUserError(err.message))
             .finally(() => setUserLoading(false))
-    }, [])
+    }, [chatOpsDisabled])
 
     const backToChannel = useCallback(() => {
         setView('channel')
@@ -210,6 +219,7 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
 
     async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault()
+        if (chatOpsDisabled) return
         const form = event.currentTarget
         const formData = new FormData(form)
         const username = formData.get('username') as string || 'guest'
@@ -251,11 +261,12 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
         }
     }
 
-    const containerClassName = `flex flex-col bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xl ${className || ''} ${isExpanded ? 'fixed inset-0 z-[110] min-h-0' : 'h-[70vh]'} select-none`
+    const containerClassName = `relative flex flex-col bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xl ${className || ''} ${isExpanded ? 'fixed inset-0 z-[110] min-h-0' : 'h-[70vh]'} select-none`
 
     return (
         <ErrorBoundary assetName="ChatRoom">
             <div className={containerClassName}>
+                {chatOpsDisabled && <ChatDisabledNotice />}
                 <span className="absolute opacity-0 pointer-events-none select-text">
                     [Paradigm Threat Live Chat: {title || currentChannelName}]
                 </span>
@@ -508,7 +519,7 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
                                     name="username"
                                     defaultValue={currentUserName}
                                     placeholder="guest"
-                                    disabled={disabled || loading}
+                                    disabled={disabled || loading || chatOpsDisabled}
                                     className="pl-9 pr-3 py-2.5 w-32 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                                 />
                             </div>
@@ -518,14 +529,14 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
                                     name="content"
                                     placeholder="Write a message..."
                                     required
-                                    disabled={disabled || loading}
+                                    disabled={disabled || loading || chatOpsDisabled}
                                     autoComplete="off"
                                     className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                                 />
                             </div>
                             <button
                                 type="submit"
-                                disabled={disabled || loading}
+                                disabled={disabled || loading || chatOpsDisabled}
                                 className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white p-2.5 rounded-xl transition-all shadow-lg shadow-blue-600/20 active:scale-95 flex items-center justify-center flex-shrink-0"
                             >
                                 <Send size={18} />
