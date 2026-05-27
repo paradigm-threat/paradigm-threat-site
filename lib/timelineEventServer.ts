@@ -5,6 +5,7 @@
 import { firstTimelineOgMediaPath } from '@/lib/timelineMedia'
 import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
 
+import { buildOptimizedAssetUrl } from '@/lib/relayOptimizedAssetUrl'
 import { getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
 
 const TIMELINE_BASE = getPrimaryTimelineBaseUrl()
@@ -47,7 +48,7 @@ export async function getTimelineEventMeta(eventId: string): Promise<TimelineEve
 
     const ogPath = firstTimelineOgMediaPath(event.media)
     const ogImageUrl = ogPath
-      ? `${TIMELINE_BASE.replace(/\/$/, '')}${ogPath.startsWith('/') ? '' : '/'}${ogPath}`
+      ? buildOptimizedAssetUrl(ogPath.startsWith('/') ? ogPath : `/${ogPath}`, 800)
       : undefined
 
     return {

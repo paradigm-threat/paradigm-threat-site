@@ -41,7 +41,10 @@ describe('getTimelineEventMeta ogImageUrl', () => {
       const { getTimelineEventMeta } = await import('./timelineEventServer.ts')
       const meta = await getTimelineEventMeta('evt-test-og')
       assert.ok(meta?.ogImageUrl)
-      assert.match(meta.ogImageUrl, /relaygateway\.net\/media\/00\.overview\/paradigm-threat-the-third-story\.png\?w=\d+/)
+      assert.match(
+        meta.ogImageUrl,
+        /relaygateway\.net\/media\/00\.overview\/paradigm-threat-the-third-story\.png\?w=\d+/,
+      )
     } finally {
       globalThis.fetch = originalFetch
     }

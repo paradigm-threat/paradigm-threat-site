@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { galleryRelayThumbnailUrl } from '@/components/helpers/imageHelper'
 import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
 
 export interface GalleryImage {
@@ -312,9 +313,9 @@ export function ImageGalleryOverlay() {
                                             whileHover={{ opacity: 0.5, scale: 1.05 }}
                                             className="relative h-[25vh] aspect-square hidden lg:flex items-center justify-center rounded-2xl overflow-hidden"
                                         >
-                                            {/* eslint-disable-next-line @next/next/no-img-element -- nav thumbnail: API proxy path */}
+                                            {/* eslint-disable-next-line @next/next/no-img-element -- nav thumbnail: Relay ?w= */}
                                             <img
-                                                src={`/api/image?path=${encodeURIComponent(prevImage.src)}&w=400`}
+                                                src={galleryRelayThumbnailUrl(prevImage.src, 400)}
                                                 className="absolute inset-0 w-full h-full object-cover"
                                                 alt="prev"
                                                 loading="lazy"
@@ -350,9 +351,9 @@ export function ImageGalleryOverlay() {
                                             whileHover={{ opacity: 0.5, scale: 1.05 }}
                                             className="relative h-[25vh] aspect-square hidden lg:flex items-center justify-center rounded-2xl overflow-hidden"
                                         >
-                                            {/* eslint-disable-next-line @next/next/no-img-element -- nav thumbnail: API proxy path */}
+                                            {/* eslint-disable-next-line @next/next/no-img-element -- nav thumbnail: Relay ?w= */}
                                             <img
-                                                src={`/api/image?path=${encodeURIComponent(nextImage.src)}&w=400`}
+                                                src={galleryRelayThumbnailUrl(nextImage.src, 400)}
                                                 className="absolute inset-0 w-full h-full object-cover"
                                                 alt="next"
                                                 loading="lazy"
