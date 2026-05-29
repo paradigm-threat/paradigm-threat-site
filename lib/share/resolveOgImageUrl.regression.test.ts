@@ -6,7 +6,7 @@ describe('resolveOgImageUrl / appendOgShareWidthParam', () => {
 
   before(() => {
     process.env.NEXT_PUBLIC_FILES_BASE_URL =
-      'https://paradigm-threat-files.atlanta3.relaygateway.net'
+      'https://paradigm-threat-files.atlanta2.relaygateway.net'
   })
 
   after(() => {
@@ -20,7 +20,7 @@ describe('resolveOgImageUrl / appendOgShareWidthParam', () => {
     const url = extractFirstImageUrlFromMarkdown(md, 'governance/war')
     assert.equal(
       url,
-      `https://paradigm-threat-files.atlanta3.relaygateway.net/governance/war/hero.png?w=${OG_SHARE_IMAGE_WIDTH}`,
+      `https://paradigm-threat-files.atlanta2.relaygateway.net/governance/war/hero.png?w=${OG_SHARE_IMAGE_WIDTH}`,
     )
     assert.doesNotMatch(url, /\/files\//)
   })
@@ -31,7 +31,7 @@ describe('resolveOgImageUrl / appendOgShareWidthParam', () => {
       appendOgShareWidthParam(
         'https://paradigmthreat.net/files/governance/war/hero.png',
       ),
-      `https://paradigm-threat-files.atlanta3.relaygateway.net/governance/war/hero.png?w=${OG_SHARE_IMAGE_WIDTH}`,
+      `https://paradigm-threat-files.atlanta2.relaygateway.net/governance/war/hero.png?w=${OG_SHARE_IMAGE_WIDTH}`,
     )
   })
 
@@ -41,7 +41,7 @@ describe('resolveOgImageUrl / appendOgShareWidthParam', () => {
       appendOgShareWidthParam(
         'https://paradigmthreat.net/governance/war/mission-accomplished-again-iran-2026.png',
       ),
-      `https://paradigm-threat-files.atlanta3.relaygateway.net/governance/war/mission-accomplished-again-iran-2026.png?w=${OG_SHARE_IMAGE_WIDTH}`,
+      `https://paradigm-threat-files.atlanta2.relaygateway.net/governance/war/mission-accomplished-again-iran-2026.png?w=${OG_SHARE_IMAGE_WIDTH}`,
     )
   })
 
@@ -49,9 +49,9 @@ describe('resolveOgImageUrl / appendOgShareWidthParam', () => {
     const { appendOgShareWidthParam } = await import('./resolveOgImageUrl.ts')
     assert.equal(
       appendOgShareWidthParam(
-        'https://paradigm-threat-files.atlanta3.relaygateway.net/site/favicon.svg',
+        'https://paradigm-threat-files.atlanta2.relaygateway.net/site/favicon.svg',
       ),
-      'https://paradigm-threat-files.atlanta3.relaygateway.net/site/favicon.svg',
+      'https://paradigm-threat-files.atlanta2.relaygateway.net/site/favicon.svg',
     )
   })
 

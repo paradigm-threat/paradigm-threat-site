@@ -5,7 +5,7 @@
  * Usage:
  *   npm run smoke:prod
  *   SMOKE_BASE_URL=https://staging.example npm run smoke:prod
- *   SMOKE_FILES_MIRROR=https://paradigm-threat-files.atlanta3.relaygateway.net npm run smoke:prod
+ *   SMOKE_FILES_MIRROR=https://paradigm-threat-files.atlanta2.relaygateway.net npm run smoke:prod
  *
  * Exit 0 on success, 1 on any failure.
  */
@@ -20,11 +20,11 @@ function firstOrigin (raw, fallback) {
 
 const FILES_MIRROR = firstOrigin(
   process.env.SMOKE_FILES_MIRROR || process.env.NEXT_PUBLIC_FILES_BASE_URL,
-  'https://paradigm-threat-files.atlanta3.relaygateway.net',
+  'https://paradigm-threat-files.atlanta2.relaygateway.net',
 )
 const TIMELINE_MIRROR = firstOrigin(
   process.env.SMOKE_TIMELINE_MIRROR || process.env.NEXT_PUBLIC_TIMELINE_BASE_URL,
-  'https://paradigm-threat-timeline.atlanta3.relaygateway.net',
+  'https://paradigm-threat-timeline.atlanta2.relaygateway.net',
 )
 
 function fail (msg) {

@@ -7,9 +7,9 @@ describe('processImageProps (Relay mirrors, no /api/image)', () => {
 
   before(() => {
     process.env.NEXT_PUBLIC_FILES_BASE_URL =
-      'https://atlanta3.relaygateway.net/paradigm-threat-files'
+      'https://atlanta2.relaygateway.net/paradigm-threat-files'
     process.env.NEXT_PUBLIC_TIMELINE_BASE_URL =
-      'https://atlanta3.relaygateway.net/paradigm-threat-timeline'
+      'https://atlanta2.relaygateway.net/paradigm-threat-timeline'
   })
 
   after(() => {
