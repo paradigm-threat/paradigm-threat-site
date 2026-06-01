@@ -7,7 +7,11 @@ import { Menu, X, Search, Home, MessageSquare, Video, Clock, Heart, Rss, Server 
 import { ThemeToggle, FontToggle, DynamicNav, DynamicIndex } from '@/components'
 import { FeelingLuckyButton } from '@/components/FeelingLucky/FeelingLuckyButton'
 import { ResumeInvestigationPanel } from '@/components/ResumeInvestigationPanel'
-import { remoteRelay, relayHostLabel } from '@/lib/remoteRelayStore'
+import {
+    remoteRelay,
+    RELAY_REPO_NAMES_LABEL,
+    type RelayPairOption,
+} from '@/lib/remoteRelayStore'
 import { isChatDisabled } from '@/lib/siteOpsFeature'
 
 interface NavbarProps {
@@ -19,6 +23,18 @@ const HEADER_WORDMARK_SRC = '/site/header.png'
 /** Triangle mark only (same graphic as favicon) — avoids clash with menu below ~350px. */
 const HEADER_MARK_SRC = '/site/favicon.svg'
 
+function relayStatusDotClass(opt: RelayPairOption): string {
+    if (opt.live) {
+        return opt.isActive
+            ? 'bg-emerald-400 shadow-[0_0_6px_1px_rgba(52,211,153,0.85)]'
+            : 'bg-emerald-500'
+    }
+    if (opt.filesOk || opt.timelineOk) {
+        return 'bg-amber-500'
+    }
+    return 'bg-slate-400 dark:bg-slate-600'
+}
+
 function RelayServerSelector() {
     const [menuOpen, setMenuOpen] = useState(false)
     const wrapRef = useRef<HTMLDivElement>(null)
@@ -29,16 +45,12 @@ function RelayServerSelector() {
         () => remoteRelay.getActivePairIndex(),
     )
 
-    // Keep getSnapshot primitive/stable to satisfy useSyncExternalStore contract.
-    useSyncExternalStore(
+    const optionsKey = useSyncExternalStore(
         (cb) => remoteRelay.subscribe(cb),
-        () => remoteRelay.getRelayPairs().map((p) => `${p.files}|${p.timeline}`).join('\n'),
-        () => remoteRelay.getRelayPairs().map((p) => `${p.files}|${p.timeline}`).join('\n'),
+        () => remoteRelay.getRelayPairOptionsKey(),
+        () => remoteRelay.getRelayPairOptionsKey(),
     )
-    const options = remoteRelay.getRelayPairs().map((pair, idx) => ({
-        idx,
-        label: `${relayHostLabel(pair.files)} • ${relayHostLabel(pair.timeline)}`,
-    }))
+    const options = remoteRelay.getRelayPairOptions()
 
     useEffect(() => {
         if (!menuOpen) return undefined
@@ -60,7 +72,10 @@ function RelayServerSelector() {
 
     if (options.length <= 1) return null
 
-    const currentLabel = options.find((o) => o.idx === activeIdx)?.label ?? options[0]!.label
+    const current = options.find((o) => o.idx === activeIdx) ?? options[0]!
+    const currentTitle = current.live
+        ? `${current.nodeId} (${current.latencyMs}ms)`
+        : current.nodeId
 
     return (
         <div ref={wrapRef} className="relative">
@@ -71,32 +86,51 @@ function RelayServerSelector() {
                 aria-expanded={menuOpen}
                 aria-haspopup="menu"
                 aria-label="Relay server menu"
-                title={`Relay server — ${currentLabel}`}
+                title={`Relay server — ${currentTitle}`}
             >
                 <Server size={18} strokeWidth={1.75} aria-hidden />
             </button>
             {menuOpen && (
                 <div
                     role="menu"
-                    className="absolute right-0 top-full mt-1 z-[120] min-w-[min(calc(100vw-2rem),22rem)] max-w-[min(calc(100vw-2rem),26rem)] rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-800"
+                    className="absolute right-0 top-full mt-1 z-[120] min-w-[14rem] max-w-[min(calc(100vw-2rem),20rem)] rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-800"
                 >
-                    <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700">
-                        Relay server
+                    <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            Relay server
+                        </div>
+                        <div className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                            {RELAY_REPO_NAMES_LABEL}
+                        </div>
                     </div>
                     {options.map((opt) => (
                         <button
-                            key={opt.idx}
+                            key={`${opt.idx}-${optionsKey}`}
                             type="button"
                             role="menuitem"
                             onClick={() => {
                                 remoteRelay.setActivePairIndex(opt.idx)
                                 setMenuOpen(false)
                             }}
-                            className={`flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 ${opt.idx === activeIdx ? 'bg-slate-50 dark:bg-slate-900/50' : ''
+                            className={`flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-slate-100 dark:hover:bg-slate-700 ${opt.isActive ? 'bg-slate-50 dark:bg-slate-900/60' : ''
                                 }`}
                         >
-                            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{`Server ${opt.idx + 1}`}</span>
-                            <span className="break-all text-xs text-slate-800 dark:text-slate-100">{opt.label}</span>
+                            <span
+                                className={`h-2 w-2 shrink-0 rounded-full ${relayStatusDotClass(opt)}`}
+                                aria-hidden
+                                title={opt.live ? 'Live' : opt.filesOk || opt.timelineOk ? 'Partial' : 'Offline'}
+                            />
+                            <span className="w-11 shrink-0 text-right font-mono text-[11px] tabular-nums text-slate-500 dark:text-slate-400">
+                                {opt.latencyMs != null ? `${opt.latencyMs}ms` : '—'}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                                <span className="font-semibold text-sm text-slate-800 dark:text-slate-100">
+                                    {opt.nodeId}
+                                </span>
+                                <span className="ml-1.5 text-[11px] font-normal text-slate-500 dark:text-slate-400">
+                                    {opt.statsLabel}
+                                </span>
+                            </span>
                         </button>
                     ))}
                 </div>

@@ -18,6 +18,49 @@ export function relayHostLabel(origin: string): string {
   }
 }
 
+/** Short node id from mirror origin (e.g. dfw1 from paradigm-threat-files.dfw1.relaygateway.net). */
+export function relayNodeId(filesOrigin: string): string {
+  if (!filesOrigin) return ''
+  try {
+    const host = new URL(filesOrigin).hostname
+    const m = host.match(/^paradigm-threat-files\.([^.]+)\.relaygateway\.net$/i)
+    if (m?.[1]) return m[1]
+    const apex = host.match(/^([^.]+)\.relaygateway\.net$/i)
+    if (apex?.[1]) return apex[1]
+    return host
+  } catch {
+    return filesOrigin
+  }
+}
+
+export type RelayPairProbe = {
+  latencyMs: number
+  live: boolean
+  filesOk: boolean
+  timelineOk: boolean
+}
+
+export type RelayPairOption = {
+  idx: number
+  nodeId: string
+  latencyMs: number | null
+  live: boolean
+  filesOk: boolean
+  timelineOk: boolean
+  isActive: boolean
+  statsLabel: string
+}
+
+export const RELAY_REPO_NAMES_LABEL = 'paradigm-threat-files · paradigm-threat-timeline'
+
+function probeStatsLabel(filesOk: boolean, timelineOk: boolean): string {
+  if (filesOk && timelineOk) return 'live'
+  const parts: string[] = []
+  if (filesOk) parts.push('files')
+  if (timelineOk) parts.push('timeline')
+  return parts.length > 0 ? parts.join(' · ') : 'offline'
+}
+
 export type RelayNotifyEvent =
   | {
       type: 'ready'
@@ -103,6 +146,8 @@ class RemoteRelayStore {
   private timelineOrigin = ''
   private bootstrapDone = false
   private bootstrapP: Promise<void> | null = null
+  /** Filled during bootstrap probe (one request pair per server; reused by the selector UI). */
+  private probeByIndex: RelayPairProbe[] = []
   private listeners = new Set<() => void>()
   private notifyListeners = new Set<(e: RelayNotifyEvent) => void>()
 
@@ -169,7 +214,7 @@ class RemoteRelayStore {
         reason,
         filesOrigin: this.filesOrigin,
         timelineOrigin: this.timelineOrigin,
-        serverLabel: relayHostLabel(this.filesOrigin),
+        serverLabel: relayNodeId(this.filesOrigin) || relayHostLabel(this.filesOrigin),
       })
     }
   }
@@ -183,7 +228,7 @@ class RemoteRelayStore {
       type: 'ready',
       filesOrigin: this.filesOrigin,
       timelineOrigin: this.timelineOrigin,
-      serverLabel: relayHostLabel(this.filesOrigin),
+      serverLabel: relayNodeId(this.filesOrigin) || relayHostLabel(this.filesOrigin),
     })
   }
 
@@ -197,8 +242,41 @@ class RemoteRelayStore {
       relayBootstrapDone: this.bootstrapDone,
       filesHostLabel: relayHostLabel(fb),
       timelineHostLabel: relayHostLabel(tb),
-      serverLabel: relayHostLabel(fb),
+      serverLabel: relayNodeId(fb) || relayHostLabel(fb),
     }
+  }
+
+  /** Selector rows from last bootstrap probe (no extra network on open/select). */
+  getRelayPairOptions(): RelayPairOption[] {
+    this.ensurePairs()
+    const activeIdx = this.getActivePairIndex()
+    return this.pairs.map((_, idx) => {
+      const probe = this.probeByIndex[idx]
+      const live = probe?.live ?? false
+      const latencyMs = probe ? probe.latencyMs : null
+      const filesOrigin = this.pairs[idx]!.files
+      return {
+        idx,
+        nodeId: relayNodeId(filesOrigin) || `server-${idx + 1}`,
+        latencyMs,
+        live,
+        filesOk: probe?.filesOk ?? false,
+        timelineOk: probe?.timelineOk ?? false,
+        isActive: idx === activeIdx,
+        statsLabel: probe ? probeStatsLabel(probe.filesOk, probe.timelineOk) : '…',
+      }
+    })
+  }
+
+  /** Stable string for useSyncExternalStore subscriptions. */
+  getRelayPairOptionsKey(): string {
+    const snap = this.getSnapshot()
+    return this.getRelayPairOptions()
+      .map(
+        (o) =>
+          `${o.idx}:${o.nodeId}:${o.latencyMs ?? 'x'}:${o.live ? 1 : 0}:${o.isActive ? 1 : 0}:${o.statsLabel}`,
+      )
+      .join('|') + `|b${snap.relayBootstrapDone ? 1 : 0}`
   }
 
   getRelayPairs(): RelayOriginPair[] {
@@ -269,23 +347,6 @@ class RemoteRelayStore {
     }
   }
 
-  private async pickFastestPair(): Promise<RelayOriginPair> {
-    this.ensurePairs()
-    if (this.pairs.length <= 1) return this.pairs[0]!
-
-    const results = await Promise.all(this.pairs.map((p) => this.probePair(p)))
-    const dual = results.filter((r) => r.bothOk).sort((a, b) => a.scoreMs - b.scoreMs)
-    if (dual.length > 0) return pickRandomAmongNearBest(dual)
-
-    const filesOnly = results.filter((r) => r.filesOk).sort((a, b) => a.scoreMs - b.scoreMs)
-    if (filesOnly.length > 0) return pickRandomAmongNearBest(filesOnly)
-
-    const timelineOnly = results.filter((r) => r.timelineOk).sort((a, b) => a.scoreMs - b.scoreMs)
-    if (timelineOnly.length > 0) return pickRandomAmongNearBest(timelineOnly)
-
-    return this.pairs[0]!
-  }
-
   private readStoredPreferredPair(): RelayOriginPair | null {
     if (typeof window === 'undefined') return null
     this.ensurePairs()
@@ -317,15 +378,70 @@ class RemoteRelayStore {
     }
   }
 
+  private pickBestFromProbeResults(
+    results: Array<{
+      pair: RelayOriginPair
+      bothOk: boolean
+      scoreMs: number
+      filesOk: boolean
+      timelineOk: boolean
+    }>,
+  ): RelayOriginPair {
+    const dual = results.filter((r) => r.bothOk).sort((a, b) => a.scoreMs - b.scoreMs)
+    if (dual.length > 0) return pickRandomAmongNearBest(dual)
+
+    const filesOnly = results.filter((r) => r.filesOk).sort((a, b) => a.scoreMs - b.scoreMs)
+    if (filesOnly.length > 0) return pickRandomAmongNearBest(filesOnly)
+
+    const timelineOnly = results.filter((r) => r.timelineOk).sort((a, b) => a.scoreMs - b.scoreMs)
+    if (timelineOnly.length > 0) return pickRandomAmongNearBest(timelineOnly)
+
+    return this.pairs[0]!
+  }
+
+  private cacheProbeResults(
+    results: Array<{
+      bothOk: boolean
+      scoreMs: number
+      filesOk: boolean
+      timelineOk: boolean
+    }>,
+  ): void {
+    this.probeByIndex = results.map((r) => ({
+      latencyMs: Math.round(r.scoreMs),
+      live: r.bothOk,
+      filesOk: r.filesOk,
+      timelineOk: r.timelineOk,
+    }))
+    this.emit()
+  }
+
   private async runBootstrap(): Promise<void> {
     this.ensurePairs()
-    const preferred = this.readStoredPreferredPair()
-    if (preferred) {
-      this.finishBootstrap(preferred)
+    if (this.pairs.length === 0) {
+      this.bootstrapDone = true
+      this.emit()
       return
     }
-    const best = await this.pickFastestPair()
-    this.finishBootstrap(best)
+
+    const results =
+      this.pairs.length === 1
+        ? [await this.probePair(this.pairs[0]!)]
+        : await Promise.all(this.pairs.map((p) => this.probePair(p)))
+    this.cacheProbeResults(results)
+
+    const preferred = this.readStoredPreferredPair()
+    if (preferred) {
+      const prefProbe = results.find(
+        (r) => r.pair.files === preferred.files && r.pair.timeline === preferred.timeline,
+      )
+      if (prefProbe?.bothOk) {
+        this.finishBootstrap(preferred)
+        return
+      }
+    }
+
+    this.finishBootstrap(this.pickBestFromProbeResults(results))
   }
 
   /**
