@@ -33,6 +33,41 @@ export function relayNodeId(filesOrigin: string): string {
   }
 }
 
+function hostDotLabels(host: string): string[] {
+  return host.split('.').filter(Boolean)
+}
+
+/**
+ * Shared server hostname for a mirror pair (e.g. dfw1.relaygateway.net).
+ * Works for any domain: compares files + timeline hosts from the right;
+ * falls back to files host without the leading repo label.
+ */
+export function relayServerHost(filesOrigin: string, timelineOrigin?: string): string {
+  const filesHost = relayHostLabel(filesOrigin)
+  if (!filesHost) return ''
+  const timelineHost = timelineOrigin ? relayHostLabel(timelineOrigin) : ''
+  if (!timelineHost || filesHost === timelineHost) {
+    const parts = hostDotLabels(filesHost)
+    return parts.length > 1 ? parts.slice(1).join('.') : filesHost
+  }
+
+  const filesLabels = hostDotLabels(filesHost)
+  const timelineLabels = hostDotLabels(timelineHost)
+  const shared: string[] = []
+  const max = Math.min(filesLabels.length, timelineLabels.length)
+  for (let i = 1; i <= max; i++) {
+    const fl = filesLabels[filesLabels.length - i]!
+    const tl = timelineLabels[timelineLabels.length - i]!
+    if (fl !== tl) break
+    shared.unshift(fl)
+  }
+
+  if (shared.length >= 2) return shared.join('.')
+
+  const parts = hostDotLabels(filesHost)
+  return parts.length > 1 ? parts.slice(1).join('.') : filesHost
+}
+
 export type RelayPairProbe = {
   latencyMs: number
   live: boolean
@@ -42,7 +77,8 @@ export type RelayPairProbe = {
 
 export type RelayPairOption = {
   idx: number
-  nodeId: string
+  /** Full server host (e.g. dfw1.relaygateway.net), not repo subdomains. */
+  serverHost: string
   latencyMs: number | null
   live: boolean
   filesOk: boolean
@@ -214,7 +250,7 @@ class RemoteRelayStore {
         reason,
         filesOrigin: this.filesOrigin,
         timelineOrigin: this.timelineOrigin,
-        serverLabel: relayNodeId(this.filesOrigin) || relayHostLabel(this.filesOrigin),
+        serverLabel: relayServerHost(this.filesOrigin, this.timelineOrigin),
       })
     }
   }
@@ -228,7 +264,7 @@ class RemoteRelayStore {
       type: 'ready',
       filesOrigin: this.filesOrigin,
       timelineOrigin: this.timelineOrigin,
-      serverLabel: relayNodeId(this.filesOrigin) || relayHostLabel(this.filesOrigin),
+      serverLabel: relayServerHost(this.filesOrigin, this.timelineOrigin),
     })
   }
 
@@ -242,7 +278,7 @@ class RemoteRelayStore {
       relayBootstrapDone: this.bootstrapDone,
       filesHostLabel: relayHostLabel(fb),
       timelineHostLabel: relayHostLabel(tb),
-      serverLabel: relayNodeId(fb) || relayHostLabel(fb),
+      serverLabel: relayServerHost(fb, tb),
     }
   }
 
@@ -254,10 +290,10 @@ class RemoteRelayStore {
       const probe = this.probeByIndex[idx]
       const live = probe?.live ?? false
       const latencyMs = probe ? probe.latencyMs : null
-      const filesOrigin = this.pairs[idx]!.files
+      const pair = this.pairs[idx]!
       return {
         idx,
-        nodeId: relayNodeId(filesOrigin) || `server-${idx + 1}`,
+        serverHost: relayServerHost(pair.files, pair.timeline) || `server-${idx + 1}`,
         latencyMs,
         live,
         filesOk: probe?.filesOk ?? false,
@@ -274,7 +310,7 @@ class RemoteRelayStore {
     return this.getRelayPairOptions()
       .map(
         (o) =>
-          `${o.idx}:${o.nodeId}:${o.latencyMs ?? 'x'}:${o.live ? 1 : 0}:${o.isActive ? 1 : 0}:${o.statsLabel}`,
+          `${o.idx}:${o.serverHost}:${o.latencyMs ?? 'x'}:${o.live ? 1 : 0}:${o.isActive ? 1 : 0}:${o.statsLabel}`,
       )
       .join('|') + `|b${snap.relayBootstrapDone ? 1 : 0}`
   }

@@ -74,8 +74,8 @@ function RelayServerSelector() {
 
     const current = options.find((o) => o.idx === activeIdx) ?? options[0]!
     const currentTitle = current.live
-        ? `${current.nodeId} (${current.latencyMs}ms)`
-        : current.nodeId
+        ? `${current.serverHost} (${current.latencyMs}ms)`
+        : current.serverHost
 
     return (
         <div ref={wrapRef} className="relative">
@@ -93,7 +93,7 @@ function RelayServerSelector() {
             {menuOpen && (
                 <div
                     role="menu"
-                    className="absolute right-0 top-full mt-1 z-[120] min-w-[14rem] max-w-[min(calc(100vw-2rem),20rem)] rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-800"
+                    className="absolute right-0 top-full mt-1 z-[120] min-w-[min(calc(100vw-2rem),18rem)] max-w-[min(calc(100vw-2rem),28rem)] rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-800"
                 >
                     <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700">
                         <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -124,8 +124,8 @@ function RelayServerSelector() {
                                 {opt.latencyMs != null ? `${opt.latencyMs}ms` : '—'}
                             </span>
                             <span className="min-w-0 flex-1">
-                                <span className="font-semibold text-sm text-slate-800 dark:text-slate-100">
-                                    {opt.nodeId}
+                                <span className="break-all font-semibold text-sm text-slate-800 dark:text-slate-100">
+                                    {opt.serverHost}
                                 </span>
                                 <span className="ml-1.5 text-[11px] font-normal text-slate-500 dark:text-slate-400">
                                     {opt.statsLabel}
