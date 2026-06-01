@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 
-/** Removed sharp /api/image proxy — return explicit 404. */
+/**
+ * Retired sharp proxy — explicit 404 so old bookmarks do not hit the catch-all HTML page.
+ * App code must never link here; see components/helpers/imageHelper.ts.
+ */
 export function GET () {
   return new NextResponse(null, { status: 404 })
 }

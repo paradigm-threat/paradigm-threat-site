@@ -7,7 +7,7 @@ const RASTER_EXT = /\.(apng|png|jpe?g|gif|webp|avif|bmp|ico|svg)$/i
 
 /**
  * Direct GETs to repo raster paths on the site origin (e.g. /history/.../foo.png)
- * redirect to the primary Relay mirror — no Next compute or /api/image.
+ * redirect to the primary Relay mirror — no local image proxy on Vercel.
  *
  * Article HTML stays on paradigmthreat.net (Next app shell). Do not 307 pages to
  * Relay md2ast HTML — that bypasses the client and shows raw tags like `<ChangeLog />`.

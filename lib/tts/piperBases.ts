@@ -3,7 +3,9 @@
  */
 
 export const DEFAULT_PIPER_API_BASES = [
-  'https://atlanta2.relaygateway.net',
+  'https://dfw1.relaygateway.net',
+  'https://lon1.relaygateway.net',
+  'https://hkg1.relaygateway.net',
 ] as const
 
 function normalizeBaseUrl (raw: string): string {

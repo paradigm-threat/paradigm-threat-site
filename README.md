@@ -48,7 +48,7 @@ Opens on [http://localhost:3000](http://localhost:3000).
 | `TIMELINE_ORIGINS` | (unset) | Optional pipe- or newline-separated timeline static origins, **tried in order**, for timeline mirror failover. `/export/...` on the site origin **307-redirects** to `NEXT_PUBLIC_TIMELINE_BASE_URL/export/...` (no Vercel binary proxy). |
 | `NEXT_PUBLIC_FILES_BASE_URL` | `https://paradigm-threat-files-69f9dc.gitlab.io` | Static files (GitLab Pages or Relay). Multiple mirrors: `\|` or newlines. In the browser, entries are **zipped by index** with the timeline list into relay **pairs**; the fastest pair is chosen at load. Raster images use **`{mirror}/{path}?w=`** (Relay `server.hooks.get` WebP); no `/api/image` proxy on this app. |
 | `NEXT_PUBLIC_PIPER_API_URLS` | (see code) | Browser Piper TTS: **space**-separated relay bases (`/tts`, `/voices`). Defaults match `PIPER_API_URLS`. The client calls relay **directly** (no `/api/tts/piper` proxy). Optional `NEXT_PUBLIC_PIPER_API_SECRET` if mirrors require Bearer auth. |
-| `PIPER_API_URLS` | (see code) | Server/build Piper bases (tests, legacy). Default: `atlanta2.relaygateway.net`. |
+| `PIPER_API_URLS` | (see code) | Server/build Piper bases (tests). Default: `dfw1`, `lon1`, `hkg1` relay hosts. |
 
 ### Scripts
 

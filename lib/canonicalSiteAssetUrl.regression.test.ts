@@ -1,15 +1,16 @@
 import assert from 'node:assert/strict'
 import { describe, it, before, after } from 'node:test'
 
+const FILES_BASE = 'https://paradigm-threat-files.dfw1.relaygateway.net'
+const TIMELINE_BASE = 'https://paradigm-threat-timeline.dfw1.relaygateway.net'
+
 describe('canonicalSiteAssetToMirrorUrl', () => {
   const prevFiles = process.env.NEXT_PUBLIC_FILES_BASE_URL
   const prevTimeline = process.env.NEXT_PUBLIC_TIMELINE_BASE_URL
 
   before(() => {
-    process.env.NEXT_PUBLIC_FILES_BASE_URL =
-      'https://atlanta2.relaygateway.net/paradigm-threat-files'
-    process.env.NEXT_PUBLIC_TIMELINE_BASE_URL =
-      'https://atlanta2.relaygateway.net/paradigm-threat-timeline'
+    process.env.NEXT_PUBLIC_FILES_BASE_URL = FILES_BASE
+    process.env.NEXT_PUBLIC_TIMELINE_BASE_URL = TIMELINE_BASE
   })
 
   after(() => {
@@ -27,7 +28,7 @@ describe('canonicalSiteAssetToMirrorUrl', () => {
     )
     assert.equal(
       out,
-      'https://atlanta2.relaygateway.net/paradigm-threat-files/history/foo.png?w=160',
+      'https://paradigm-threat-files.dfw1.relaygateway.net/history/foo.png?w=160',
     )
   })
 
@@ -70,7 +71,7 @@ describe('canonicalSiteAssetToMirrorUrl', () => {
     const out = canonicalSiteAssetToMirrorUrl(legacy, 800)
     assert.equal(
       out,
-      'https://atlanta2.relaygateway.net/paradigm-threat-timeline/media/15.ce-21st-the-final-struggle/15.08.00-historical-antibodies.png?w=800',
+      'https://paradigm-threat-timeline.dfw1.relaygateway.net/media/15.ce-21st-the-final-struggle/15.08.00-historical-antibodies.png?w=800',
     )
   })
 
@@ -82,7 +83,7 @@ describe('canonicalSiteAssetToMirrorUrl', () => {
     )
     assert.equal(
       out,
-      'https://atlanta2.relaygateway.net/paradigm-threat-files/history/chronology/napoleon-corpses-dry-egypt-siberian-disease-quote.png?w=800',
+      'https://paradigm-threat-files.dfw1.relaygateway.net/history/chronology/napoleon-corpses-dry-egypt-siberian-disease-quote.png?w=800',
     )
   })
 })

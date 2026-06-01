@@ -5,7 +5,7 @@
 import { firstTimelineOgMediaPath } from '@/lib/timelineMedia'
 import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
 
-import { buildOptimizedAssetUrl } from '@/lib/relayOptimizedAssetUrl'
+import { mirrorRasterOgUrl } from '@/lib/canonicalPublicSite'
 import { getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
 
 const TIMELINE_BASE = getPrimaryTimelineBaseUrl()
@@ -47,9 +47,7 @@ export async function getTimelineEventMeta(eventId: string): Promise<TimelineEve
     if (!event) return null
 
     const ogPath = firstTimelineOgMediaPath(event.media)
-    const ogImageUrl = ogPath
-      ? buildOptimizedAssetUrl(ogPath.startsWith('/') ? ogPath : `/${ogPath}`, 800)
-      : undefined
+    const ogImageUrl = ogPath ? mirrorRasterOgUrl(ogPath) : undefined
 
     return {
       title: event.title,

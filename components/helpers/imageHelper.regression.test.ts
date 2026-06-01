@@ -1,15 +1,16 @@
 import assert from 'node:assert/strict'
 import { describe, it, before, after } from 'node:test'
 
-describe('processImageProps (Relay mirrors, no /api/image)', () => {
+const FILES_BASE = 'https://paradigm-threat-files.dfw1.relaygateway.net'
+const TIMELINE_BASE = 'https://paradigm-threat-timeline.dfw1.relaygateway.net'
+
+describe('processImageProps (Relay mirrors, never /api/image)', () => {
   const prevFiles = process.env.NEXT_PUBLIC_FILES_BASE_URL
   const prevTimeline = process.env.NEXT_PUBLIC_TIMELINE_BASE_URL
 
   before(() => {
-    process.env.NEXT_PUBLIC_FILES_BASE_URL =
-      'https://atlanta2.relaygateway.net/paradigm-threat-files'
-    process.env.NEXT_PUBLIC_TIMELINE_BASE_URL =
-      'https://atlanta2.relaygateway.net/paradigm-threat-timeline'
+    process.env.NEXT_PUBLIC_FILES_BASE_URL = FILES_BASE
+    process.env.NEXT_PUBLIC_TIMELINE_BASE_URL = TIMELINE_BASE
   })
 
   after(() => {
@@ -19,7 +20,7 @@ describe('processImageProps (Relay mirrors, no /api/image)', () => {
     else process.env.NEXT_PUBLIC_TIMELINE_BASE_URL = prevTimeline
   })
 
-  it('rewrites canonical-site absolute PNG to relay ?w=800', async () => {
+  it('rewrites canonical-site absolute PNG to primary relay ?w=800', async () => {
     const { processImageProps } = await import('./imageHelper.ts')
     const out = processImageProps({
       src: 'https://paradigmthreat.net/history/chronology/napoleon-corpses-dry-egypt-siberian-disease.png',
@@ -27,11 +28,14 @@ describe('processImageProps (Relay mirrors, no /api/image)', () => {
     })
     assert.match(
       String(out.optimizedSrc),
-      /\.relaygateway\.net\/paradigm-threat-files\/history\/chronology\/napoleon/,
+      /^https:\/\/paradigm-threat-files\.dfw1\.relaygateway\.net\/history\/chronology\/napoleon/,
     )
     assert.match(String(out.optimizedSrc), /\?w=800/)
     assert.doesNotMatch(String(out.optimizedSrc), /\/api\/image/)
     assert.ok(Array.isArray(out.mirrorSrcs) && out.mirrorSrcs.length >= 1)
+    for (const u of out.mirrorSrcs as string[]) {
+      assert.doesNotMatch(u, /\/api\/image/)
+    }
   })
 
   it('rewrites repo-relative PNG to relay ?w=', async () => {
@@ -40,17 +44,23 @@ describe('processImageProps (Relay mirrors, no /api/image)', () => {
       { src: './foo.png', w: 400 },
       'history/chronology',
     )
-    assert.match(String(out.optimizedSrc), /paradigm-threat-files\/history\/chronology\/foo\.png\?w=400/)
+    assert.equal(
+      out.optimizedSrc,
+      'https://paradigm-threat-files.dfw1.relaygateway.net/history/chronology/foo.png?w=400',
+    )
     assert.doesNotMatch(String(out.optimizedSrc), /\/api\/image/)
   })
 
-  it('galleryRelayThumbnailUrl uses relay only', async () => {
-    const { galleryRelayThumbnailUrl } = await import('./imageHelper.ts')
-    const url = galleryRelayThumbnailUrl(
-      'https://paradigmthreat.net/history/chronology/napoleon-corpses-dry-egypt-siberian-disease.png',
-      400,
+  it('embedding.jpg path matches live article asset', async () => {
+    const { processImageProps } = await import('./imageHelper.ts')
+    const out = processImageProps({
+      src: '/influence/conspiracy/embedding.jpg',
+      w: 360,
+    })
+    assert.equal(
+      out.optimizedSrc,
+      'https://paradigm-threat-files.dfw1.relaygateway.net/influence/conspiracy/embedding.jpg?w=360',
     )
-    assert.match(url, /\?w=400/)
-    assert.doesNotMatch(url, /\/api\/image/)
+    assert.doesNotMatch(String(out.optimizedSrc), /\/api\/image/)
   })
 })

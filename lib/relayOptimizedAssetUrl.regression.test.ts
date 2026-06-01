@@ -1,13 +1,16 @@
 import assert from 'node:assert/strict'
 import { describe, it, before, after } from 'node:test'
 
+const FILES_BASE = 'https://paradigm-threat-files.dfw1.relaygateway.net'
+const TIMELINE_BASE = 'https://paradigm-threat-timeline.dfw1.relaygateway.net'
+
 describe('buildOptimizedAssetUrl', () => {
   const prevFiles = process.env.NEXT_PUBLIC_FILES_BASE_URL
   const prevTimeline = process.env.NEXT_PUBLIC_TIMELINE_BASE_URL
 
   before(() => {
-    process.env.NEXT_PUBLIC_FILES_BASE_URL = 'https://atlanta2.relaygateway.net/paradigm-threat-files'
-    process.env.NEXT_PUBLIC_TIMELINE_BASE_URL = 'https://atlanta2.relaygateway.net/paradigm-threat-timeline'
+    process.env.NEXT_PUBLIC_FILES_BASE_URL = FILES_BASE
+    process.env.NEXT_PUBLIC_TIMELINE_BASE_URL = TIMELINE_BASE
   })
 
   after(() => {
@@ -22,7 +25,7 @@ describe('buildOptimizedAssetUrl', () => {
     const url = buildOptimizedAssetUrl('/science/geoengineering/foo.png', 160)
     assert.equal(
       url,
-      'https://atlanta2.relaygateway.net/paradigm-threat-files/science/geoengineering/foo.png?w=160',
+      'https://paradigm-threat-files.dfw1.relaygateway.net/science/geoengineering/foo.png?w=160',
     )
     assert.doesNotMatch(url, /\/api\/image/)
   })
@@ -30,13 +33,16 @@ describe('buildOptimizedAssetUrl', () => {
   it('uses timeline mirror for media/ paths', async () => {
     const { buildOptimizedAssetUrl } = await import('./relayOptimizedAssetUrl.ts')
     const url = buildOptimizedAssetUrl('/media/cover.jpg', 400)
-    assert.match(url, /paradigm-threat-timeline\/media\/cover\.jpg\?w=400/)
+    assert.equal(
+      url,
+      'https://paradigm-threat-timeline.dfw1.relaygateway.net/media/cover.jpg?w=400',
+    )
   })
 
   it('returns SVG without w query', async () => {
     const { buildOptimizedAssetUrl } = await import('./relayOptimizedAssetUrl.ts')
     const url = buildOptimizedAssetUrl('/site/icon.svg')
-    assert.equal(url, 'https://atlanta2.relaygateway.net/paradigm-threat-files/site/icon.svg')
+    assert.equal(url, 'https://paradigm-threat-files.dfw1.relaygateway.net/site/icon.svg')
     assert.doesNotMatch(url, /\?w=/)
   })
 

@@ -27,6 +27,8 @@ async function expectRasterLoaded (img: Locator): Promise<void> {
   expect(metrics.w, `broken image src=${metrics.src}`).toBeGreaterThan(50)
   expect(metrics.h, `broken image src=${metrics.src}`).toBeGreaterThan(50)
   expect(metrics.src).not.toMatch(/https%3A/i)
+  expect(metrics.src).not.toMatch(/\/api\/image/)
+  expect(metrics.src).toMatch(/relaygateway\.net/)
   expect(metrics.src).not.toMatch(
     /^data:image\/gif;base64,R0lGODlhAQABAIAAAAAAAP/,
   )

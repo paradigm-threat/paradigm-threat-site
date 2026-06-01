@@ -1,3 +1,12 @@
+/**
+ * Client article images (PopImage / OptimizedImage): sole builder for display <img> URLs.
+ * Always emits Relay mirror URLs via relayOptimizedAssetUrl (no local image proxy).
+ *
+ * Other pipelines (do not duplicate URL logic here):
+ * - SEO HTML: markdownToSeoHtml, rewriteSeoHtmlRasterImages
+ * - Legacy path GETs: middleware.ts → buildOptimizedAssetUrl redirect
+ */
+
 interface ImagePropsFormatted {
     src: string,
     [key: string]: any
@@ -5,45 +14,16 @@ interface ImagePropsFormatted {
 
 import { normalizePathForMirror } from '@/lib/canonicalSiteAssetUrl'
 import {
-  buildLqipOptimizedAssetUrl,
-  buildOptimizedAssetUrl,
-  listOptimizedAssetUrls,
+    buildLqipOptimizedAssetUrl,
+    buildOptimizedAssetUrl,
+    listOptimizedAssetUrls,
 } from '@/lib/relayOptimizedAssetUrl'
 import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
 
+/** Fullscreen / gallery popout raster width on Relay mirrors. */
+const HIGH_RES_DISPLAY_W = 2400
+
 const DEFAULT_FILES_BASE_URL = getPrimaryFilesBaseUrl()
-
-const DEFAULT_RASTER_W = 800
-const HIGH_RES_RASTER_W = 2048
-
-function parseDisplayWidth (w: unknown): number {
-  if (w === undefined || w === null) return DEFAULT_RASTER_W
-  const n = typeof w === 'string' ? parseInt(w, 10) : Number(w)
-  return Number.isFinite(n) && n > 0 ? n : DEFAULT_RASTER_W
-}
-
-/** Repo-relative `/…` or normalized mirror input for Relay `?w=` URLs. */
-export function toRelayAssetPath (resolved: string, filesBaseUrl: string): string {
-  const cleanPath = resolved.split('?')[0]
-  if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
-    return normalizePathForMirror(cleanPath)
-  }
-  let pathForAPI = cleanPath
-  const base = filesBaseUrl.replace(/\/+$/, '')
-  if (pathForAPI.startsWith(base)) {
-    pathForAPI = pathForAPI.slice(base.length)
-  }
-  if (!pathForAPI.startsWith('/')) {
-    pathForAPI = `/${pathForAPI}`
-  }
-  return pathForAPI
-}
-
-/** Gallery nav thumbnails — Relay mirror only (no `/api/image`). */
-export function galleryRelayThumbnailUrl (src: string, width = 400): string {
-  const relayPath = toRelayAssetPath(src, DEFAULT_FILES_BASE_URL)
-  return buildOptimizedAssetUrl(relayPath, width)
-}
 
 let cachedIndex: any = null;
 let indexPromise: Promise<any> | null = null;
@@ -217,40 +197,69 @@ export function processImageProps(props: any, basePath?: string, filesRootUrl?: 
         // Resolve to absolute path relative to file server root
         const resolved = resolveImagePath(src, basePath);
 
-        const queryStr = resolved.includes('?') ? resolved.slice(resolved.indexOf('?') + 1) : ''
-        const queryParams = new URLSearchParams(queryStr)
+        // Strip query string for the API path parameter
+        const [cleanPath, queryStr] = resolved.split('?');
+        const queryParams = new URLSearchParams(queryStr || '');
 
+        // Use width from query string if not provided in props
         if (!w && queryParams.has('w')) {
-            w = queryParams.get('w')
+            w = queryParams.get('w');
         }
 
-        const relayPath = toRelayAssetPath(resolved, FILES_BASE_URL)
-        const pathForSvgCheck = relayPath.split('?')[0].toLowerCase()
-        const isSvg = pathForSvgCheck.endsWith('.svg')
+        // pathForAPI should be an absolute path starting with /
+        // but without domain even if resolved somehow included it
+        let pathForAPI = cleanPath;
+        if (cleanPath.startsWith(FILES_BASE_URL)) {
+            pathForAPI = cleanPath.slice(FILES_BASE_URL.length);
+        }
 
-        const displayW = parseDisplayWidth(w)
-        finalProps.width = displayW
+        // Ensure pathForAPI starts with / if not http
+        if (!pathForAPI.startsWith('http') && !pathForAPI.startsWith('/')) {
+            pathForAPI = '/' + pathForAPI;
+        }
 
-        if (isSvg) {
-          finalProps.optimizedSrc = buildOptimizedAssetUrl(relayPath)
-          finalProps.mirrorSrcs = listOptimizedAssetUrls(relayPath)
-        } else {
-          finalProps.optimizedSrc = buildOptimizedAssetUrl(relayPath, displayW)
-          finalProps.mirrorSrcs = listOptimizedAssetUrls(relayPath, displayW)
-          const lqip = buildLqipOptimizedAssetUrl(relayPath, displayW)
-          if (lqip) finalProps.lqipOptimizedSrc = lqip
+        const mirrorPath = normalizePathForMirror(pathForAPI)
+        const pathForSvgCheck = mirrorPath.split('?')[0].toLowerCase()
+        const isSvg =
+            pathForSvgCheck.endsWith('.svg') ||
+            (mirrorPath.startsWith('http') &&
+                (() => {
+                    try {
+                        return new URL(mirrorPath).pathname.toLowerCase().endsWith('.svg')
+                    } catch {
+                        return false
+                    }
+                })())
+
+        let displayW = w
+            ? typeof w === 'string'
+                ? parseInt(w, 10)
+                : Number(w)
+            : 800
+        if (!Number.isFinite(displayW) || displayW < 1) displayW = 800
+
+        const mirrorUrls = listOptimizedAssetUrls(mirrorPath, isSvg ? undefined : displayW)
+        finalProps.optimizedSrc = mirrorUrls[0]
+        finalProps.mirrorSrcs = mirrorUrls
+        finalProps.width = isSvg
+            ? displayW
+            : displayW
+
+        if (!isSvg) {
+            const lqip = buildLqipOptimizedAssetUrl(mirrorPath, displayW)
+            if (lqip) finalProps.lqipOptimizedSrc = lqip
         }
 
         // Reserve correct aspect ratio for LQIP placeholder when intrinsic dimensions available
         if (intrinsicWidth && intrinsicHeight && intrinsicWidth > 0 && intrinsicHeight > 0) {
-            finalProps.height = Math.round(finalProps.width * (intrinsicHeight / intrinsicWidth));
+            finalProps.height = Math.round(finalProps.width * (intrinsicHeight / intrinsicWidth))
         }
 
         finalProps.highResSrc = isSvg
-          ? buildOptimizedAssetUrl(relayPath)
-          : buildOptimizedAssetUrl(relayPath, HIGH_RES_RASTER_W)
+            ? buildOptimizedAssetUrl(mirrorPath)
+            : buildOptimizedAssetUrl(mirrorPath, HIGH_RES_DISPLAY_W)
 
-        return { src: relayPath, ...finalProps, title, alt, className } as ImagePropsFormatted;
+        return { src: pathForAPI, ...finalProps, title, alt, className } as ImagePropsFormatted;
     }
 
     throw new Error('Invalid src string' + JSON.stringify(props));

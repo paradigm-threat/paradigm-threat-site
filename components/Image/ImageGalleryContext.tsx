@@ -1,7 +1,6 @@
 'use client'
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react'
-import { galleryRelayThumbnailUrl } from '@/components/helpers/imageHelper'
 import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
 
 export interface GalleryImage {
@@ -19,6 +18,9 @@ export interface ImageGalleryContextType {
     setCurrentIndex: (index: number) => void
     isOpen: boolean
     setIsOpen: (isOpen: boolean) => void
+    /** Replace registered images (e.g. ChangeLog thumbnails). */
+    openGallery?: (items: GalleryImage[], startIndex?: number) => void
+    clearGalleryOverride?: () => void
 }
 
 const ImageGalleryContext = createContext<ImageGalleryContextType | undefined>(undefined)
@@ -26,8 +28,11 @@ export { ImageGalleryContext }
 
 export function ImageGalleryProvider({ children }: { children: React.ReactNode }) {
     const [images, setImages] = useState<GalleryImage[]>([])
+    const [overrideImages, setOverrideImages] = useState<GalleryImage[] | null>(null)
     const [currentIndex, setCurrentIndex] = useState(-1)
     const [isOpen, setIsOpen] = useState(false)
+
+    const displayImages = overrideImages ?? images
 
     // Using a ref to track images to avoid re-renders during registration loop
     const imagesRef = useRef<GalleryImage[]>([])
@@ -48,15 +53,29 @@ export function ImageGalleryProvider({ children }: { children: React.ReactNode }
         setImages([...imagesRef.current])
     }, [])
 
+    const clearGalleryOverride = useCallback(() => {
+        setOverrideImages(null)
+    }, [])
+
+    const openGallery = useCallback((items: GalleryImage[], startIndex = 0) => {
+        const list = items.filter((i): i is GalleryImage => Boolean(i?.src))
+        if (list.length === 0) return
+        setOverrideImages(list)
+        setCurrentIndex(Math.min(Math.max(0, startIndex), list.length - 1))
+        setIsOpen(true)
+    }, [])
+
     const contextValue = useMemo(() => ({
-        images,
+        images: displayImages,
         registerImage,
         unregisterImage,
         currentIndex,
         setCurrentIndex,
         isOpen,
-        setIsOpen
-    }), [images, registerImage, unregisterImage, currentIndex, isOpen]);
+        setIsOpen,
+        openGallery,
+        clearGalleryOverride,
+    }), [displayImages, registerImage, unregisterImage, currentIndex, isOpen, openGallery, clearGalleryOverride]);
 
     return (
         <ImageGalleryContext.Provider value={contextValue}>
@@ -69,6 +88,7 @@ export function ImageGalleryProvider({ children }: { children: React.ReactNode }
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { checkFileExists } from '@/components/helpers/imageHelper'
+import { buildOptimizedAssetUrl } from '@/lib/relayOptimizedAssetUrl'
 
 /**
  * Individual image item in the gallery to handle its own loading state
@@ -161,7 +181,7 @@ function GalleryImageItem({
 }
 
 export function ImageGalleryOverlay() {
-    const { images, currentIndex, setCurrentIndex, isOpen, setIsOpen } = useImageGallery()
+    const { images, currentIndex, setCurrentIndex, isOpen, setIsOpen, clearGalleryOverride } = useImageGallery()
     const [direction, setDirection] = useState(0)
     const [remoteCaption, setRemoteCaption] = useState<string | null>(null)
 
@@ -229,7 +249,8 @@ export function ImageGalleryOverlay() {
             window.history.replaceState(null, '', window.location.pathname + window.location.search);
         }
         setIsOpen(false)
-    }, [setIsOpen])
+        clearGalleryOverride?.()
+    }, [setIsOpen, clearGalleryOverride])
 
     useEffect(() => {
         if (!isOpen) return;
@@ -313,9 +334,9 @@ export function ImageGalleryOverlay() {
                                             whileHover={{ opacity: 0.5, scale: 1.05 }}
                                             className="relative h-[25vh] aspect-square hidden lg:flex items-center justify-center rounded-2xl overflow-hidden"
                                         >
-                                            {/* eslint-disable-next-line @next/next/no-img-element -- nav thumbnail: Relay ?w= */}
+                                            {/* eslint-disable-next-line @next/next/no-img-element -- nav thumbnail: relay mirror */}
                                             <img
-                                                src={galleryRelayThumbnailUrl(prevImage.src, 400)}
+                                                src={buildOptimizedAssetUrl(prevImage.src, 400)}
                                                 className="absolute inset-0 w-full h-full object-cover"
                                                 alt="prev"
                                                 loading="lazy"
@@ -351,9 +372,9 @@ export function ImageGalleryOverlay() {
                                             whileHover={{ opacity: 0.5, scale: 1.05 }}
                                             className="relative h-[25vh] aspect-square hidden lg:flex items-center justify-center rounded-2xl overflow-hidden"
                                         >
-                                            {/* eslint-disable-next-line @next/next/no-img-element -- nav thumbnail: Relay ?w= */}
+                                            {/* eslint-disable-next-line @next/next/no-img-element -- nav thumbnail: relay mirror */}
                                             <img
-                                                src={galleryRelayThumbnailUrl(nextImage.src, 400)}
+                                                src={buildOptimizedAssetUrl(nextImage.src, 400)}
                                                 className="absolute inset-0 w-full h-full object-cover"
                                                 alt="next"
                                                 loading="lazy"

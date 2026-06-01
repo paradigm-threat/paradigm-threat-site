@@ -6,7 +6,7 @@ describe('getTimelineEventMeta ogImageUrl', () => {
 
   before(() => {
     process.env.NEXT_PUBLIC_TIMELINE_BASE_URL =
-      'https://paradigm-threat-timeline.atlanta2.relaygateway.net'
+      'https://paradigm-threat-timeline.dfw1.relaygateway.net'
   })
 
   after(() => {
