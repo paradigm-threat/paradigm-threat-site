@@ -43,10 +43,11 @@ for ((i=0; i<n; i++)); do
   fi
   host="$(echo "$f" | sed -n 's|https://paradigm-threat-files\.\([^/]*\)\.relaygateway.net.*|\1|p')"
   if [[ -n "$host" ]]; then
-    if curl -fsS --connect-timeout 15 "https://${host}.relaygateway.net/voices" -o /dev/null 2>/dev/null; then
+    if curl -fsS --connect-timeout 15 "https://${host}.relaygateway.net/voices" \
+      | jq -e '.voices | length > 0' >/dev/null 2>&1; then
       ok "piper /voices on ${host}"
     else
-      echo "WARN piper /voices on ${host} (optional)"
+      bad "piper /voices on ${host}"
     fi
   fi
 done

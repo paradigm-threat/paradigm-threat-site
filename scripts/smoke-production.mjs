@@ -27,6 +27,18 @@ const TIMELINE_MIRROR = firstOrigin(
   'https://paradigm-threat-timeline.dfw1.relaygateway.net',
 )
 
+function piperBases () {
+  const raw =
+    process.env.PIPER_API_URLS ||
+    process.env.NEXT_PUBLIC_PIPER_API_URLS ||
+    'https://dfw1.relaygateway.net https://lon1.relaygateway.net https://hkg1.relaygateway.net'
+  return raw
+    .trim()
+    .split(/\s+/)
+    .map((b) => b.replace(/\/+$/, ''))
+    .filter(Boolean)
+}
+
 function fail (msg) {
   console.error('smoke-production:', msg)
   process.exit(1)
@@ -102,6 +114,24 @@ async function main () {
   await expectHead(`${TIMELINE_MIRROR}/data/events.json`, { contentTypeIncludes: 'application/json' })
   await expectHead(
     `${FILES_MIRROR}/events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation.png?w=400`,
+    { contentTypeIncludes: 'image/' },
+  )
+
+  for (const piperBase of piperBases()) {
+    const voicesUrl = `${piperBase}/voices`
+    const voicesRes = await fetch(voicesUrl)
+    if (!voicesRes.ok) {
+      fail(`${voicesUrl} — expected HTTP 200, got ${voicesRes.status}`)
+    }
+    const voicesJson = await voicesRes.json()
+    if (!Array.isArray(voicesJson.voices) || voicesJson.voices.length < 1) {
+      fail(`${voicesUrl} — expected non-empty voices[]`)
+    }
+    console.log('smoke-production: Piper voices OK on', piperBase)
+  }
+
+  await expectHead(
+    `${FILES_MIRROR}/influence/conspiracy/embedding.jpg?w=360`,
     { contentTypeIncludes: 'image/' },
   )
 

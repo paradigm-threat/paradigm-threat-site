@@ -15,6 +15,8 @@
     "cypress:open": "cypress open",
     "cypress-prod:run": "CYPRESS_BASE_URL=https://paradigmthreat.net cypress run",
     "smoke:prod": "node scripts/smoke-production.mjs",
+    "probe:relay": "bash scripts/probe-relay-mirrors.sh",
+    "test:relay": "bash scripts/probe-relay-mirrors.sh && npm run smoke:prod",
     "lint": "eslint . --max-warnings 0",
     "check:no-api-image": "bash scripts/check-no-api-image.sh",
     "test:unit": "bash scripts/check-no-api-image.sh && node --import tsx --test components/helpers/imageHelper.regression.test.ts components/Timeline/ttsHelpers.regression.test.ts lib/pathSearchQuery.regression.test.ts lib/indexSiblingEntries.regression.test.ts lib/share/shareSubstackInstagram.regression.test.ts lib/share/resolveOgImageUrl.regression.test.ts lib/articleMdPaths.regression.test.ts lib/seo/markdownToSeoHtml.regression.test.ts lib/relayOptimizedAssetUrl.regression.test.ts lib/resolveSeoArticleInternalNavHref.regression.test.ts lib/repoRelativePath.regression.test.ts lib/timelineEventServer.regression.test.ts lib/canonicalSiteAssetUrl.regression.test.ts lib/tts/piperBases.regression.test.ts lib/relayRepoError.regression.test.ts lib/siteOpsFeature.regression.test.ts lib/clientMergedSearchIndex.regression.test.ts lib/timelineJsData.regression.test.ts",
