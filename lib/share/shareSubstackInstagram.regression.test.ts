@@ -10,6 +10,8 @@ import {
 import {
   INSTAGRAM_CAPTION_MAX,
   INSTAGRAM_HASHTAG_MAX,
+  NEXTDOOR_COPY_MAX,
+  NEXTDOOR_SHARE_BODY_MAX,
   TRUTHSOCIAL_COPY_MAX,
   limitHashtagsLine,
   platformModalCopyLimit,
@@ -117,9 +119,10 @@ test('composeShareText for Instagram includes article body when within caption l
   assert.ok(text.includes('Snippet line.'), 'snippet appears before article block')
 })
 
-test('platformModalCopyLimit enables long modal copy for Instagram and Truth Social only', () => {
+test('platformModalCopyLimit enables long modal copy for Instagram, Truth Social, and Nextdoor', () => {
   assert.equal(platformModalCopyLimit('instagram'), INSTAGRAM_CAPTION_MAX)
   assert.equal(platformModalCopyLimit('truthsocial'), TRUTHSOCIAL_COPY_MAX)
+  assert.equal(platformModalCopyLimit('nextdoor'), NEXTDOOR_COPY_MAX)
   assert.equal(platformModalCopyLimit('x'), null)
 })
 
@@ -174,6 +177,33 @@ test('truncateShareTextForOutbound includes Substack URL when budget allows', ()
     substackUrl: SUBSTACK_URL,
   })
   assert.ok(text.includes(SUBSTACK_URL), 'Substack URL fits inside Bluesky budget for short post')
+})
+
+test('fitComposeShareToCharLimit trims oversized Nextdoor modal copy to at most NEXTDOOR_COPY_MAX', () => {
+  const hugeArticle = 'word '.repeat(10000)
+  const input = {
+    title: 'Sample',
+    canonicalUrl: 'https://paradigmthreat.net/sample',
+    snippetPlain: 'Snip.',
+    hashtagsLine: '#a #b',
+    articleBodyPlain: hugeArticle,
+  }
+  const fitted = fitComposeShareToCharLimit('nextdoor', input, NEXTDOOR_COPY_MAX)
+  assert.ok(fitted.length <= NEXTDOOR_COPY_MAX)
+  assert.ok(fitted.includes('https://paradigmthreat.net/sample'))
+})
+
+test('truncateShareTextForOutbound trims Nextdoor ShareKit intent to NEXTDOOR_SHARE_BODY_MAX', () => {
+  const text = truncateShareTextForOutbound('nextdoor', {
+    title: 'A title',
+    canonicalUrl: 'https://paradigmthreat.net/x',
+    snippetPlain: 'snippet '.repeat(20),
+    hashtagsLine: '#A #B #C',
+    articleBodyPlain: 'body content '.repeat(800),
+    substackUrl: SUBSTACK_URL,
+  })
+  assert.ok(text.length <= NEXTDOOR_SHARE_BODY_MAX)
+  assert.ok(text.includes('https://paradigmthreat.net/x'))
 })
 
 test('truncateShareTextForOutbound drops Substack URL before sacrificing canonical URL or title', () => {

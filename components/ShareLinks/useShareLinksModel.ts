@@ -85,6 +85,13 @@ function buildOutboundHref(
         copyOnlyNote:
           'URL is passed separately. The Open link prefills text trimmed to the official limit when needed (help.truthsocial.com/publishers/share-button/).',
       }
+    case 'nextdoor':
+      return {
+        href: `https://nextdoor.com/sharekit/?source=paradigmthreat&body=${encodeURIComponent(intentText)}`,
+        label: 'Open Nextdoor',
+        copyOnlyNote:
+          'The Open link prefills text trimmed to Nextdoor’s ShareKit limit (3,500 chars) when needed. Include a URL in the body for a smartlink preview.',
+      }
     default:
       return { href: null, label: '' }
   }
@@ -100,6 +107,7 @@ export const SHARE_PLATFORMS: { id: SharePlatformId; label: string }[] = [
   { id: 'substack', label: 'Substack' },
   { id: 'threads', label: 'Threads' },
   { id: 'truthsocial', label: 'Truth Social' },
+  { id: 'nextdoor', label: 'Nextdoor' },
 ]
 
 export function useShareLinksModel({
@@ -137,11 +145,11 @@ export function useShareLinksModel({
   )
 
   const [modalOpen, setModalOpen] = useState(false)
-  const [copyFormatPlatform, setCopyFormatPlatform] = useState<SharePlatformId>('x')
+  const [copyFormatPlatform, setCopyFormatPlatform] = useState<SharePlatformId>('instagram')
 
   /**
    * Modal copy: full compose order (incl. Substack under canonical URL). X omits snippet to stay minimal.
-   * Instagram / Truth Social include snippet + article up to each platform’s modal limit (2,200 / 3,000 chars).
+   * Instagram / Truth Social / Nextdoor include snippet + article up to each platform’s modal limit.
    */
   const activeCopyText = useMemo(() => {
     const p = copyFormatPlatform

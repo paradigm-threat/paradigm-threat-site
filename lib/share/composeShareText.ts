@@ -1,6 +1,7 @@
 import type { SharePlatformId } from '@/lib/share/platformLimits'
 import {
   BLUESKY_MAX,
+  NEXTDOOR_SHARE_BODY_MAX,
   TRUTHSOCIAL_TEXT_MAX,
   THREADS_MAX,
   X_MAX,
@@ -112,7 +113,13 @@ function effectiveLengthPlatform (platform: SharePlatformId, text: string): numb
 
 /** Platforms that pass full copy into a query param; must stay within compose limits. */
 export function platformUsesTruncatedOutboundIntent (platform: SharePlatformId): boolean {
-  return platform === 'x' || platform === 'threads' || platform === 'bluesky' || platform === 'truthsocial'
+  return (
+    platform === 'x' ||
+    platform === 'threads' ||
+    platform === 'bluesky' ||
+    platform === 'truthsocial' ||
+    platform === 'nextdoor'
+  )
 }
 
 function outboundIntentLimit (platform: SharePlatformId): number | null {
@@ -125,6 +132,8 @@ function outboundIntentLimit (platform: SharePlatformId): number | null {
       return BLUESKY_MAX
     case 'truthsocial':
       return TRUTHSOCIAL_TEXT_MAX
+    case 'nextdoor':
+      return NEXTDOOR_SHARE_BODY_MAX
     default:
       return null
   }

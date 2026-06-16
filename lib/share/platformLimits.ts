@@ -13,6 +13,7 @@ export type SharePlatformId =
   | 'substack'
   | 'threads'
   | 'truthsocial'
+  | 'nextdoor'
 
 /** Max chars for Reddit submission title query param */
 export const REDDIT_TITLE_MAX = 300
@@ -48,6 +49,12 @@ export const FACEBOOK_MAX = 63000
 /** Reddit self-text / pasted caption (no single hard cap; keep reasonable) */
 export const REDDIT_COPY_MAX = 40000
 
+/** Nextdoor ShareKit `body` query param — https://developer.nextdoor.com/reference/share-plugin */
+export const NEXTDOOR_SHARE_BODY_MAX = 3500
+
+/** Nextdoor post body_text (Publish API) — max pasted caption in app */
+export const NEXTDOOR_COPY_MAX = 8192
+
 /**
  * When non-null, the Copy & Share textarea includes snippet + article up to this many characters.
  * Otherwise the modal uses a short preview (no article body).
@@ -58,6 +65,8 @@ export function platformModalCopyLimit (platform: SharePlatformId): number | nul
       return INSTAGRAM_CAPTION_MAX
     case 'truthsocial':
       return TRUTHSOCIAL_COPY_MAX
+    case 'nextdoor':
+      return NEXTDOOR_COPY_MAX
     default:
       return null
   }
@@ -84,6 +93,8 @@ export function platformCopyLimit (platform: SharePlatformId): number {
       return LINKEDIN_MAX
     case 'facebook':
       return FACEBOOK_MAX
+    case 'nextdoor':
+      return NEXTDOOR_COPY_MAX
     default:
       return FACEBOOK_MAX
   }

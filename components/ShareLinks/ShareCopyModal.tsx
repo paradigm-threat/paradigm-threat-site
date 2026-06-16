@@ -190,6 +190,7 @@ export function ShareCopyModal ({
               <option value="substack">Substack</option>
               <option value="threads">Threads</option>
               <option value="truthsocial">Truth Social</option>
+              <option value="nextdoor">Nextdoor</option>
             </select>
           </div>
 
