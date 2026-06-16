@@ -1,19 +1,29 @@
 'use client'
 
-import React, { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Search, Loader2 } from 'lucide-react'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
-import { filterIndexedEntriesByQuery } from '@/lib/searchIndexFilter'
+import {
+    DEFAULT_SEARCH_CONTENT_FILTERS,
+    filterIndexedEntriesByQuery,
+    type SearchContentFilters,
+} from '@/lib/searchIndexFilter'
 import { fetchMergedSearchIndexClient } from '@/lib/clientMergedSearchIndex'
-import { SearchResultLinks } from '@/components/search'
+import { SearchContentFiltersBar, SearchResultLinks } from '@/components/search'
+
+const SEARCH_DEBOUNCE_MS = 120
 
 interface FileSearchFormProps {
     keywords?: string,
 }
 
 export default function FileSearchForm({ keywords = "" }: FileSearchFormProps) {
-    const [keywordString, setKeywordString] = useState<string>(keywords)
+    const [inputValue, setInputValue] = useState<string>(keywords)
+    const [debouncedQuery, setDebouncedQuery] = useState<string>(keywords.trim())
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
     const [fileIndex, setFileIndex] = useState<IndexedPathEntry[]>([])
+    const [contentFilters, setContentFilters] = useState<SearchContentFilters>(DEFAULT_SEARCH_CONTENT_FILTERS)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
@@ -35,22 +45,44 @@ export default function FileSearchForm({ keywords = "" }: FileSearchFormProps) {
         fetchIndex()
     }, [])
 
+    useEffect(() => {
+        if (debounceRef.current) clearTimeout(debounceRef.current)
+        debounceRef.current = setTimeout(() => {
+            debounceRef.current = null
+            setDebouncedQuery(inputValue.trim())
+        }, SEARCH_DEBOUNCE_MS)
+        return () => {
+            if (debounceRef.current) clearTimeout(debounceRef.current)
+        }
+    }, [inputValue])
+
     const searchResults = useMemo(() => {
-        return filterIndexedEntriesByQuery(fileIndex, keywordString)
-    }, [keywordString, fileIndex])
+        return filterIndexedEntriesByQuery(fileIndex, debouncedQuery, contentFilters)
+    }, [debouncedQuery, fileIndex, contentFilters])
 
     return (
         <div className="max-w-4xl mx-auto space-y-8">
             <div className="relative group">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={24} />
                 <input
-                    type="text"
+                    type="search"
                     placeholder="Search files and articles..."
                     className="w-full pl-12 pr-4 py-4 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-medium text-lg"
-                    value={keywordString}
-                    onChange={(e) => setKeywordString(e.target.value)}
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
                 />
+                {loading && (
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                        <Loader2 className="animate-spin text-blue-500" size={20} />
+                    </div>
+                )}
             </div>
+
+            <SearchContentFiltersBar
+                filters={contentFilters}
+                onChange={setContentFilters}
+                className="flex flex-wrap gap-x-6 gap-y-2 text-sm px-2"
+            />
 
             {error && (
                 <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl text-center">
@@ -59,7 +91,7 @@ export default function FileSearchForm({ keywords = "" }: FileSearchFormProps) {
             )}
 
             <div className="space-y-4">
-                {keywordString.length >= 2 ? (
+                {inputValue.length >= 2 ? (
                     <>
                         <div className="flex justify-between items-center px-2">
                             <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Search Results</h2>
@@ -82,7 +114,7 @@ export default function FileSearchForm({ keywords = "" }: FileSearchFormProps) {
                             </div>
                         )}
                     </>
-                ) : keywordString.length > 0 ? (
+                ) : inputValue.length > 0 ? (
                     <div className="text-center py-20 text-slate-400">
                         Type at least 2 characters to search...
                     </div>
@@ -93,15 +125,6 @@ export default function FileSearchForm({ keywords = "" }: FileSearchFormProps) {
                     </div>
                 )}
             </div>
-
-            {loading && (
-                <div className="fixed inset-0 bg-white/50 dark:bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60]">
-                    <div className="flex flex-col items-center gap-4">
-                        <Loader2 className="animate-spin text-blue-500" size={48} />
-                        <span className="font-semibold">Indexing files...</span>
-                    </div>
-                </div>
-            )}
         </div>
     )
 }

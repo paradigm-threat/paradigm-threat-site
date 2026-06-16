@@ -1,9 +1,42 @@
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
 
+export type SearchContentFilters = {
+  /** When false, paths under `blog/` are hidden from search results. */
+  includeBlog: boolean
+  /** When false, section index files (`page.md`, `index.md`) are hidden. */
+  includeNonArticleMd: boolean
+}
+
+export const DEFAULT_SEARCH_CONTENT_FILTERS: SearchContentFilters = {
+  includeBlog: false,
+  includeNonArticleMd: false,
+}
+
+export function isBlogSearchPath(path: string): boolean {
+  return path === 'blog' || path.startsWith('blog/')
+}
+
+/** Section landing / index markdown — not standalone articles. */
+export function isNonArticleMdPath(path: string): boolean {
+  if (!/\.(md|mdx)$/i.test(path)) return false
+  return /(^|\/)(page|index)\.(md|mdx)$/i.test(path)
+}
+
+export function isExcludedBySearchContentFilters(
+  path: string,
+  filters: SearchContentFilters | undefined
+): boolean {
+  if (!filters) return false
+  if (!filters.includeBlog && isBlogSearchPath(path)) return true
+  if (!filters.includeNonArticleMd && isNonArticleMdPath(path)) return true
+  return false
+}
+
 /** Same AND semantics as `/search`: every whitespace-separated term must appear in searchText (lowercased). */
 export function filterIndexedEntriesByQuery(
   entries: IndexedPathEntry[],
-  query: string
+  query: string,
+  contentFilters?: SearchContentFilters
 ): IndexedPathEntry[] {
   if (!entries || !Array.isArray(entries)) return []
   const cleanQuery = query.trim().toLowerCase()
@@ -13,6 +46,7 @@ export function filterIndexedEntriesByQuery(
   return entries.filter((entry) => {
     if (!entry || typeof entry.path !== 'string') return false
     if (entry.path.includes('.auto.md')) return false
+    if (isExcludedBySearchContentFilters(entry.path, contentFilters)) return false
     const haystack = entry.searchText.toLowerCase()
     return searchTerms.every((term) => haystack.includes(term))
   })
@@ -24,7 +58,8 @@ export function filterIndexedEntriesByQuery(
  */
 export function rankIndexedEntriesByPathTokenOverlap(
   entries: IndexedPathEntry[],
-  pathTokens: string[]
+  pathTokens: string[],
+  contentFilters?: SearchContentFilters
 ): IndexedPathEntry[] {
   if (!entries?.length || !pathTokens.length) return []
 
@@ -35,6 +70,7 @@ export function rankIndexedEntriesByPathTokenOverlap(
   for (const entry of entries) {
     if (!entry || typeof entry.path !== 'string') continue
     if (entry.path.includes('.auto.md')) continue
+    if (isExcludedBySearchContentFilters(entry.path, contentFilters)) continue
     const haystack = entry.searchText.toLowerCase()
     let score = 0
     for (const term of terms) {
