@@ -145,7 +145,9 @@ export function validateMarkdownSource (
     }
 
     if (!/\\\(|\\\[|\\text\{/.test(scanLine)) {
-      for (const m of scanLine.matchAll(/\{([^{}]+)\}/g)) {
+      const braceRe = /\{([^{}]+)\}/g
+      let m: RegExpExecArray | null
+      while ((m = braceRe.exec(scanLine)) !== null) {
         const idx = m.index ?? 0
         const before = idx > 0 ? scanLine[idx - 1] : ''
         if (before === '_' || before === '\\') continue
