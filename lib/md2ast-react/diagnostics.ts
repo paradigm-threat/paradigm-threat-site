@@ -35,6 +35,16 @@ const MDX_HINT =
 const TAG_OPEN_RE = /<([A-Za-z][A-Za-z0-9-]*)([^<>]*?)(\/)?>/g
 const TAG_CLOSE_RE = /<\/([A-Za-z][A-Za-z0-9-]*)\s*>/g
 const BARE_OPEN_RE = /<([A-Za-z][A-Za-z0-9-]*)\b/g
+const ANGLE_AUTOLINK_RE = /<(?:https?:\/\/|mailto:)[^>\s]+>/gi
+
+/** Strip inline code, autolinks, and LaTeX so diagnostics ignore non-HTML uses. */
+function lineForTagScan (line: string): string {
+  return line
+    .replace(ANGLE_AUTOLINK_RE, '')
+    .replace(/`[^`]*`/g, '')
+    .replace(/\\\([^\\]*\\\)/g, '')
+    .replace(/\\\{[^}]*\\\}/g, '')
+}
 
 function buildCodeFrame (
   source: string,
@@ -95,12 +105,22 @@ export function validateMarkdownSource (
   const allowed = new Set(allowedTags)
   const lines = source.split('\n')
   const openStack: Array<{ tag: string; line: number }> = []
+  let inFencedCode = false
 
   for (let i = 0; i < lines.length; i++) {
     const lineNo = i + 1
     const line = lines[i]
 
-  if (/\{\s*\/\*/.test(line) || /\/\*\s*\}/.test(line)) {
+    const fence = line.match(/^(```+|~~~+)/)
+    if (fence) {
+      inFencedCode = !inFencedCode
+      continue
+    }
+    if (inFencedCode) continue
+
+    const scanLine = lineForTagScan(line)
+
+    if (/\{\s*\/\*/.test(scanLine) || /\/\*\s*\}/.test(scanLine)) {
       throw new MarkdownCompileError(diag(
         'mdx_syntax',
         'JSX block comments `{/* … */}` are not supported in Markdown source',
@@ -112,7 +132,7 @@ export function validateMarkdownSource (
       ))
     }
 
-    if (/^\s*import\s+[\w{*]/.test(line) || /^\s*export\s+(default\s+)?(function|const|class)\b/.test(line)) {
+    if (/^\s*import\s+[\w{*]/.test(scanLine) || /^\s*export\s+(default\s+)?(function|const|class)\b/.test(scanLine)) {
       throw new MarkdownCompileError(diag(
         'mdx_syntax',
         'ES module `import` / `export` statements are not supported inside Markdown',
@@ -124,22 +144,29 @@ export function validateMarkdownSource (
       ))
     }
 
-    const exprMatch = line.match(/\{([^{}]+)\}/)
-    if (exprMatch && !exprMatch[1].includes('http') && /^[a-zA-Z_$]/.test(exprMatch[1].trim())) {
-      throw new MarkdownCompileError(diag(
-        'mdx_syntax',
-        'Curly-brace JSX expressions `{…}` are not supported — use component tags or plain Markdown',
-        source,
-        lineNo,
-        columnOf(line, '{'),
-        `Line ${lineNo}: expression \`${exprMatch[0]}\``,
-        MDX_HINT,
-      ))
+    if (!/\\\(|\\\[|\\text\{/.test(scanLine)) {
+      for (const m of scanLine.matchAll(/\{([^{}]+)\}/g)) {
+        const idx = m.index ?? 0
+        const before = idx > 0 ? scanLine[idx - 1] : ''
+        if (before === '_' || before === '\\') continue
+        const body = m[1]
+        if (body.includes('http')) continue
+        if (!/^[a-zA-Z_$]/.test(body.trim())) continue
+        throw new MarkdownCompileError(diag(
+          'mdx_syntax',
+          'Curly-brace JSX expressions `{…}` are not supported — use component tags or plain Markdown',
+          source,
+          lineNo,
+          columnOf(line, '{'),
+          `Line ${lineNo}: expression \`{${body}}\``,
+          MDX_HINT,
+        ))
+      }
     }
 
     let m: RegExpExecArray | null
     TAG_OPEN_RE.lastIndex = 0
-    while ((m = TAG_OPEN_RE.exec(line)) !== null) {
+    while ((m = TAG_OPEN_RE.exec(scanLine)) !== null) {
       const tag = m[1]
       const selfClose = !!m[3]
       if (!allowed.has(tag)) {
@@ -157,7 +184,7 @@ export function validateMarkdownSource (
     }
 
     TAG_CLOSE_RE.lastIndex = 0
-    while ((m = TAG_CLOSE_RE.exec(line)) !== null) {
+    while ((m = TAG_CLOSE_RE.exec(scanLine)) !== null) {
       const tag = m[1]
       if (!allowed.has(tag)) {
         throw new MarkdownCompileError(diag(
@@ -186,7 +213,7 @@ export function validateMarkdownSource (
       }
     }
 
-    const trimmed = line.trimEnd()
+    const trimmed = scanLine.trimEnd()
     // Multi-line HTML (e.g. <iframe …\n  title=…\n/>) is valid; only flag unclosed PascalCase components.
     if (trimmed.includes('<') && !trimmed.includes('>') && /<[A-Z]/.test(trimmed)) {
       let combined = trimmed
@@ -207,9 +234,9 @@ export function validateMarkdownSource (
     }
 
     BARE_OPEN_RE.lastIndex = 0
-    while ((m = BARE_OPEN_RE.exec(line)) !== null) {
+    while ((m = BARE_OPEN_RE.exec(scanLine)) !== null) {
       const tag = m[1]
-      const rest = line.slice(m.index)
+      const rest = scanLine.slice(m.index)
       if (!rest.includes('>')) continue
       const full = rest.match(/^<[^>]+>/)
       if (!full) {
