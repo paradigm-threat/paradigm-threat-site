@@ -11,6 +11,7 @@ import { FooterSiteNav } from "@/components/FooterSiteNav";
 import PwaRedirect from "@/components/PwaRedirect";
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from "@vercel/speed-insights/next"
+import { WebMcpProvider } from "@/components/webmcp/WebMcpProvider"
 
 /** Styles **/
 import './site/globals.scss'
@@ -81,6 +82,7 @@ function RootLayoutInner({ children }: { children: React.ReactNode }) {
                 <Analytics />
                 <SpeedInsights />
                 <RelayServerToast />
+                <WebMcpProvider />
             </body>
         </html>
     )

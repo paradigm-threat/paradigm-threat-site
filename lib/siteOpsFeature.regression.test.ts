@@ -6,6 +6,9 @@ import {
   isChatDisabled,
   isServerRelayFetchDisabled,
   isSsrMirrorRedirectEnabled,
+  isWebMcpEnabled,
+  isWebMcpPolyfillForced,
+  isWebMcpActuationEnabled,
 } from './siteOpsFeature.ts'
 import {
   shouldRedirectPathToFilesMirror,
@@ -18,6 +21,9 @@ describe('siteOpsFeature flags', () => {
     chat: process.env.NEXT_PUBLIC_CHAT_DISABLED,
     ssr: process.env.NEXT_PUBLIC_SSR_MIRROR_REDIRECT,
     relay: process.env.NEXT_PUBLIC_SERVER_RELAY_FETCH,
+    webmcp: process.env.NEXT_PUBLIC_WEBMCP_ENABLED,
+    webmcpPoly: process.env.NEXT_PUBLIC_WEBMCP_POLYFILL,
+    webmcpAct: process.env.NEXT_PUBLIC_WEBMCP_ACTUATION,
   }
 
   afterEach(() => {
@@ -29,6 +35,12 @@ describe('siteOpsFeature flags', () => {
     else process.env.NEXT_PUBLIC_SSR_MIRROR_REDIRECT = prev.ssr
     if (prev.relay === undefined) delete process.env.NEXT_PUBLIC_SERVER_RELAY_FETCH
     else process.env.NEXT_PUBLIC_SERVER_RELAY_FETCH = prev.relay
+    if (prev.webmcp === undefined) delete process.env.NEXT_PUBLIC_WEBMCP_ENABLED
+    else process.env.NEXT_PUBLIC_WEBMCP_ENABLED = prev.webmcp
+    if (prev.webmcpPoly === undefined) delete process.env.NEXT_PUBLIC_WEBMCP_POLYFILL
+    else process.env.NEXT_PUBLIC_WEBMCP_POLYFILL = prev.webmcpPoly
+    if (prev.webmcpAct === undefined) delete process.env.NEXT_PUBLIC_WEBMCP_ACTUATION
+    else process.env.NEXT_PUBLIC_WEBMCP_ACTUATION = prev.webmcpAct
   })
 
   beforeEach(() => {
@@ -36,6 +48,9 @@ describe('siteOpsFeature flags', () => {
     delete process.env.NEXT_PUBLIC_CHAT_DISABLED
     delete process.env.NEXT_PUBLIC_SSR_MIRROR_REDIRECT
     delete process.env.NEXT_PUBLIC_SERVER_RELAY_FETCH
+    delete process.env.NEXT_PUBLIC_WEBMCP_ENABLED
+    delete process.env.NEXT_PUBLIC_WEBMCP_POLYFILL
+    delete process.env.NEXT_PUBLIC_WEBMCP_ACTUATION
   })
 
   it('flags default off except server relay fetch', () => {
@@ -44,6 +59,9 @@ describe('siteOpsFeature flags', () => {
     assert.equal(isChatDisabled(), false)
     assert.equal(isServerRelayFetchDisabled(), true)
     assert.equal(isSsrMirrorRedirectEnabled(), false)
+    assert.equal(isWebMcpEnabled(), false)
+    assert.equal(isWebMcpPolyfillForced(), false)
+    assert.equal(isWebMcpActuationEnabled(), false)
   })
 
   it('server relay fetch on when env is 1', () => {
@@ -59,6 +77,15 @@ describe('siteOpsFeature flags', () => {
     assert.equal(isSearchDisabled(), true)
     assert.equal(isChatDisabled(), true)
     assert.equal(isSsrMirrorRedirectEnabled(), false)
+  })
+
+  it('webmcp flags on when env is 1', () => {
+    process.env.NEXT_PUBLIC_WEBMCP_ENABLED = '1'
+    process.env.NEXT_PUBLIC_WEBMCP_POLYFILL = '1'
+    process.env.NEXT_PUBLIC_WEBMCP_ACTUATION = '1'
+    assert.equal(isWebMcpEnabled(), true)
+    assert.equal(isWebMcpPolyfillForced(), true)
+    assert.equal(isWebMcpActuationEnabled(), true)
   })
 })
 

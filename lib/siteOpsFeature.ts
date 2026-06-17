@@ -22,6 +22,21 @@ export function isChatDisabled (): boolean {
   return process.env.NEXT_PUBLIC_CHAT_DISABLED === '1'
 }
 
+/** WebMCP tool registration (client-only). Default off — site works normally when disabled. */
+export function isWebMcpEnabled (): boolean {
+  return process.env.NEXT_PUBLIC_WEBMCP_ENABLED === '1'
+}
+
+/** Dev only: force strict polyfill even when native document.modelContext exists. */
+export function isWebMcpPolyfillForced (): boolean {
+  return process.env.NEXT_PUBLIC_WEBMCP_POLYFILL === '1'
+}
+
+/** Tier 3 actuation tools (clipboard write, etc.). Default off. */
+export function isWebMcpActuationEnabled (): boolean {
+  return process.env.NEXT_PUBLIC_WEBMCP_ACTUATION === '1'
+}
+
 /**
  * Reserved for a future Relay-hosted HTML + SEO phase. Must stay off while articles
  * use the Next app shell — redirecting to mirror md2ast HTML breaks client components.
