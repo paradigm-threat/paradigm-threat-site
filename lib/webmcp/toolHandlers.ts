@@ -10,7 +10,7 @@ import {
   draftReplyToText,
   searchContentFiltersFromInput,
 } from '@/lib/replyAssistant/draftReply'
-import { entryDisplayTitle } from '@/lib/replyAssistant/rankForText'
+import { searchEntryTitle } from '@/lib/searchEntryDisplay'
 import {
   composeShareText,
   extractShareMetadata,
@@ -70,7 +70,7 @@ export async function executeSearchSite (args: Record<string, unknown>): Promise
     count: hits.length,
     results: hits.map((e) => ({
       path: e.path,
-      title: entryDisplayTitle(e),
+      title: searchEntryTitle(e),
       kind: e.path.startsWith('timeline/') ? 'timeline' : /\.(md|mdx)$/i.test(e.path) ? 'article' : 'other',
     })),
   })
@@ -103,7 +103,7 @@ export async function executeGetArticleContext (args: Record<string, unknown>): 
   }
 
   const meta = extractShareMetadata({ rawMarkdown: md })
-  const title = meta.snippetPlain.split('\n')[0] || entryDisplayTitle({ path, searchText: path })
+  const title = meta.snippetPlain.split('\n')[0] || searchEntryTitle({ path, searchText: path })
 
   return toolJsonResult({
     path,
@@ -125,7 +125,7 @@ export async function executeComposeShareText (args: Record<string, unknown>): P
   if (!md) return toolErrorResult(`Could not load markdown for path: ${path}`)
 
   const meta = extractShareMetadata({ rawMarkdown: md })
-  const title = entryDisplayTitle({ path, searchText: path })
+  const title = searchEntryTitle({ path, searchText: path })
   const canonicalUrl = pathToCanonicalUrl(path)
   const variant = String(args.variant ?? 'full')
 

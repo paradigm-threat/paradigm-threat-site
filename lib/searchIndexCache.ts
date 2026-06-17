@@ -1,4 +1,5 @@
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
+import { fetchMergedSearchIndexClient } from '@/lib/clientMergedSearchIndex'
 import { getMergedSearchIndex } from '@/server/remoteFiles'
 
 let cached: IndexedPathEntry[] | null | undefined
@@ -9,15 +10,19 @@ export function isSearchIndexCached(): boolean {
 }
 
 /**
- * Browser-session cache for the merged search index.
- * Helps prevent the search page from refetching (and re-showing loading UI)
- * when the input is updated or the route re-renders.
+ * Browser-session cache for the merged search index (files + timeline).
+ * In the browser, prefers Relay mirror pairs via fetchMergedSearchIndexClient.
  */
 export async function getCachedMergedSearchIndex(): Promise<IndexedPathEntry[] | null> {
   if (cached !== undefined) return cached
   if (inflight) return inflight
 
-  inflight = getMergedSearchIndex()
+  const loader =
+    typeof window !== 'undefined'
+      ? fetchMergedSearchIndexClient()
+      : getMergedSearchIndex()
+
+  inflight = loader
   try {
     const res = await inflight
     cached = res

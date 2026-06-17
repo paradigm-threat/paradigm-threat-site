@@ -1,10 +1,11 @@
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
+import { extractTermsFromText, extractedSearchQueries } from '@/lib/replyAssistant/extractTerms'
+import { searchEntryTitle } from '@/lib/searchEntryDisplay'
 import {
   type SearchContentFilters,
   filterIndexedEntriesByQuery,
   rankIndexedEntriesByPathTokenOverlap,
 } from '@/lib/searchIndexFilter'
-import { extractTermsFromText, extractedSearchQueries } from '@/lib/replyAssistant/extractTerms'
 
 export type RankedArticleHit = {
   path: string
@@ -14,21 +15,7 @@ export type RankedArticleHit = {
   canonicalUrl?: string
 }
 
-export function entryDisplayTitle (entry: IndexedPathEntry): string {
-  const path = entry.path
-  const slug = path.replace(/\.(md|mdx)$/i, '').split('/').pop() ?? path
-  const fromSlug = slug.replace(/[-_]+/g, ' ').trim()
-  const prefix = path + ' '
-  if (entry.searchText.startsWith(prefix)) {
-    const after = entry.searchText.slice(prefix.length).trim()
-    const words = after.split(/\s+/).filter(Boolean)
-    if (words.length >= 2) {
-      const candidate = words.slice(0, Math.min(10, words.length)).join(' ')
-      if (candidate.length > fromSlug.length) return candidate
-    }
-  }
-  return fromSlug
-}
+export { searchEntryTitle as entryDisplayTitle }
 
 function scoreEntryAgainstTerms (entry: IndexedPathEntry, terms: string[]): { score: number; matched: string[] } {
   const haystack = entry.searchText.toLowerCase()
@@ -84,7 +71,7 @@ export function rankEntriesForSourceText (
     .slice(0, maxArticles)
     .map(({ entry, score, matched }) => ({
       path: entry.path,
-      title: entryDisplayTitle(entry),
+      title: searchEntryTitle(entry),
       score,
       matchedTerms: matched,
       canonicalUrl: canonicalUrlFor?.(entry.path),

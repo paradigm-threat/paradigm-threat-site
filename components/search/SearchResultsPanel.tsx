@@ -5,10 +5,18 @@ import matter from 'gray-matter'
 import { Loader2, Search } from 'lucide-react'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
 import { filterIndexedEntriesByQuery } from '@/lib/searchIndexFilter'
+import {
+  isArticleMdEntry,
+  isTimelineSearchEntry,
+  searchEntryHref,
+  searchEntryTitle,
+} from '@/lib/searchEntryDisplay'
 import { getRemoteFile } from '@/server/remoteFiles'
+import { fetchArticleMarkdown } from '@/lib/webmcp/fetchArticle'
 import { ArticleStack } from '@/components/search/ArticleStack'
 import { FolderGrid } from '@/components/search/FolderGrid'
 import { ImageGallery } from '@/components/search/ImageGallery'
+import { SearchResultLinks } from '@/components/search/SearchResultLinks'
 import type { SearchContentFilters } from '@/lib/searchIndexFilter'
 
 interface SearchResultsPanelProps {
@@ -17,7 +25,7 @@ interface SearchResultsPanelProps {
   contentFilters: SearchContentFilters
 }
 
-export function SearchResultsPanel({
+export function SearchResultsPanel ({
   debouncedQuery,
   filesIndex,
   contentFilters,
@@ -26,6 +34,16 @@ export function SearchResultsPanel({
     return filterIndexedEntriesByQuery(filesIndex, debouncedQuery, contentFilters)
   }, [filesIndex, debouncedQuery, contentFilters])
 
+  const timelineResults = useMemo(
+    () => searchResults.filter((e) => isTimelineSearchEntry(e.path)),
+    [searchResults]
+  )
+
+  const articleMdResults = useMemo(
+    () => searchResults.filter((e) => isArticleMdEntry(e.path)),
+    [searchResults]
+  )
+
   const [renderedMds, setRenderedMds] = useState<any[]>([])
   const [contentLoading, setContentLoading] = useState(false)
 
@@ -33,15 +51,16 @@ export function SearchResultsPanel({
     let cancelled = false
     const includeNonArticleMd = contentFilters.includeNonArticleMd
 
-    const mds = searchResults
-      .filter((e) => e.path.endsWith('.md') && !e.path.includes('.auto.md'))
+    const fileMds = articleMdResults
       .filter((e) => {
         if (includeNonArticleMd) return true
         return !e.path.endsWith('page.md') && !e.path.endsWith('index.md')
       })
       .slice(0, 5)
 
-    if (mds.length === 0) {
+    const timelineMds = timelineResults.slice(0, 5)
+
+    if (fileMds.length === 0 && timelineMds.length === 0) {
       queueMicrotask(() => {
         if (cancelled) return
         setRenderedMds([])
@@ -55,21 +74,36 @@ export function SearchResultsPanel({
     queueMicrotask(() => {
       if (!cancelled) setContentLoading(true)
     })
-    Promise.all(
-      mds.map(async (e) => {
+
+    Promise.all([
+      ...fileMds.map(async (e) => {
         const content = await getRemoteFile(e.path)
         if (!content) return null
         const { content: mdxSource, data: frontMatter } = matter(content)
         const basePath = e.path.includes('/') ? e.path.split('/').slice(0, -1).join('/') : ''
         return {
           path: e.path,
+          href: searchEntryHref(e.path),
           mdxSource,
           frontMatter,
           basePath,
-          title: typeof frontMatter?.title === 'string' ? frontMatter.title : undefined,
+          title: typeof frontMatter?.title === 'string' ? frontMatter.title : searchEntryTitle(e),
         }
-      })
-    ).then((results) => {
+      }),
+      ...timelineMds.map(async (e) => {
+        const content = await fetchArticleMarkdown(e.path)
+        if (!content) return null
+        const { content: mdxSource, data: frontMatter } = matter(content)
+        return {
+          path: e.path,
+          href: searchEntryHref(e.path),
+          mdxSource,
+          frontMatter,
+          basePath: 'timeline',
+          title: typeof frontMatter?.title === 'string' ? frontMatter.title : searchEntryTitle(e),
+        }
+      }),
+    ]).then((results) => {
       if (cancelled) return
       setRenderedMds(results.filter(Boolean))
       setContentLoading(false)
@@ -78,12 +112,13 @@ export function SearchResultsPanel({
     return () => {
       cancelled = true
     }
-  }, [searchResults, contentFilters.includeNonArticleMd])
+  }, [articleMdResults, timelineResults, contentFilters.includeNonArticleMd])
 
   const folders = useMemo(() => {
     const folderPaths = Array.from(
       new Set(
         searchResults
+          .filter((e) => !isTimelineSearchEntry(e.path))
           .map((e) => {
             const parts = e.path.split('/')
             return parts.length > 1 ? parts.slice(0, -1).join('/') : null
@@ -105,6 +140,8 @@ export function SearchResultsPanel({
     cleanQuery.length >= 2 &&
     searchResults.length === 0
 
+  const totalContentHits = articleMdResults.length + timelineResults.length
+
   if (cleanQuery.length < 2) return null
 
   return (
@@ -121,17 +158,29 @@ export function SearchResultsPanel({
         <>
           <FolderGrid folders={folders} />
 
+          {timelineResults.length > 0 && (
+            <div className="space-y-8">
+              <div className="flex items-center gap-4">
+                <div className="w-2 h-8 bg-violet-500 rounded-full" />
+                <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Timeline</h2>
+                <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-sm font-bold text-slate-500">
+                  {timelineResults.length}
+                </span>
+              </div>
+              <SearchResultLinks entries={timelineResults} maxItems={12} />
+            </div>
+          )}
+
           <ArticleStack
             renderedMds={renderedMds}
             contentLoading={contentLoading}
-            totalArticles={searchResults.filter((f) => f.path.endsWith('.md')).length}
+            totalArticles={totalContentHits}
           />
 
           <ImageGallery images={images} />
         </>
       )}
 
-      {/* Keep a small visual hint while previewing MD content */}
       {contentLoading && renderedMds.length === 0 && (
         <div className="flex items-center justify-center py-16 text-slate-400 dark:text-slate-600">
           <Loader2 className="animate-spin" size={20} />
@@ -140,4 +189,3 @@ export function SearchResultsPanel({
     </div>
   )
 }
-

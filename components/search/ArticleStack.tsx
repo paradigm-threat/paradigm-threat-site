@@ -6,7 +6,7 @@ import { FileText, Loader2 } from 'lucide-react'
 import { RelayMarkdown } from '@/components/RelayMarkdown'
 
 interface ArticleStackProps {
-  renderedMds: Array<{ path: string; mdxSource: string; basePath: string; title?: string }>
+  renderedMds: Array<{ path: string; href?: string; mdxSource: string; basePath: string; title?: string }>
   contentLoading: boolean
   totalArticles: number
 }
@@ -25,14 +25,14 @@ export function ArticleStack ({ renderedMds, contentLoading, totalArticles }: Ar
         {contentLoading && <Loader2 className="animate-spin text-emerald-500" size={24} />}
       </div>
       <div className="space-y-24">
-        {renderedMds.map(({ path, mdxSource, basePath, title }) => (
+        {renderedMds.map(({ path, href, mdxSource, basePath, title }) => (
           <section key={path} className="relative group">
             <div className="flex items-center gap-4 mb-8">
               <div className="p-3 bg-slate-100 dark:bg-slate-900 rounded-2xl text-emerald-500">
                 <FileText size={24} />
               </div>
               <div>
-                <Link href={`/${path}`} className="group-hover:text-blue-500 transition-colors">
+                <Link href={href ?? `/${path}`} className="group-hover:text-blue-500 transition-colors">
                   <h3 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
                     {title || path.split('/').pop()?.replace('.md', '').replace(/_/g, ' ')}
                   </h3>

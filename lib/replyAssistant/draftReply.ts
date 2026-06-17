@@ -11,7 +11,7 @@ import {
   DEFAULT_SEARCH_CONTENT_FILTERS,
   type SearchContentFilters,
 } from '@/lib/searchIndexFilter'
-import { entryDisplayTitle } from '@/lib/replyAssistant/rankForText'
+import { searchEntryTitle } from '@/lib/searchEntryDisplay'
 
 export type DraftReplyInput = {
   sourceText: string
@@ -75,7 +75,7 @@ export async function draftReplyToText (
       // continue with title-only
     }
 
-    const title = hit.title || entryDisplayTitle({ path: hit.path, searchText: hit.path })
+    const title = hit.title || searchEntryTitle({ path: hit.path, searchText: hit.path })
     const canonicalUrl = hit.canonicalUrl ?? pathToCanonicalUrl(hit.path)
     articlesUsed.push({ path: hit.path, title, canonicalUrl, tldr })
     agentArticles.push({ path: hit.path, title, tldr, keywords })
