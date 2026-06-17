@@ -65,7 +65,7 @@ function RootLayoutInner({ children }: { children: React.ReactNode }) {
                     </ImageGalleryProvider>
                 </div>
 
-                <footer className="flex-shrink-0 w-full min-w-0 max-w-full bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-12">
+                <footer data-site-footer className="flex-shrink-0 w-full min-w-0 max-w-full bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-12">
                     <div className="max-w-7xl mx-auto min-w-0 px-4 text-center space-y-6">
                         <FooterSiteNav />
                         <div className="text-slate-500 text-sm">

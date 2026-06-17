@@ -6,7 +6,11 @@ import type { TimelineViewMode } from '../constants'
 import type { TimelineEntry } from '@/components/TimelineContext'
 
 export function useTimelineUrlState() {
-  const [fullPage, setFullPage] = useState(false)
+  const [fullPage, setFullPage] = useState(() => {
+    if (typeof window === 'undefined') return false
+    const params = new URLSearchParams(window.location.search)
+    return params.get('fullscreen') === '1' || params.get('play') === '1'
+  })
   const [viewMode, setViewModeRaw] = useState<TimelineViewMode>('custom')
   const [browserPath, setBrowserPath] = useState<string | null>(null)
   const initialEventIdRef = useRef<string | null>(null)

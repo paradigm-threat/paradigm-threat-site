@@ -25,7 +25,7 @@ export default function MainLayout({
 
     return (
         <BottomChromeProvider>
-        <div className="relative flex w-full min-w-0 max-w-full flex-grow flex-col px-4 pb-8 pt-2">
+        <div data-site-chrome className="relative flex w-full min-w-0 max-w-full flex-grow flex-col px-4 pb-8 pt-2">
             <div className="mx-auto flex w-full min-w-0 max-w-[90rem] flex-col gap-8 lg:flex-row">
                 <aside className="lg:w-64 flex-shrink-0">
                     <FloatingDiv containerTag='nav' className="hidden lg:block lg:sticky lg:top-24 w-64" hideFloatingButtons={hideFloatingButtons}>

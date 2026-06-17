@@ -269,3 +269,20 @@ pre * {
 .seo-article a {
   text-decoration: underline;
 }
+
+/* Timeline ?fullscreen=1 — portal covers viewport; hide site chrome underneath */
+body.timeline-fullscreen [data-site-navbar],
+body.timeline-fullscreen [data-site-footer],
+body.timeline-fullscreen [data-site-chrome] > aside,
+body.timeline-fullscreen [data-timeline-page-title],
+body.timeline-fullscreen [data-remote-file-index-banner] {
+  display: none !important;
+}
+
+body.timeline-fullscreen [data-site-chrome] {
+  padding: 0 !important;
+}
+
+body.timeline-fullscreen [data-site-chrome] > main {
+  max-width: none !important;
+}

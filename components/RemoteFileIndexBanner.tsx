@@ -11,6 +11,7 @@ export function RemoteFileIndexBanner() {
 
   return (
     <div
+      data-remote-file-index-banner
       className="mb-6 rounded-lg border border-amber-500/40 bg-amber-50/90 dark:bg-amber-950/40 px-4 py-3 text-amber-950 dark:text-amber-100 shadow-sm"
       role="alert"
     >

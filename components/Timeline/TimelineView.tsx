@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { usePathname } from 'next/navigation'
 import { BookOpen, X } from 'lucide-react'
 import { useTimeline } from '@/components/TimelineContext'
@@ -104,6 +105,7 @@ export function TimelineView() {
 
   useEffect(() => {
     if (!fullPage) return
+    document.body.classList.add('timeline-fullscreen')
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (slideshowOpenRef.current) return
@@ -117,10 +119,16 @@ export function TimelineView() {
     document.addEventListener('keydown', onKeyDown)
     document.body.style.overflow = 'hidden'
     return () => {
+      document.body.classList.remove('timeline-fullscreen')
       document.removeEventListener('keydown', onKeyDown)
       document.body.style.overflow = ''
     }
   }, [fullPage, setFullPage, slideshowOpenRef])
+
+  const [portalReady, setPortalReady] = useState(false)
+  useEffect(() => {
+    setPortalReady(true)
+  }, [])
 
   const handleSelectEvent = useCallback(
     (evt: TimelineEntry) => {
@@ -281,49 +289,54 @@ export function TimelineView() {
     handleStopTTS,
   }
 
+  const shellClass = fullPage
+    ? 'fixed inset-0 z-[150] flex flex-col bg-white dark:bg-slate-950 overflow-hidden p-2 sm:p-4 select-none'
+    : 'flex flex-col flex-1 min-h-0 w-full overflow-hidden max-h-[80vh] min-h-[80vh] select-none'
+
+  const timelineShell = (
+    <div className={shellClass}>
+      <TimelineCompactLayout {...compactLayoutProps} />
+      <TimelineDesktopLayout {...desktopLayoutProps} />
+
+      {slideshowOpen && (
+        <TTSSlideshowOverlay
+          ttsState={tts.state}
+          availableVoices={tts.availableVoices}
+          availablePiperVoices={tts.availablePiperVoices}
+          onPause={tts.pause}
+          onNext={tts.next}
+          onPrev={handleSlideshowPrev}
+          onStop={handleStopTTS}
+          onClearError={tts.clearError}
+          onSetVoice={tts.setVoice}
+          onSetRate={tts.setRate}
+          onSetLangFilter={tts.setLangFilter}
+          onSetLocalOnly={tts.setLocalOnly}
+          onSetSubtitleMode={tts.setSubtitleMode}
+          onSetProvider={tts.setProvider}
+          onSetPiperVoiceId={tts.setPiperVoiceId}
+          onSetPiperLang={tts.setPiperLang}
+          onSetQuoteVoiceId={tts.setQuoteVoiceId}
+          onSetSpeakerMapInput={tts.setSpeakerMapInput}
+          events={events}
+          entries={entries}
+          baseUrl={baseUrl}
+          startEventIndex={ttsStartIndexRef.current}
+          onSelectEvent={handleSelectEvent}
+          onSeekToSegment={handleSeekToSegment}
+          onSeekToSentence={handlePlayFromSentence}
+          onRestartFromEvent={handlePlayEvent}
+          onSwitchToSpeechAndResume={tts.switchToSpeechAndResume}
+        />
+      )}
+    </div>
+  )
+
   return (
     <TimelineLinkProvider value={timelineLinkContextValue}>
-      <div className={
-        fullPage
-          ? 'fixed inset-0 z-[110] flex flex-col bg-white dark:bg-slate-950 overflow-hidden p-4 select-none'
-          : 'flex flex-col flex-1 min-h-0 w-full overflow-hidden max-h-[80vh] min-h-[80vh] select-none'
-      }>
-        <TimelineCompactLayout {...compactLayoutProps} />
-        <TimelineDesktopLayout {...desktopLayoutProps} />
-
-        {/* TTS Slideshow Overlay */}
-        {slideshowOpen && (
-          <TTSSlideshowOverlay
-            ttsState={tts.state}
-            availableVoices={tts.availableVoices}
-            availablePiperVoices={tts.availablePiperVoices}
-            onPause={tts.pause}
-            onNext={tts.next}
-            onPrev={handleSlideshowPrev}
-            onStop={handleStopTTS}
-            onClearError={tts.clearError}
-            onSetVoice={tts.setVoice}
-            onSetRate={tts.setRate}
-            onSetLangFilter={tts.setLangFilter}
-            onSetLocalOnly={tts.setLocalOnly}
-            onSetSubtitleMode={tts.setSubtitleMode}
-            onSetProvider={tts.setProvider}
-            onSetPiperVoiceId={tts.setPiperVoiceId}
-            onSetPiperLang={tts.setPiperLang}
-            onSetQuoteVoiceId={tts.setQuoteVoiceId}
-            onSetSpeakerMapInput={tts.setSpeakerMapInput}
-            events={events}
-            entries={entries}
-            baseUrl={baseUrl}
-            startEventIndex={ttsStartIndexRef.current}
-            onSelectEvent={handleSelectEvent}
-            onSeekToSegment={handleSeekToSegment}
-            onSeekToSentence={handlePlayFromSentence}
-            onRestartFromEvent={handlePlayEvent}
-            onSwitchToSpeechAndResume={tts.switchToSpeechAndResume}
-          />
-        )}
-      </div>
+      {fullPage && portalReady
+        ? createPortal(timelineShell, document.body)
+        : timelineShell}
     </TimelineLinkProvider>
   )
 }

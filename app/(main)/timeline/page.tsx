@@ -7,7 +7,7 @@ import { TimelineProvider, TimelineView, RemoteMarkdown } from '@/components/Tim
 export default function TimelinePage() {
   return (
     <article className="w-full max-w-[56rem] mx-auto flex flex-col px-4 py-4 min-h-0" style={{ minHeight: 0 }}>
-      <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-4">Alternate Earth History Timeline</h1>
+      <h1 data-timeline-page-title className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-4">Alternate Earth History Timeline</h1>
       <TimelineProvider>
         <TimelineView />
       </TimelineProvider>
