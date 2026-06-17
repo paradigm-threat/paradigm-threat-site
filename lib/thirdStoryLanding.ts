@@ -1,6 +1,6 @@
 /**
- * thirdstory.site serves `/` rewritten to `/book` (see middleware).
- * Client uses this to avoid stacking TTS with the landing CTA.
+ * thirdstory.site: `/` redirects to `/timeline?fullscreen=1` (see next.config.js redirects).
+ * Client uses this to avoid stacking TTS with the book landing CTA on `/book`.
  */
 export const THIRD_STORY_LANDING_HOSTS = new Set(['thirdstory.site', 'www.thirdstory.site'])
 

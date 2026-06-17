@@ -143,7 +143,22 @@ const nextConfig = {
   async redirects() {
     // Full book text was removed from the files repo (copyright). Old links and caches
     // should land on the in-house summary only.
+    const thirdStoryRootToTimeline = [
+      {
+        source: '/',
+        has: [{ type: 'host', value: 'thirdstory.site' }],
+        destination: '/timeline?fullscreen=1',
+        permanent: false,
+      },
+      {
+        source: '/',
+        has: [{ type: 'host', value: 'www.thirdstory.site' }],
+        destination: '/timeline?fullscreen=1',
+        permanent: false,
+      },
+    ]
     return [
+      ...thirdStoryRootToTimeline,
       {
         source: '/cosmos/mars/investigations/death-on-mars',
         destination: '/cosmos/mars/death-on-mars-analysis',
