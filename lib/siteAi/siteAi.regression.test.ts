@@ -25,6 +25,7 @@ describe('buildSiteChatSystemPrompt', () => {
     const prompt = buildSiteChatSystemPrompt()
     assert.ok(prompt.includes('list_index_entries'))
     assert.ok(prompt.includes('site claim'))
+    assert.ok(prompt.includes('Current page'))
     assert.ok(prompt.includes(TOOL_CALL_START))
     assert.ok(prompt.includes('æther'))
   })
@@ -50,6 +51,18 @@ describe('prepareQuestionContext', () => {
     const result = await prepareQuestionContext('Tell me about tartaria maps')
     const formatted = formatQuestionContextForPrompt(result)
     assert.ok(formatted.includes('question'))
+  })
+
+  it('boosts current page path when page context is provided', async () => {
+    setWebMcpSearchIndexOverride(async () => entries)
+    const result = await prepareQuestionContext('Summarize this page for me', {
+      path: 'history/tartaria.md',
+      title: 'Tartaria',
+      excerpt: 'Maps and empire.',
+    })
+    assert.equal(result.qaCandidates[0]?.path, 'history/tartaria.md')
+    assert.equal(result.qaCandidates[0]?.kind, 'page')
+    assert.ok(result.agentInstructions.includes('read_article'))
   })
 })
 
@@ -104,5 +117,35 @@ describe('agentProgress', () => {
     })
     assert.equal(steps.length, 1)
     assert.equal(current, detail)
+  })
+
+  it('updates a single active fetch line in place', async () => {
+    const { applyProgressEvent, formatFetchProgressDetail } = await import('./agentProgress.ts')
+    const first = applyProgressEvent([], {
+      phase: 'fetch',
+      path: 'search-index/index.json',
+      status: 'start',
+      detail: formatFetchProgressDetail('search-index/index.json', 'start'),
+    })
+    assert.equal(first.steps.length, 1)
+    assert.equal(first.steps[0]?.status, 'active')
+
+    const second = applyProgressEvent(first.steps, {
+      phase: 'fetch',
+      path: 'history/mudflood/page.md',
+      status: 'start',
+      detail: formatFetchProgressDetail('history/mudflood/page.md', 'start'),
+    })
+    assert.equal(second.steps.length, 1)
+    assert.ok(second.steps[0]?.label.includes('mudflood'))
+
+    const done = applyProgressEvent(second.steps, {
+      phase: 'fetch',
+      path: 'history/mudflood/page.md',
+      status: 'done',
+      detail: formatFetchProgressDetail('history/mudflood/page.md', 'done'),
+    })
+    assert.equal(done.steps[0]?.status, 'done')
+    assert.ok(done.steps[0]?.label.startsWith('Fetched'))
   })
 })

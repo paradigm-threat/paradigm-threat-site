@@ -18,10 +18,17 @@ import {
   type SiteAiStoredMessage,
 } from '@/lib/siteAi/siteAiSessionStorage'
 
+type SiteAiOpenOptions = {
+  question?: string
+  autoSubmit?: boolean
+}
+
 type SiteAiContextValue = {
   open: boolean
-  openModal: () => void
+  openModal: (options?: SiteAiOpenOptions) => void
   closeModal: () => void
+  openOptions: SiteAiOpenOptions | null
+  clearOpenOptions: () => void
   messages: SiteAiStoredMessage[]
   setMessages: (messages: SiteAiStoredMessage[]) => void
   appendExchange: (userText: string, assistantText: string) => void
@@ -34,6 +41,7 @@ const SiteAiContext = createContext<SiteAiContextValue | null>(null)
 
 export function SiteAiProvider ({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
+  const [openOptions, setOpenOptions] = useState<SiteAiOpenOptions | null>(null)
   const [messages, setMessagesState] = useState<SiteAiStoredMessage[]>([])
   const [pageContext, setPageContextState] = useState<SiteAiPageContext | null>(null)
   const [hydrated, setHydrated] = useState(false)
@@ -65,17 +73,29 @@ export function SiteAiProvider ({ children }: { children: React.ReactNode }) {
     setMessagesState([])
   }, [])
 
+  const clearOpenOptions = useCallback(() => {
+    setOpenOptions(null)
+  }, [])
+
   const value = useMemo<SiteAiContextValue>(() => ({
     open,
-    openModal: () => setOpen(true),
-    closeModal: () => setOpen(false),
+    openModal: (options) => {
+      setOpenOptions(options ?? null)
+      setOpen(true)
+    },
+    closeModal: () => {
+      setOpen(false)
+      setOpenOptions(null)
+    },
+    openOptions,
+    clearOpenOptions,
     messages,
     setMessages,
     appendExchange,
     clearHistory,
     pageContext,
     setPageContext: setPageContextState,
-  }), [open, messages, setMessages, appendExchange, clearHistory, pageContext])
+  }), [open, openOptions, clearOpenOptions, messages, setMessages, appendExchange, clearHistory, pageContext])
 
   return (
     <SiteAiContext.Provider value={value}>

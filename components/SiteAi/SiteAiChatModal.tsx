@@ -10,9 +10,10 @@ import { useSiteAi } from '@/components/SiteAi/SiteAiProvider'
 import { useBrowserAiSupport } from '@/lib/browserAi/useBrowserAiSupport'
 import { askSiteAi } from '@/lib/siteAi/askSiteAi'
 import { SITE_AI_EXAMPLE_QUESTIONS } from '@/lib/siteAi/siteAiExampleQuestions'
+import { getPageContextQuestions } from '@/lib/siteAi/siteAiPageQuestions'
 
 export function SiteAiChatModal () {
-  const { open, closeModal, messages, appendExchange, clearHistory, pageContext } = useSiteAi()
+  const { open, closeModal, openOptions, clearOpenOptions, messages, appendExchange, clearHistory, pageContext } = useSiteAi()
   const support = useBrowserAiSupport()
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -92,7 +93,19 @@ export function SiteAiChatModal () {
     }
   }, [ready, input, loading, messages, pageContext, appendExchange, onProgress, resetProgress])
 
+  useEffect(() => {
+    if (!open || !openOptions?.question) return
+    if (openOptions.autoSubmit && ready && !loading) {
+      void handleSubmit(openOptions.question)
+      clearOpenOptions()
+    } else if (!openOptions.autoSubmit) {
+      setInput(openOptions.question)
+      clearOpenOptions()
+    }
+  }, [open, openOptions, ready, loading, handleSubmit, clearOpenOptions])
+
   const showEmptyState = messages.length === 0 && !loading
+  const pageQuestions = pageContext ? getPageContextQuestions(pageContext.title) : []
 
   if (!open || !mounted) return null
 
@@ -151,11 +164,33 @@ export function SiteAiChatModal () {
             <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0">
               {showEmptyState && (
                 <div className="space-y-5 py-6">
-                  <p className="text-sm text-slate-500 text-center">
-                    Ask anything about the site — history, science, chronology, or a specific article.
-                  </p>
+                  {pageContext ? (
+                    <>
+                      <p className="text-sm text-indigo-200/90 text-center">
+                        You&apos;re reading: <span className="font-medium">{pageContext.title}</span>
+                      </p>
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {pageQuestions.map((question) => (
+                          <button
+                            key={question}
+                            type="button"
+                            onClick={() => { void handleSubmit(question) }}
+                            disabled={!ready}
+                            className="rounded-full border border-violet-500/50 bg-violet-950/50 px-3 py-1.5 text-left text-xs text-violet-100 hover:border-violet-400/70 hover:bg-violet-900/60 disabled:opacity-50 transition-colors"
+                          >
+                            {question}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-slate-600 text-center">Or ask a site-wide topic:</p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-slate-500 text-center">
+                      Ask anything about the site — history, science, chronology, or a specific article.
+                    </p>
+                  )}
                   <div className="flex flex-wrap justify-center gap-2">
-                    {SITE_AI_EXAMPLE_QUESTIONS.map((question) => (
+                    {(pageContext ? SITE_AI_EXAMPLE_QUESTIONS.slice(0, 6) : SITE_AI_EXAMPLE_QUESTIONS).map((question) => (
                       <button
                         key={question}
                         type="button"

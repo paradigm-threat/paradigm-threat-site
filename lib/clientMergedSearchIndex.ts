@@ -13,6 +13,7 @@ import {
   isFeelingLuckyCandidate,
 } from '@/lib/feelingLucky'
 import { remoteRelay } from '@/lib/remoteRelayStore'
+import { withFetchReport } from '@/lib/webmcp/fetchProgress'
 import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
 
 const CLIENT_INDEX_TIMEOUT_MS = 60_000
@@ -27,7 +28,7 @@ export async function fetchMergedSearchIndexClient (): Promise<IndexedPathEntry[
   if (!pair) return null
 
   const signal = AbortSignal.timeout(CLIENT_INDEX_TIMEOUT_MS)
-  const filesData = await remoteRelay.fetchIndexJson(signal)
+  const filesData = await withFetchReport('search-index/index.json', () => remoteRelay.fetchIndexJson(signal))
   if (filesData === null) return null
 
   let fromFiles: IndexedPathEntry[] = []
@@ -40,7 +41,8 @@ export async function fetchMergedSearchIndexClient (): Promise<IndexedPathEntry[
   let fromTimeline: IndexedPathEntry[] = []
   const timelineUrl = `${pair.timeline.replace(/\/$/, '')}/data/events.json${timelineManifestCacheQuery()}`
   try {
-    const eventsRes = await fetch(timelineUrl, { cache: 'no-store', signal })
+    const eventsRes = await withFetchReport('timeline/events.json', () =>
+      fetch(timelineUrl, { cache: 'no-store', signal }))
     if (eventsRes.ok) {
       fromTimeline = flattenTimelineEntriesForSearch(await eventsRes.json())
     }

@@ -9,6 +9,8 @@ import {
   formatMatchedClaimsForPrompt,
   matchSiteClaims,
 } from '@/lib/siteAi/matchSiteClaims'
+import type { SiteAiPageContext } from '@/lib/siteAi/askSiteAi'
+import { isPageFocusedQuestion } from '@/lib/siteAi/siteAiPageQuestions'
 import type { MatchedSiteClaim } from '@/lib/siteAi/siteClaimsTypes'
 import { getWebMcpSearchIndex } from '@/lib/webmcp/indexStore'
 import { searchEntryTitle } from '@/lib/searchEntryDisplay'
@@ -18,7 +20,7 @@ export type QuestionContextHit = {
   title: string
   score: number
   matchedTerms: string[]
-  kind: 'qa' | 'general' | 'claim'
+  kind: 'page' | 'qa' | 'general' | 'claim'
 }
 
 export type PrepareQuestionContextResult = {
@@ -106,7 +108,8 @@ function claimPathHits (
 }
 
 export async function prepareQuestionContext (
-  question: string
+  question: string,
+  pageContext?: SiteAiPageContext | null
 ): Promise<PrepareQuestionContextResult> {
   const text = question.trim()
   const warnings: string[] = []
@@ -141,6 +144,17 @@ export async function prepareQuestionContext (
 
   const hitMap = new Map<string, QuestionContextHit>()
   const extractedQuerySet = new Set<string>()
+  const pageFocused = Boolean(pageContext?.path && isPageFocusedQuestion(text))
+
+  if (pageContext?.path) {
+    mergeHit(hitMap, {
+      path: pageContext.path,
+      title: pageContext.title,
+      score: pageFocused ? 12 : 8,
+      matchedTerms: ['current-page'],
+      kind: 'page',
+    })
+  }
 
   const longRank = text.length >= 20
     ? findArticlesForText(index, { sourceText: text, maxArticles: 8 })
@@ -200,13 +214,13 @@ export async function prepareQuestionContext (
   const hits = Array.from(hitMap.values())
   hits.sort((a, b) => {
     const kindOrder = (k: QuestionContextHit['kind']) =>
-      k === 'claim' ? 0 : k === 'qa' ? 1 : 2
+      k === 'page' ? 0 : k === 'claim' ? 1 : k === 'qa' ? 2 : 3
     const ko = kindOrder(a.kind) - kindOrder(b.kind)
     if (ko !== 0) return ko
     return b.score - a.score
   })
 
-  const qaCandidates = hits.filter((h) => h.kind === 'qa' || h.kind === 'claim').slice(0, 6)
+  const qaCandidates = hits.filter((h) => h.kind === 'page' || h.kind === 'qa' || h.kind === 'claim').slice(0, 6)
   const generalCandidates = hits.filter((h) => h.kind === 'general').slice(0, 5)
 
   if (qaCandidates.length === 0 && generalCandidates.length === 0) {
@@ -214,13 +228,19 @@ export async function prepareQuestionContext (
   }
   warnings.push(...longRank.warnings)
 
+  const pageInstruction = pageContext?.path
+    ? `Visitor is reading "${pageContext.title}" (${pageContext.path}). When the question is about this page, read_article that path first.`
+    : ''
+
   let agentInstructions: string
-  if (matchedClaims.length > 0) {
-    agentInstructions = claimsAgentInstructions(matchedClaims)
+  if (pageFocused && pageContext?.path) {
+    agentInstructions = `${pageInstruction} Lead with a concise summary from that article in the site voice.`
+  } else if (matchedClaims.length > 0) {
+    agentInstructions = [pageInstruction, claimsAgentInstructions(matchedClaims)].filter(Boolean).join(' ')
   } else if (qaCandidates.length > 0) {
-    agentInstructions = 'Start with read_article on Q&A or claim candidates; fall back to general search if they do not answer the question.'
+    agentInstructions = [pageInstruction, 'Start with read_article on page, Q&A, or claim candidates; fall back to general search if they do not answer the question.'].filter(Boolean).join(' ')
   } else {
-    agentInstructions = 'No strong Q&A match — use search_site and read_article on general candidates.'
+    agentInstructions = [pageInstruction, 'No strong Q&A match — use search_site and read_article on general candidates.'].filter(Boolean).join(' ')
   }
 
   return {

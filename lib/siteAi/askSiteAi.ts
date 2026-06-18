@@ -5,6 +5,7 @@ import {
   prepareQuestionContext,
 } from '@/lib/siteAi/prepareQuestionContext'
 import { runSiteAiAgent, type SiteAiAgentProgress } from '@/lib/siteAi/runSiteAiAgent'
+import { withFetchProgressReporting } from '@/lib/siteAi/agentProgress'
 
 export type SiteAiPageContext = {
   path: string
@@ -48,12 +49,13 @@ function buildUserMessage (
   if (pageContext?.path) {
     parts.push(
       '',
-      'Current page context:',
+      'Current page context (visitor is reading this article now):',
       JSON.stringify({
         path: pageContext.path,
         title: pageContext.title,
         excerpt: pageContext.excerpt?.slice(0, 600),
       }, null, 2),
+      'When the question refers to "this page" or asks for a summary, read_article on path first.',
     )
   }
 
@@ -67,33 +69,35 @@ export async function askSiteAi (input: AskSiteAiInput): Promise<string> {
     throw new Error('Enter a question (at least 3 characters)')
   }
 
-  input.onProgress?.({ phase: 'init', message: 'Starting…' })
-  input.onProgress?.({ phase: 'context', message: 'Searching Q&A pages and related articles…' })
+  return withFetchProgressReporting(input.onProgress, async () => {
+    input.onProgress?.({ phase: 'init', message: 'Starting…' })
+    input.onProgress?.({ phase: 'context', message: 'Searching Q&A pages and related articles…' })
 
-  const ctx = await prepareQuestionContext(question)
-  const seedContext = formatQuestionContextForPrompt(ctx)
+    const ctx = await prepareQuestionContext(question, input.pageContext)
+    const seedContext = formatQuestionContextForPrompt(ctx)
 
-  const historyMessages: LanguageModelMessage[] = trimHistory(input.history ?? []).map((m) => ({
-    role: m.role,
-    content: m.content,
-  }))
+    const historyMessages: LanguageModelMessage[] = trimHistory(input.history ?? []).map((m) => ({
+      role: m.role,
+      content: m.content,
+    }))
 
-  const conversation: LanguageModelMessage[] = [
-    ...historyMessages,
-    {
-      role: 'user',
-      content: buildUserMessage(question, seedContext, input.pageContext),
-    },
-  ]
+    const conversation: LanguageModelMessage[] = [
+      ...historyMessages,
+      {
+        role: 'user',
+        content: buildUserMessage(question, seedContext, input.pageContext),
+      },
+    ]
 
-  const result = await runSiteAiAgent({
-    systemPrompt: buildSiteChatSystemPrompt(),
-    conversation,
-    signal: input.signal,
-    onProgress: input.onProgress,
-    finalInstruction: 'Write the final answer for the visitor as plain prose (no tool markers).',
-    minFinalLength: 8,
+    const result = await runSiteAiAgent({
+      systemPrompt: buildSiteChatSystemPrompt(),
+      conversation,
+      signal: input.signal,
+      onProgress: input.onProgress,
+      finalInstruction: 'Write the final answer for the visitor as plain prose (no tool markers).',
+      minFinalLength: 8,
+    })
+
+    return result.finalText
   })
-
-  return result.finalText
 }

@@ -1,7 +1,7 @@
 import type { LanguageModelMessage } from '@/lib/replyAssistant/browserLanguageModel'
 import { buildReplySystemPrompt } from '@/lib/replyAssistant/agentPrompt'
 import type { SiteAiAgentProgress } from '@/lib/siteAi/agentProgress'
-import { formatToolProgressDetail } from '@/lib/siteAi/agentProgress'
+import { formatToolProgressDetail, withFetchProgressReporting } from '@/lib/siteAi/agentProgress'
 import { runSiteAiAgent } from '@/lib/siteAi/runSiteAiAgent'
 import { executeSiteAiTool } from '@/lib/siteAi/siteAiToolBridge'
 
@@ -27,76 +27,78 @@ export async function draftReplyWithBrowserAi (input: DraftReplyInput): Promise<
     throw new Error('Paste at least 20 characters before drafting a reply')
   }
 
-  input.onProgress?.({ phase: 'init', message: 'Preparing reply assistant…' })
+  return withFetchProgressReporting(input.onProgress, async () => {
+    input.onProgress?.({ phase: 'init', message: 'Preparing reply assistant…' })
 
-  const seedArgs = {
-    sourceText,
-    includeCitations: input.includeCitations,
-    tone: input.tone ?? 'conversational',
-  }
-  const seedDetail = formatToolProgressDetail('prepare_reply_context', seedArgs)
-  input.onProgress?.({
-    phase: 'context',
-    message: seedDetail,
-  })
-  input.onProgress?.({
-    phase: 'tool',
-    toolName: 'prepare_reply_context',
-    status: 'start',
-    args: seedArgs,
-    detail: seedDetail,
-  })
-
-  let seedContext: string
-  try {
-    seedContext = await executeSiteAiTool('prepare_reply_context', seedArgs)
-  } finally {
+    const seedArgs = {
+      sourceText,
+      includeCitations: input.includeCitations,
+      tone: input.tone ?? 'conversational',
+    }
+    const seedDetail = formatToolProgressDetail('prepare_reply_context', seedArgs)
+    input.onProgress?.({
+      phase: 'context',
+      message: seedDetail,
+    })
     input.onProgress?.({
       phase: 'tool',
       toolName: 'prepare_reply_context',
-      status: 'done',
+      status: 'start',
       args: seedArgs,
       detail: seedDetail,
     })
-  }
 
-  const systemPrompt = buildReplySystemPrompt({
-    includeCitations: input.includeCitations,
-    tone: input.tone,
+    let seedContext: string
+    try {
+      seedContext = await executeSiteAiTool('prepare_reply_context', seedArgs)
+    } finally {
+      input.onProgress?.({
+        phase: 'tool',
+        toolName: 'prepare_reply_context',
+        status: 'done',
+        args: seedArgs,
+        detail: seedDetail,
+      })
+    }
+
+    const systemPrompt = buildReplySystemPrompt({
+      includeCitations: input.includeCitations,
+      tone: input.tone,
+    })
+
+    const conversation: LanguageModelMessage[] = [
+      {
+        role: 'user',
+        content: [
+          'Draft a forum reply to the post below.',
+          'Use tools when you need site context. When finished, output only the reply text.',
+          '',
+          'Index seed (from prepare_reply_context):',
+          seedContext,
+          '',
+          '--- Post to reply to ---',
+          sourceText,
+          '---',
+        ].join('\n'),
+      },
+    ]
+
+    const result = await runSiteAiAgent({
+      systemPrompt,
+      conversation,
+      signal: input.signal,
+      onProgress: input.onProgress,
+      minFinalLength: 20,
+      finalInstruction: 'Write the full forum reply now as plain prose (no tool markers).',
+    })
+
+    return {
+      draft: result.finalText,
+      toolCalls: [
+        { name: 'prepare_reply_context', arguments: seedArgs },
+        ...result.toolCalls,
+      ],
+      turns: result.turns,
+    }
   })
-
-  const conversation: LanguageModelMessage[] = [
-    {
-      role: 'user',
-      content: [
-        'Draft a forum reply to the post below.',
-        'Use tools when you need site context. When finished, output only the reply text.',
-        '',
-        'Index seed (from prepare_reply_context):',
-        seedContext,
-        '',
-        '--- Post to reply to ---',
-        sourceText,
-        '---',
-      ].join('\n'),
-    },
-  ]
-
-  const result = await runSiteAiAgent({
-    systemPrompt,
-    conversation,
-    signal: input.signal,
-    onProgress: input.onProgress,
-    minFinalLength: 20,
-    finalInstruction: 'Write the full forum reply now as plain prose (no tool markers).',
-  })
-
-  return {
-    draft: result.finalText,
-    toolCalls: [
-      { name: 'prepare_reply_context', arguments: seedArgs },
-      ...result.toolCalls,
-    ],
-    turns: result.turns,
-  }
 }

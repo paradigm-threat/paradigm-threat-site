@@ -29,7 +29,7 @@ export function SiteAiLauncherButton ({
   return (
     <button
       type="button"
-      onClick={openModal}
+      onClick={() => openModal()}
       className={`${sizeClass} rounded-full bg-violet-600/90 hover:bg-violet-500 text-white flex items-center justify-center shadow-lg transition-all hover:scale-105 ${className}`.trim()}
       aria-label={ariaLabel}
       title="Ask about this site (on-device AI)"

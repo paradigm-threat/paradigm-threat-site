@@ -1,3 +1,5 @@
+import { setFetchProgressListener } from '@/lib/webmcp/fetchProgress'
+
 export type SiteAiAgentProgress =
   | { phase: 'init'; message: string }
   | { phase: 'loading-model'; message: string; loaded?: number }
@@ -8,6 +10,12 @@ export type SiteAiAgentProgress =
       toolName: string
       status: 'start' | 'done'
       args: Record<string, unknown>
+      detail: string
+    }
+  | {
+      phase: 'fetch'
+      path: string
+      status: 'start' | 'done'
       detail: string
     }
   | { phase: 'writing'; message: string }
@@ -72,6 +80,23 @@ function truncate (text: string, max: number): string {
   return `${t.slice(0, max - 1)}…`
 }
 
+export function shortenFetchPath (path: string): string {
+  const normalized = path.replace(/^\//, '').trim()
+  if (normalized.length <= 56) return normalized
+  const parts = normalized.split('/').filter(Boolean)
+  if (parts.length >= 2) return `…/${parts.slice(-2).join('/')}`
+  return `…${normalized.slice(-54)}`
+}
+
+export function formatFetchProgressDetail (path: string, status: 'start' | 'done'): string {
+  const short = shortenFetchPath(path)
+  return status === 'start' ? `Fetching ${short}…` : `Fetched ${short}`
+}
+
+function isFetchStepLabel (label: string): boolean {
+  return label.startsWith('Fetching ') || label.startsWith('Fetched ')
+}
+
 export function progressEventLabel (event: SiteAiAgentProgress): string {
   switch (event.phase) {
     case 'init':
@@ -86,6 +111,8 @@ export function progressEventLabel (event: SiteAiAgentProgress): string {
       return event.message
     case 'tool':
       return event.status === 'start' ? event.detail : `Done: ${event.detail}`
+    case 'fetch':
+      return event.detail
     case 'writing':
       return event.message
     default:
@@ -101,6 +128,45 @@ export function applyProgressEvent (
 
   if (event.phase === 'thinking' || event.phase === 'writing' || event.phase === 'loading-model') {
     return { steps, current }
+  }
+
+  if (event.phase === 'fetch') {
+    const activeFetchIdx = steps.findIndex((s) => s.status === 'active' && isFetchStepLabel(s.label))
+    if (event.status === 'start') {
+      if (activeFetchIdx >= 0) {
+        const updated = [...steps]
+        updated[activeFetchIdx] = { ...updated[activeFetchIdx]!, label: event.detail }
+        return { steps: updated, current: event.detail }
+      }
+      const donePrevious = steps.map((s) =>
+        s.status === 'active' ? { ...s, status: 'done' as const } : s
+      )
+      return {
+        steps: [...donePrevious, {
+          id: nextProgressStepId(),
+          label: event.detail,
+          status: 'active' as const,
+        }].slice(-12),
+        current: event.detail,
+      }
+    }
+    if (activeFetchIdx >= 0) {
+      const updated = [...steps]
+      updated[activeFetchIdx] = {
+        ...updated[activeFetchIdx]!,
+        label: event.detail,
+        status: 'done' as const,
+      }
+      return { steps: updated, current: event.detail }
+    }
+    return {
+      steps: [...steps, {
+        id: nextProgressStepId(),
+        label: event.detail,
+        status: 'done' as const,
+      }].slice(-12),
+      current: event.detail,
+    }
   }
 
   if (event.phase === 'tool' && event.status === 'done') {
@@ -131,3 +197,33 @@ export function applyProgressEvent (
 
 export const SLOW_MODEL_HINT = 'On-device AI can take 30–60 seconds per step on first run — still working…'
 export const SLOW_MODEL_HINT_EXTENDED = 'Model is still processing. You can cancel and try a shorter question if this persists.'
+
+export function bindFetchProgressToAgent (
+  onProgress?: (event: SiteAiAgentProgress) => void
+): () => void {
+  if (!onProgress) {
+    setFetchProgressListener(null)
+    return () => {}
+  }
+  setFetchProgressListener((path, status) => {
+    onProgress({
+      phase: 'fetch',
+      path,
+      status,
+      detail: formatFetchProgressDetail(path, status),
+    })
+  })
+  return () => setFetchProgressListener(null)
+}
+
+export async function withFetchProgressReporting<T> (
+  onProgress: ((event: SiteAiAgentProgress) => void) | undefined,
+  fn: () => Promise<T>
+): Promise<T> {
+  const unbind = bindFetchProgressToAgent(onProgress)
+  try {
+    return await fn()
+  } finally {
+    unbind()
+  }
+}

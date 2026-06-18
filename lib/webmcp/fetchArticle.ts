@@ -1,4 +1,5 @@
 import { buildArticleMdCandidatePaths } from '@/lib/articleMdPaths'
+import { withFetchReport } from '@/lib/webmcp/fetchProgress'
 import { remoteRelay } from '@/lib/remoteRelayStore'
 import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
 
@@ -25,7 +26,8 @@ async function loadTimelineMdPathMap (): Promise<Map<string, string>> {
   }
   const url = `${pair.timeline.replace(/\/$/, '')}/data/events.json${timelineManifestCacheQuery()}`
   try {
-    const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(MD_TIMEOUT_MS) })
+    const res = await withFetchReport('timeline/events.json', () =>
+      fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(MD_TIMEOUT_MS) }))
     if (res.ok) {
       const data = (await res.json()) as { entries?: TimelineNode[] }
       const walk = (nodes: TimelineNode[]) => {
@@ -58,9 +60,11 @@ export async function fetchArticleMarkdown (indexPath: string): Promise<string |
     const mdPath = map.get(eventId)
     if (!mdPath) return null
     try {
-      const res = await remoteRelay.fetchTimelineMd(mdPath, timelineManifestCacheQuery(), signal)
-      if (!res.ok) return null
-      return await res.text()
+      return await withFetchReport(mdPath, async () => {
+        const res = await remoteRelay.fetchTimelineMd(mdPath, timelineManifestCacheQuery(), signal)
+        if (!res.ok) return null
+        return await res.text()
+      })
     } catch {
       return null
     }
@@ -68,9 +72,11 @@ export async function fetchArticleMarkdown (indexPath: string): Promise<string |
 
   const sitePath = path.replace(/\.(md|mdx)$/i, '')
   try {
-    const res = await remoteRelay.fetchFilesMd(sitePath, versionQuery, signal)
-    if (!res.ok) return null
-    return await res.text()
+    return await withFetchReport(path, async () => {
+      const res = await remoteRelay.fetchFilesMd(sitePath, versionQuery, signal)
+      if (!res.ok) return null
+      return await res.text()
+    })
   } catch {
     return null
   }
