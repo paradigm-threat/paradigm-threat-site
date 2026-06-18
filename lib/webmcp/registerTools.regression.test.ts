@@ -18,6 +18,7 @@ describe('registerTools WEBMCP_TOOL_NAMES', () => {
     const required = [
       'search_site',
       'get_project_perspective',
+      'get_site_claims',
       'prepare_reply_context',
       'read_article',
       'list_index_entries',

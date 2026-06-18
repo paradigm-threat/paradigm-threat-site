@@ -10,6 +10,8 @@ import { formatCitationBlock, type CitationStyle } from '@/lib/replyAssistant/fo
 import { listIndexEntries } from '@/lib/replyAssistant/listIndexEntries'
 import { prepareReplyContext } from '@/lib/replyAssistant/prepareReplyContext'
 import { getProjectPerspective } from '@/lib/replyAssistant/projectPerspective'
+import { getSiteClaimById, SITE_CLAIMS_INDEX } from '@/lib/siteAi/siteClaimsIndex'
+import { matchSiteClaims } from '@/lib/siteAi/matchSiteClaims'
 import { readArticleContentFromMarkdown } from '@/lib/replyAssistant/readArticleContent'
 import {
   searchContentFiltersFromInput,
@@ -261,6 +263,27 @@ export function executeGetProjectPerspective (): CallToolResult {
   return toolJsonResult({
     perspective: getProjectPerspective(),
     summary: 'Paradigm Threat worldview: alternate chronology, Tartaria/mud flood, æther physics, epistemic labeling.',
+  })
+}
+
+export function executeGetSiteClaims (args: Record<string, unknown>): CallToolResult {
+  const query = typeof args.query === 'string' ? args.query.trim() : ''
+  const id = typeof args.id === 'string' ? args.id.trim() : ''
+
+  if (id) {
+    const claim = getSiteClaimById(id)
+    if (!claim) return toolErrorResult(`Unknown claim id: ${id}`)
+    return toolJsonResult({ claims: [claim] })
+  }
+
+  if (query.length >= 3) {
+    const matched = matchSiteClaims(query, { maxResults: 5 })
+    return toolJsonResult({ claims: matched, query })
+  }
+
+  return toolJsonResult({
+    claims: SITE_CLAIMS_INDEX,
+    summary: `${SITE_CLAIMS_INDEX.length} curated site claims — pass query or id to narrow.`,
   })
 }
 

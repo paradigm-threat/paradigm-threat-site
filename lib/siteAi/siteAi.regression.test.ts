@@ -24,7 +24,7 @@ describe('buildSiteChatSystemPrompt', () => {
   it('mentions Q&A workflow and tools', () => {
     const prompt = buildSiteChatSystemPrompt()
     assert.ok(prompt.includes('list_index_entries'))
-    assert.ok(prompt.includes('common-questions'))
+    assert.ok(prompt.includes('site claim'))
     assert.ok(prompt.includes(TOOL_CALL_START))
     assert.ok(prompt.includes('æther'))
   })
@@ -42,6 +42,7 @@ describe('prepareQuestionContext', () => {
     const combined = [...result.qaCandidates, ...result.generalCandidates]
     assert.ok(combined.some((h) => h.path.includes('mud-flood') || h.path.includes('tartaria')))
     assert.ok(result.agentInstructions.length > 0)
+    assert.ok(Array.isArray(result.matchedClaims))
   })
 
   it('formats seed JSON for prompts', async () => {

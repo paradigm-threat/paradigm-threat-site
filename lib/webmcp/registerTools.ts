@@ -9,6 +9,7 @@ import {
   executeFormatReplyCitations,
   executeGetArticleContext,
   executeGetProjectPerspective,
+  executeGetSiteClaims,
   executeListIndexEntries,
   executeListSearchFilters,
   executeNavigateToResult,
@@ -73,6 +74,14 @@ const TOOLS: AnyTool[] = [
     type: 'object',
     properties: {},
   }, () => executeGetProjectPerspective()),
+
+  wrap('get_site_claims', 'Return curated site claim/conclusion cards (summaries with canonical article paths). Pass query to match a question or id for one entry.', {
+    type: 'object',
+    properties: {
+      query: { type: 'string', description: 'Visitor question or topic keywords' },
+      id: { type: 'string', description: 'Claim id, e.g. giants-fate' },
+    },
+  }, (args) => executeGetSiteClaims(args)),
 
   wrap('compose_share_text', 'Generate platform-specific share or clipboard text for an article.', {
     type: 'object',

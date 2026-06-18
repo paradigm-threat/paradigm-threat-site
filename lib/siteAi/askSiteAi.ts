@@ -38,9 +38,10 @@ function buildUserMessage (
 ): string {
   const parts = [
     'Answer the visitor question using site tools when needed.',
+    'When a site claim card matches, lead with its thesis then expand from read_article results.',
     'When finished, output only the answer prose.',
     '',
-    'Question context seed (Q&A-first index lookup):',
+    'Question context seed (claims + Q&A-first index lookup):',
     seedContext,
   ]
 

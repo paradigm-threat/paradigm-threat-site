@@ -4,6 +4,7 @@ export const SITE_AI_INVESTIGATION_TOOL_NAMES = [
   'suggest_search_from_path',
   'get_article_context',
   'get_project_perspective',
+  'get_site_claims',
   'expand_search_keywords',
   'find_articles_for_text',
   'prepare_reply_context',
