@@ -1,35 +1,23 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { isReplyAssistantFeatureEnabled } from '@/lib/siteOpsFeature'
-import { isBrowserLanguageModelAvailable } from '@/lib/replyAssistant/browserLanguageModel'
-import { getModelContext } from '@/lib/webmcp/modelContext'
+import { useBrowserAiSupport } from '@/lib/browserAi/useBrowserAiSupport'
 
-export type ReplyDraftingAvailability = 'checking' | 'available' | 'unavailable'
+export type ReplyDraftingAvailability = 'checking' | 'available' | 'needs-setup' | 'unavailable'
 
-async function computeReplyDraftingAvailable (): Promise<boolean> {
-  if (typeof window === 'undefined') return false
-  if (!isReplyAssistantFeatureEnabled()) return false
-
-  const { initWebMcp } = await import('@/lib/webmcp/init')
-  await initWebMcp()
-
-  if (!getModelContext()) return false
-  return isBrowserLanguageModelAvailable()
+function mapSupport (support: ReturnType<typeof useBrowserAiSupport>): ReplyDraftingAvailability {
+  if (support.status === 'checking') return 'checking'
+  if (support.status === 'ready') return 'available'
+  if (support.status === 'needs-setup') return 'needs-setup'
+  return 'unavailable'
 }
 
 export function useReplyDraftingAvailable (): ReplyDraftingAvailability {
-  const [state, setState] = useState<ReplyDraftingAvailability>('checking')
-
-  useEffect(() => {
-    let cancelled = false
-    void computeReplyDraftingAvailable().then((ok) => {
-      if (!cancelled) setState(ok ? 'available' : 'unavailable')
-    }).catch(() => {
-      if (!cancelled) setState('unavailable')
-    })
-    return () => { cancelled = true }
-  }, [])
-
-  return state
+  return mapSupport(useBrowserAiSupport())
 }
+
+/** True when browser AI is fully ready for drafting. */
+export function useReplyAssistantAvailable (): boolean {
+  return useReplyDraftingAvailable() === 'available'
+}
+
+export { useBrowserAiSupport } from '@/lib/browserAi/useBrowserAiSupport'

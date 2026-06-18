@@ -3,7 +3,8 @@
 import React from 'react'
 import { Sparkles } from 'lucide-react'
 import { useSiteAi } from '@/components/SiteAi/SiteAiProvider'
-import { useSiteAiAvailable } from '@/lib/siteAi/useSiteAiAvailable'
+import { shouldShowBrowserAiLauncher } from '@/lib/browserAi/detectBrowserAiSupport'
+import { useBrowserAiSupport } from '@/lib/browserAi/useBrowserAiSupport'
 
 type SiteAiLauncherButtonProps = {
   className?: string
@@ -16,10 +17,10 @@ export function SiteAiLauncherButton ({
   size = 'dock',
   ariaLabel = 'Ask site AI',
 }: SiteAiLauncherButtonProps) {
-  const availability = useSiteAiAvailable()
+  const support = useBrowserAiSupport()
   const { openModal } = useSiteAi()
 
-  if (availability !== 'available') return null
+  if (!shouldShowBrowserAiLauncher(support)) return null
 
   const sizeClass = size === 'fab'
     ? 'w-14 h-14'

@@ -1,35 +1,19 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { isSiteAiEnabled } from '@/lib/siteOpsFeature'
-import { isBrowserLanguageModelAvailable } from '@/lib/replyAssistant/browserLanguageModel'
-import { getModelContext } from '@/lib/webmcp/modelContext'
+import { useBrowserAiSupport, type BrowserAiSupportState } from '@/lib/browserAi/useBrowserAiSupport'
 
-export type SiteAiAvailability = 'checking' | 'available' | 'unavailable'
+export type SiteAiAvailability = 'checking' | 'available' | 'needs-setup' | 'unavailable'
 
-async function computeSiteAiAvailable (): Promise<boolean> {
-  if (typeof window === 'undefined') return false
-  if (!isSiteAiEnabled()) return false
-
-  const { initWebMcp } = await import('@/lib/webmcp/init')
-  await initWebMcp()
-
-  if (!getModelContext()) return false
-  return isBrowserLanguageModelAvailable()
+function mapSupport (support: BrowserAiSupportState): SiteAiAvailability {
+  if (support.status === 'checking') return 'checking'
+  if (support.status === 'ready') return 'available'
+  if (support.status === 'needs-setup') return 'needs-setup'
+  return 'unavailable'
 }
 
 export function useSiteAiAvailable (): SiteAiAvailability {
-  const [state, setState] = useState<SiteAiAvailability>('checking')
-
-  useEffect(() => {
-    let cancelled = false
-    void computeSiteAiAvailable().then((ok) => {
-      if (!cancelled) setState(ok ? 'available' : 'unavailable')
-    }).catch(() => {
-      if (!cancelled) setState('unavailable')
-    })
-    return () => { cancelled = true }
-  }, [])
-
-  return state
+  return mapSupport(useBrowserAiSupport())
 }
+
+export { useBrowserAiSupport, type BrowserAiSupportState } from '@/lib/browserAi/useBrowserAiSupport'
+export { shouldShowBrowserAiLauncher } from '@/lib/browserAi/detectBrowserAiSupport'

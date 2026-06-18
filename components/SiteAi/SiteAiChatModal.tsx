@@ -1,21 +1,33 @@
 'use client'
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Loader2, Send, Sparkles, Trash2, X } from 'lucide-react'
 import { AgentProgressPanel } from '@/components/SiteAi/AgentProgressPanel'
+import { BrowserAiSetupPanel } from '@/components/SiteAi/BrowserAiSetupPanel'
 import { useAgentProgressDisplay } from '@/components/SiteAi/useAgentProgressDisplay'
 import { useSiteAi } from '@/components/SiteAi/SiteAiProvider'
+import { useBrowserAiSupport } from '@/lib/browserAi/useBrowserAiSupport'
 import { askSiteAi } from '@/lib/siteAi/askSiteAi'
 
 export function SiteAiChatModal () {
   const { open, closeModal, messages, appendExchange, clearHistory, pageContext } = useSiteAi()
+  const support = useBrowserAiSupport()
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const { steps, current, slowHint, onProgress, reset: resetProgress } = useAgentProgressDisplay()
+
+  const setupMode = support.status === 'needs-setup'
+  const ready = support.status === 'ready'
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     if (!open) return
@@ -30,7 +42,7 @@ export function SiteAiChatModal () {
     if (open && listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight
     }
-  }, [open, messages, loading, steps, current])
+  }, [open, messages, loading, steps, current, setupMode])
 
   const handleClose = useCallback(() => {
     abortRef.current?.abort()
@@ -41,6 +53,7 @@ export function SiteAiChatModal () {
   }, [closeModal, resetProgress])
 
   const handleSubmit = useCallback(async () => {
+    if (!ready) return
     const question = input.trim()
     if (question.length < 3 || loading) return
 
@@ -76,13 +89,13 @@ export function SiteAiChatModal () {
       resetProgress()
       abortRef.current = null
     }
-  }, [input, loading, messages, pageContext, appendExchange, onProgress, resetProgress])
+  }, [ready, input, loading, messages, pageContext, appendExchange, onProgress, resetProgress])
 
-  if (!open) return null
+  if (!open || !mounted) return null
 
-  return (
+  const modal = (
     <div
-      className="fixed inset-0 z-[130] flex items-end md:items-center justify-center p-2 md:p-6 bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-[210] flex items-end md:items-center justify-center p-2 md:p-6 bg-black/50 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="site-ai-title"
@@ -96,20 +109,23 @@ export function SiteAiChatModal () {
               Ask Paradigm Threat
             </h2>
             <p className="text-xs text-slate-500 truncate">
-              On-device AI · searches site Q&amp;A and articles
-              {pageContext?.title ? ` · ${pageContext.title}` : ''}
+              {setupMode
+                ? 'Setup required · desktop Chrome with on-device AI'
+                : `On-device AI · searches site Q&A and articles${pageContext?.title ? ` · ${pageContext.title}` : ''}`}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={clearHistory}
-            disabled={messages.length === 0 || loading}
-            className="p-2 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800 disabled:opacity-40"
-            aria-label="Clear chat history"
-            title="Clear history"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          {!setupMode && (
+            <button
+              type="button"
+              onClick={clearHistory}
+              disabled={messages.length === 0 || loading}
+              className="p-2 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+              aria-label="Clear chat history"
+              title="Clear history"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
           <button
             type="button"
             onClick={handleClose}
@@ -120,84 +136,97 @@ export function SiteAiChatModal () {
           </button>
         </header>
 
-        <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0">
-          {messages.length === 0 && !loading && (
-            <p className="text-sm text-slate-500 text-center py-8">
-              Ask anything about the site — history, science, chronology, or a specific article.
-            </p>
-          )}
-          {messages.map((m) => (
-            <div
-              key={m.id}
-              className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap ${
-                  m.role === 'user'
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-slate-800 text-slate-100 border border-slate-700/50'
-                }`}
-              >
-                {m.content}
-              </div>
+        {setupMode ? (
+          <div className="flex-1 overflow-y-auto px-4 py-6 min-h-0">
+            <BrowserAiSetupPanel
+              reason={support.reason}
+              variant="modal"
+            />
+          </div>
+        ) : (
+          <>
+            <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0">
+              {messages.length === 0 && !loading && (
+                <p className="text-sm text-slate-500 text-center py-8">
+                  Ask anything about the site — history, science, chronology, or a specific article.
+                </p>
+              )}
+              {messages.map((m) => (
+                <div
+                  key={m.id}
+                  className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap ${
+                      m.role === 'user'
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-slate-800 text-slate-100 border border-slate-700/50'
+                    }`}
+                  >
+                    {m.content}
+                  </div>
+                </div>
+              ))}
+              {loading && pendingQuestion && (
+                <div className="flex justify-end">
+                  <div className="max-w-[85%] rounded-2xl px-4 py-2.5 text-sm bg-indigo-600 text-white opacity-80">
+                    {pendingQuestion}
+                  </div>
+                </div>
+              )}
+              {loading && (
+                <div className="flex justify-start max-w-[90%]">
+                  <AgentProgressPanel
+                    active
+                    current={current}
+                    slowHint={slowHint}
+                    steps={steps}
+                    variant="panel"
+                    className="w-full border-slate-700/50 bg-slate-900/80"
+                  />
+                </div>
+              )}
             </div>
-          ))}
-          {loading && pendingQuestion && (
-            <div className="flex justify-end">
-              <div className="max-w-[85%] rounded-2xl px-4 py-2.5 text-sm bg-indigo-600 text-white opacity-80">
-                {pendingQuestion}
-              </div>
-            </div>
-          )}
-          {loading && (
-            <div className="flex justify-start max-w-[90%]">
-              <AgentProgressPanel
-                active
-                current={current}
-                slowHint={slowHint}
-                steps={steps}
-                variant="panel"
-                className="w-full border-slate-700/50 bg-slate-900/80"
-              />
-            </div>
-          )}
-        </div>
 
-        {error && (
-          <p className="px-4 text-sm text-red-400 shrink-0" role="alert">{error}</p>
-        )}
+            {error && (
+              <p className="px-4 text-sm text-red-400 shrink-0" role="alert">{error}</p>
+            )}
 
-        <form
-          className="border-t border-slate-800 p-3 flex gap-2 shrink-0"
-          onSubmit={(e) => {
-            e.preventDefault()
-            void handleSubmit()
-          }}
-        >
-          <textarea
-            rows={2}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+            <form
+              className="border-t border-slate-800 p-3 flex gap-2 shrink-0"
+              onSubmit={(e) => {
                 e.preventDefault()
                 void handleSubmit()
-              }
-            }}
-            placeholder="Ask a question…"
-            disabled={loading}
-            className="flex-1 resize-none rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 disabled:opacity-60"
-          />
-          <button
-            type="submit"
-            disabled={loading || input.trim().length < 3}
-            className="self-end rounded-xl bg-indigo-600 px-4 py-2 text-white disabled:opacity-50 hover:bg-indigo-500"
-            aria-label="Send"
-          >
-            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-          </button>
-        </form>
+              }}
+            >
+              <textarea
+                rows={2}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    void handleSubmit()
+                  }
+                }}
+                placeholder="Ask a question…"
+                disabled={loading || !ready}
+                className="flex-1 resize-none rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 disabled:opacity-60"
+              />
+              <button
+                type="submit"
+                disabled={loading || !ready || input.trim().length < 3}
+                className="self-end rounded-xl bg-indigo-600 px-4 py-2 text-white disabled:opacity-50 hover:bg-indigo-500"
+                aria-label="Send"
+              >
+                {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+              </button>
+            </form>
+          </>
+        )}
       </div>
     </div>
   )
+
+  return createPortal(modal, document.body)
 }
