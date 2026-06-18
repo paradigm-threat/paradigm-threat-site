@@ -9,6 +9,7 @@ import { useAgentProgressDisplay } from '@/components/SiteAi/useAgentProgressDis
 import { useSiteAi } from '@/components/SiteAi/SiteAiProvider'
 import { useBrowserAiSupport } from '@/lib/browserAi/useBrowserAiSupport'
 import { askSiteAi } from '@/lib/siteAi/askSiteAi'
+import { SITE_AI_EXAMPLE_QUESTIONS } from '@/lib/siteAi/siteAiExampleQuestions'
 
 export function SiteAiChatModal () {
   const { open, closeModal, messages, appendExchange, clearHistory, pageContext } = useSiteAi()
@@ -52,9 +53,9 @@ export function SiteAiChatModal () {
     closeModal()
   }, [closeModal, resetProgress])
 
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = useCallback(async (questionOverride?: string) => {
     if (!ready) return
-    const question = input.trim()
+    const question = (questionOverride ?? input).trim()
     if (question.length < 3 || loading) return
 
     abortRef.current?.abort()
@@ -90,6 +91,8 @@ export function SiteAiChatModal () {
       abortRef.current = null
     }
   }, [ready, input, loading, messages, pageContext, appendExchange, onProgress, resetProgress])
+
+  const showEmptyState = messages.length === 0 && !loading
 
   if (!open || !mounted) return null
 
@@ -146,10 +149,25 @@ export function SiteAiChatModal () {
         ) : (
           <>
             <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0">
-              {messages.length === 0 && !loading && (
-                <p className="text-sm text-slate-500 text-center py-8">
-                  Ask anything about the site — history, science, chronology, or a specific article.
-                </p>
+              {showEmptyState && (
+                <div className="space-y-5 py-6">
+                  <p className="text-sm text-slate-500 text-center">
+                    Ask anything about the site — history, science, chronology, or a specific article.
+                  </p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {SITE_AI_EXAMPLE_QUESTIONS.map((question) => (
+                      <button
+                        key={question}
+                        type="button"
+                        onClick={() => { void handleSubmit(question) }}
+                        disabled={!ready}
+                        className="rounded-full border border-slate-700/80 bg-slate-900/80 px-3 py-1.5 text-left text-xs text-slate-300 hover:border-indigo-500/50 hover:bg-indigo-950/40 hover:text-slate-100 disabled:opacity-50 transition-colors"
+                      >
+                        {question}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
               {messages.map((m) => (
                 <div
