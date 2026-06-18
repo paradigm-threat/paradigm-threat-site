@@ -8,6 +8,8 @@ import { ResumeInvestigationPanel } from "@/components/ResumeInvestigationPanel"
 import { RemoteFileIndexBanner } from "@/components/RemoteFileIndexBanner";
 import { SuspenseLoader } from "@client";
 import { BottomChromeProvider } from "@/lib/BottomChromeContext";
+import { SiteAiProvider } from "@/components/SiteAi/SiteAiProvider";
+import { SiteAiChrome } from "@/components/SiteAi/SiteAiChrome";
 import { isMarkdownHubPath } from "@/lib/visitResumeStorage";
 
 export default function MainLayout({
@@ -25,6 +27,7 @@ export default function MainLayout({
 
     return (
         <BottomChromeProvider>
+        <SiteAiProvider>
         <div data-site-chrome className="relative flex w-full min-w-0 max-w-full flex-grow flex-col px-4 pb-8 pt-2">
             <div className="mx-auto flex w-full min-w-0 max-w-[90rem] flex-col gap-8 lg:flex-row">
                 <aside className="lg:w-64 flex-shrink-0">
@@ -60,6 +63,8 @@ export default function MainLayout({
                 )}
             </div>
         </div>
+        <SiteAiChrome />
+        </SiteAiProvider>
         </BottomChromeProvider>
     );
 }

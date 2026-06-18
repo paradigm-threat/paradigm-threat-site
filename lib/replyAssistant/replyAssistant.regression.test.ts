@@ -8,7 +8,7 @@ import { prepareReplyContext } from './prepareReplyContext.ts'
 import { listIndexEntries } from './listIndexEntries.ts'
 import { readArticleContentFromMarkdown, clampReadArticleMaxChars } from './readArticleContent.ts'
 import { buildReplyAgentPrompt, buildReplySystemPrompt } from './agentPrompt.ts'
-import { parseToolCall, stripToolMarkers, TOOL_CALL_END, TOOL_CALL_START } from './replyToolBridge.ts'
+import { parseToolCall, stripToolMarkers, TOOL_CALL_END, TOOL_CALL_START } from '../siteAi/siteAiToolBridge.ts'
 
 const entries: IndexedPathEntry[] = [
   { path: 'debunk/mud-flood.md', searchText: 'debunk/mud-flood.md Mud Flood Tartaria evidence' },

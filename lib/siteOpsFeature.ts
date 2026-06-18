@@ -45,6 +45,11 @@ export function isReplyAssistantFeatureEnabled (): boolean {
   return isWebMcpEnabled()
 }
 
+/** On-device site AI chat (Prompt API + WebMCP tools). Default off with WebMCP. */
+export function isSiteAiEnabled (): boolean {
+  return isWebMcpEnabled()
+}
+
 /**
  * Reserved for a future Relay-hosted HTML + SEO phase. Must stay off while articles
  * use the Next app shell — redirecting to mirror md2ast HTML breaks client components.

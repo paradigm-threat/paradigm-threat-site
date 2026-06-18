@@ -1,6 +1,6 @@
 import { getProjectPerspective } from '@/lib/replyAssistant/projectPerspective'
 import { REPLY_INVESTIGATION_TOOL_NAMES } from '@/lib/replyAssistant/replyInvestigationTools'
-import { TOOL_CALL_END, TOOL_CALL_START } from '@/lib/replyAssistant/replyToolBridge'
+import { TOOL_CALL_END, TOOL_CALL_START } from '@/lib/siteAi/siteAiToolBridge'
 
 export type BuildReplySystemPromptInput = {
   includeCitations: boolean

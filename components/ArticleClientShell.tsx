@@ -9,6 +9,7 @@ import { ArticleNav, ShareLinks, ShareLinksFloating } from '@/components'
 import type { ShareExtractResult } from '@/lib/share'
 import { shouldPersistVisit } from '@/lib/visitResumeStorage'
 import { useMobileHubTtsChrome } from '@/lib/hooks/useMobileHubTtsChrome'
+import { useSiteAiPageContextRegistration } from '@/components/SiteAi/SiteAiProvider'
 
 export interface ArticleClientShellProps {
   articleTitle: string
@@ -41,6 +42,18 @@ export function ArticleClientShell ({
       pathname && shouldPersistVisit(pathname) ? { pathname, title: articleTitle } : null,
     [pathname, articleTitle]
   )
+
+  const siteAiPageContext = useMemo(
+    () => (articlePath
+      ? {
+          path: articlePath,
+          title: articleTitle,
+          excerpt: articleContent.slice(0, 800),
+        }
+      : null),
+    [articlePath, articleTitle, articleContent]
+  )
+  useSiteAiPageContextRegistration(siteAiPageContext)
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 50)

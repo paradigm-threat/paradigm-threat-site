@@ -9,6 +9,7 @@ import { ArticleTTSOverlay } from '@/components/ArticleTTS/ArticleTTSOverlay'
 import { mirrorFilesAssetUrl } from '@/lib/canonicalPublicSite'
 import { shouldPersistVisit } from '@/lib/visitResumeStorage'
 import { useMobileHubTtsChrome } from '@/lib/hooks/useMobileHubTtsChrome'
+import { useSiteAiPageContextRegistration } from '@/components/SiteAi/SiteAiProvider'
 
 export interface TextLeafClientShellProps {
   articlePath: string
@@ -47,6 +48,15 @@ export function TextLeafClientShell ({ articlePath, title, body }: TextLeafClien
       pathname && shouldPersistVisit(pathname) ? { pathname, title } : null,
     [pathname, title],
   )
+
+  useSiteAiPageContextRegistration(useMemo(
+    () => ({
+      path: articlePath,
+      title,
+      excerpt: body.slice(0, 800),
+    }),
+    [articlePath, title, body],
+  ))
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 50)
