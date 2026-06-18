@@ -7,7 +7,8 @@ import { formatCitationBlock } from './formatCitations.ts'
 import { prepareReplyContext } from './prepareReplyContext.ts'
 import { listIndexEntries } from './listIndexEntries.ts'
 import { readArticleContentFromMarkdown, clampReadArticleMaxChars } from './readArticleContent.ts'
-import { buildReplyAgentPrompt } from './agentPrompt.ts'
+import { buildReplyAgentPrompt, buildReplySystemPrompt } from './agentPrompt.ts'
+import { parseToolCall, stripToolMarkers, TOOL_CALL_END, TOOL_CALL_START } from './replyToolBridge.ts'
 
 const entries: IndexedPathEntry[] = [
   { path: 'debunk/mud-flood.md', searchText: 'debunk/mud-flood.md Mud Flood Tartaria evidence' },
@@ -91,6 +92,44 @@ ${bodyRepeat.repeat(40)}`
   it('clamps max chars', () => {
     assert.equal(clampReadArticleMaxChars(100), 500)
     assert.equal(clampReadArticleMaxChars(99_999), 50_000)
+  })
+})
+
+describe('buildReplySystemPrompt', () => {
+  it('mentions Q&A paths and investigation tools', () => {
+    const prompt = buildReplySystemPrompt({
+      includeCitations: false,
+      tone: 'neutral',
+    })
+    assert.ok(prompt.includes('list_index_entries'))
+    assert.ok(prompt.includes('history-qa'))
+    assert.ok(prompt.includes(TOOL_CALL_START))
+    assert.ok(prompt.includes('æther'))
+  })
+})
+
+describe('parseToolCall', () => {
+  it('parses marked tool JSON', () => {
+    const block = [
+      TOOL_CALL_START,
+      '{"name":"search_site","arguments":{"query":"mud flood"}}',
+      TOOL_CALL_END,
+    ].join('\n')
+    const call = parseToolCall(block)
+    assert.equal(call?.name, 'search_site')
+    assert.equal(call?.arguments.query, 'mud flood')
+  })
+
+  it('rejects disallowed tools', () => {
+    const call = parseToolCall('{"name":"copy_to_clipboard","arguments":{"text":"x"}}')
+    assert.equal(call, null)
+  })
+})
+
+describe('stripToolMarkers', () => {
+  it('removes tool blocks from mixed output', () => {
+    const text = `Hello\n${TOOL_CALL_START}\n{}\n${TOOL_CALL_END}\nWorld`
+    assert.equal(stripToolMarkers(text), 'Hello\n\nWorld')
   })
 })
 

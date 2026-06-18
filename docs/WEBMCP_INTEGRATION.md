@@ -11,8 +11,8 @@ How to add [Chrome WebMCP](https://developer.chrome.com/docs/ai/webmcp) (Web Mod
 |------|--------|
 | WebMCP tools (`lib/webmcp/`) | Shipped — search, navigation, share, reply investigation |
 | Feature flags | `NEXT_PUBLIC_WEBMCP_ENABLED`, `NEXT_PUBLIC_WEBMCP_ACTUATION`, `NEXT_PUBLIC_WEBMCP_POLYFILL` (dev) |
-| `/reply` UI | Agent-workflow only; gated on native `document.modelContext` (not polyfill) |
-| Reply assistant | Mode A — Gemini investigates via tools; no bulk MD fetch without agent |
+| `/reply` UI | In-page draft via Prompt API + WebMCP tools (native or polyfill) |
+| Reply assistant | Browser AI drafts reply; tools search/read site corpus |
 | Project perspective seed | `get_project_perspective`, `lib/replyAssistant/projectPerspective.ts` |
 | Polyfill | Strict `@mcp-b/webmcp-polyfill` when native missing; does not enable `/reply` |
 

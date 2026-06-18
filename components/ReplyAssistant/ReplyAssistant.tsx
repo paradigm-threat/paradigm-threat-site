@@ -1,43 +1,55 @@
 'use client'
 
-import React, { useCallback, useEffect, useState } from 'react'
-import { Clipboard, ExternalLink } from 'lucide-react'
-import { buildReplyAgentPrompt } from '@/lib/replyAssistant/agentPrompt'
-import { useReplyAssistantAvailable } from '@/lib/replyAssistant/useReplyAssistantAvailable'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { Clipboard, Loader2, Sparkles } from 'lucide-react'
+import { draftReplyWithBrowserAi, type DraftReplyProgress } from '@/lib/replyAssistant/draftReplyWithBrowserAi'
+import { useReplyDraftingAvailable } from '@/lib/replyAssistant/useReplyDraftingAvailable'
 
 function ReplyUnavailable () {
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-12 px-4">
       <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Reply assistant unavailable</h1>
       <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-        This feature requires an AI agent with native WebMCP support (for example Gemini in Chrome).
-        It is not available in browsers without <code className="text-xs">document.modelContext</code>.
+        Drafting requires WebMCP site tools (native or polyfill) and the browser Prompt API
+        (on-device Gemini Nano in Chrome).
       </p>
-      <ol className="list-decimal space-y-2 pl-5 text-sm text-slate-600 dark:text-slate-400">
-        <li>Use Chrome with WebMCP enabled (origin trial or <code className="text-xs">chrome://flags/#enable-webmcp-testing</code> in dev).</li>
-        <li>Ensure <code className="text-xs">NEXT_PUBLIC_WEBMCP_ENABLED=1</code> is set for this deployment.</li>
-        <li>Open Gemini in Chrome on this tab, then return here.</li>
-      </ol>
-      <p className="text-sm text-slate-500 dark:text-slate-500">
-        Without an agent, the site does not bulk-fetch articles — investigation is agent-led only.
-      </p>
+      <ul className="list-disc space-y-2 pl-5 text-sm text-slate-600 dark:text-slate-400">
+        <li>Set <code className="text-xs">NEXT_PUBLIC_WEBMCP_ENABLED=1</code> for this deployment.</li>
+        <li>Use Chrome with WebMCP enabled and a supported device for built-in AI.</li>
+        <li>Check <code className="text-xs">chrome://on-device-internals</code> if the language model is downloaded.</li>
+      </ul>
     </div>
   )
 }
 
+function progressLabel (progress: DraftReplyProgress | null): string {
+  if (!progress) return ''
+  if (progress.phase === 'starting') return 'Starting…'
+  if (progress.phase === 'tool') return `Searching site (${progress.toolName})…`
+  return 'Drafting reply…'
+}
+
 export function ReplyAssistant () {
-  const agentAvailable = useReplyAssistantAvailable()
+  const availability = useReplyDraftingAvailable()
   const [sourceText, setSourceText] = useState('')
+  const [draftText, setDraftText] = useState('')
   const [includeCitations, setIncludeCitations] = useState(false)
   const [tone, setTone] = useState<'conversational' | 'neutral' | 'brief'>('conversational')
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [drafting, setDrafting] = useState(false)
+  const [progress, setProgress] = useState<DraftReplyProgress | null>(null)
+  const [toolLog, setToolLog] = useState<string[]>([])
+  const [showLog, setShowLog] = useState(false)
+  const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     const prev = document.title
-    document.title = agentAvailable ? 'Reply assistant — Paradigm Threat' : 'Reply assistant unavailable — Paradigm Threat'
+    document.title = availability === 'available'
+      ? 'Reply assistant — Paradigm Threat'
+      : 'Reply assistant unavailable — Paradigm Threat'
     return () => { document.title = prev }
-  }, [agentAvailable])
+  }, [availability])
 
   const handlePaste = useCallback(async () => {
     try {
@@ -49,49 +61,83 @@ export function ReplyAssistant () {
     }
   }, [])
 
-  const handleCopyPrompt = useCallback(async () => {
-    if (sourceText.trim().length < 20) {
-      setError('Paste at least 20 characters before copying the agent prompt')
-      return
-    }
-    const prompt = buildReplyAgentPrompt({ sourceText, includeCitations, tone })
+  const handleCopyDraft = useCallback(async () => {
+    if (!draftText.trim()) return
     try {
-      await navigator.clipboard.writeText(prompt)
+      await navigator.clipboard.writeText(draftText)
       setCopied(true)
       setError(null)
       setTimeout(() => setCopied(false), 2500)
     } catch {
       setError('Copy failed — select and copy manually')
     }
+  }, [draftText])
+
+  const handleDraft = useCallback(async () => {
+    if (sourceText.trim().length < 20) {
+      setError('Paste at least 20 characters before drafting')
+      return
+    }
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    setDrafting(true)
+    setError(null)
+    setDraftText('')
+    setToolLog([])
+    setProgress({ phase: 'starting' })
+
+    try {
+      const result = await draftReplyWithBrowserAi({
+        sourceText,
+        includeCitations,
+        tone,
+        signal: controller.signal,
+        onProgress: setProgress,
+      })
+      setDraftText(result.draft)
+      setToolLog(result.toolCalls.map((t) => `${t.name}(${JSON.stringify(t.arguments)})`))
+    } catch (e) {
+      if (controller.signal.aborted) return
+      setError(e instanceof Error ? e.message : 'Draft failed')
+    } finally {
+      setDrafting(false)
+      setProgress(null)
+      abortRef.current = null
+    }
   }, [sourceText, includeCitations, tone])
 
-  if (!agentAvailable) {
+  const handleCancel = useCallback(() => {
+    abortRef.current?.abort()
+    setDrafting(false)
+    setProgress(null)
+  }, [])
+
+  if (availability === 'checking') {
+    return (
+      <div className="mx-auto max-w-2xl py-12 px-4 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Checking browser AI and WebMCP…
+      </div>
+    )
+  }
+
+  if (availability === 'unavailable') {
     return <ReplyUnavailable />
   }
 
-  const canCopy = sourceText.trim().length >= 20
+  const canDraft = sourceText.trim().length >= 20 && !drafting
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-4">
       <header className="space-y-2">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Reply assistant</h1>
         <p className="text-sm text-slate-600 dark:text-slate-400">
-          Paste a forum post, then ask Gemini in Chrome to draft a reply using this site&apos;s WebMCP tools.
-          The copied prompt includes Paradigm Threat&apos;s perspective on history, science, and technology.
-          The agent searches the index, reads articles on demand, and drafts prose — citations optional.
+          Paste a forum post, then draft a reply using on-device AI. The assistant searches
+          paradigm-threat articles — including Q&amp;A sections — via WebMCP tools before writing.
         </p>
       </header>
-
-      <section className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-4 space-y-3">
-        <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Workflow</h2>
-        <ol className="list-decimal space-y-1 pl-5 text-sm text-slate-600 dark:text-slate-400">
-          <li>Paste the post below.</li>
-          <li>Copy the agent prompt (or paste the text into Gemini directly).</li>
-          <li>Open Gemini in Chrome on this tab and send the prompt.</li>
-          <li>Let the agent call <code className="text-xs">get_project_perspective</code>, <code className="text-xs">search_site</code>, <code className="text-xs">read_article</code>, etc.</li>
-          <li>Copy the finished reply from Gemini.</li>
-        </ol>
-      </section>
 
       <div className="space-y-2">
         <label htmlFor="reply-source" className="text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -119,7 +165,7 @@ export function ReplyAssistant () {
               checked={includeCitations}
               onChange={(e) => setIncludeCitations(e.target.checked)}
             />
-            Ask agent to include article links
+            Include article links in draft
           </label>
           <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
             Tone
@@ -136,34 +182,73 @@ export function ReplyAssistant () {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
-          disabled={!canCopy}
-          onClick={() => { void handleCopyPrompt() }}
+          disabled={!canDraft}
+          onClick={() => { void handleDraft() }}
           className="inline-flex items-center gap-2 rounded-lg bg-blue-600 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
         >
-          <Clipboard className="h-4 w-4" />
-          {copied ? 'Prompt copied!' : 'Copy agent prompt'}
+          {drafting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          {drafting ? 'Drafting…' : 'Draft reply'}
         </button>
-        <a
-          href="https://developer.chrome.com/docs/ai/webmcp"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-        >
-          WebMCP docs
-          <ExternalLink className="h-3.5 w-3.5" />
-        </a>
+        {drafting && (
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="text-sm text-slate-600 dark:text-slate-400 hover:underline"
+          >
+            Cancel
+          </button>
+        )}
+        {drafting && progress && (
+          <span className="text-sm text-slate-500">{progressLabel(progress)}</span>
+        )}
       </div>
+
+      {draftText && (
+        <div className="space-y-2">
+          <label htmlFor="reply-draft" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            Draft reply
+          </label>
+          <textarea
+            id="reply-draft"
+            rows={12}
+            value={draftText}
+            onChange={(e) => setDraftText(e.target.value)}
+            className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-sm"
+          />
+          <button
+            type="button"
+            onClick={() => { void handleCopyDraft() }}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 dark:border-slate-600 px-4 py-2 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800"
+          >
+            <Clipboard className="h-4 w-4" />
+            {copied ? 'Copied!' : 'Copy reply'}
+          </button>
+        </div>
+      )}
+
+      {toolLog.length > 0 && (
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => setShowLog((v) => !v)}
+            className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+          >
+            {showLog ? 'Hide' : 'Show'} investigation log ({toolLog.length} tool calls)
+          </button>
+          {showLog && (
+            <pre className="overflow-x-auto rounded-lg bg-slate-100 dark:bg-slate-900 p-3 text-xs text-slate-600 dark:text-slate-400">
+              {toolLog.join('\n')}
+            </pre>
+          )}
+        </div>
+      )}
 
       {error && (
         <p className="text-sm text-red-600 dark:text-red-400" role="alert">{error}</p>
       )}
-
-      <p className="text-xs text-slate-500 dark:text-slate-500">
-        No articles are fetched until the agent calls <code className="text-xs">read_article</code> on paths it chooses.
-      </p>
     </div>
   )
 }

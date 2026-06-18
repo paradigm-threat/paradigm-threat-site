@@ -1,24 +1,10 @@
 'use client'
 
-import { useSyncExternalStore } from 'react'
-import { isReplyAssistantFeatureEnabled } from '@/lib/siteOpsFeature'
-import { nativeWebMcpAvailableAtLoad } from '@/lib/webmcp/nativeAtLoad'
+import { useReplyDraftingAvailable } from '@/lib/replyAssistant/useReplyDraftingAvailable'
 
-function computeAgentAvailable (): boolean {
-  if (typeof window === 'undefined') return false
-  if (!isReplyAssistantFeatureEnabled()) return false
-  return nativeWebMcpAvailableAtLoad()
-}
-
-/** True when WebMCP is enabled and native agent API existed before polyfill. */
-export function isReplyAssistantAgentAvailable (): boolean {
-  return computeAgentAvailable()
-}
-
-function subscribe (): () => void {
-  return () => {}
-}
-
+/** True when WebMCP (native or polyfill) and browser Prompt API are both available. */
 export function useReplyAssistantAvailable (): boolean {
-  return useSyncExternalStore(subscribe, computeAgentAvailable, () => false)
+  return useReplyDraftingAvailable() === 'available'
 }
+
+export { useReplyDraftingAvailable, type ReplyDraftingAvailability } from '@/lib/replyAssistant/useReplyDraftingAvailable'
