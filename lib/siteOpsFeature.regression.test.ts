@@ -9,6 +9,7 @@ import {
   isWebMcpEnabled,
   isWebMcpPolyfillForced,
   isWebMcpActuationEnabled,
+  isReplyAssistantFeatureEnabled,
 } from './siteOpsFeature.ts'
 import {
   shouldRedirectPathToFilesMirror,
@@ -62,6 +63,7 @@ describe('siteOpsFeature flags', () => {
     assert.equal(isWebMcpEnabled(), false)
     assert.equal(isWebMcpPolyfillForced(), false)
     assert.equal(isWebMcpActuationEnabled(), false)
+    assert.equal(isReplyAssistantFeatureEnabled(), false)
   })
 
   it('server relay fetch on when env is 1', () => {
@@ -86,6 +88,7 @@ describe('siteOpsFeature flags', () => {
     assert.equal(isWebMcpEnabled(), true)
     assert.equal(isWebMcpPolyfillForced(), true)
     assert.equal(isWebMcpActuationEnabled(), true)
+    assert.equal(isReplyAssistantFeatureEnabled(), true)
   })
 })
 

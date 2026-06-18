@@ -5,12 +5,16 @@ import {
   executeSearchSite,
   executeFindArticlesForText,
   executeListSearchFilters,
+  executePrepareReplyContext,
+  executeListIndexEntries,
+  executeFormatReplyCitations,
 } from './toolHandlers.ts'
 import { setWebMcpSearchIndexOverride } from './indexStore.ts'
 
 const mockEntries: IndexedPathEntry[] = [
   { path: 'science/aether.md', searchText: 'science/aether.md Aether plasma magnetism' },
   { path: 'debunk/mud-flood.md', searchText: 'debunk/mud-flood.md Mud Flood Tartaria' },
+  { path: 'timeline/evt-test', searchText: 'evt-test Golden mud' },
 ]
 
 describe('webmcp tool handlers', () => {
@@ -50,5 +54,39 @@ describe('webmcp tool handlers', () => {
     const text = result.content[0]?.type === 'text' ? result.content[0].text : ''
     const parsed = JSON.parse(text) as { results: { path: string }[] }
     assert.ok(parsed.results.length >= 1)
+  })
+
+  it('prepare_reply_context returns seeds without replyDraft', async () => {
+    const result = await executePrepareReplyContext({
+      sourceText: 'Tell me about mud flood and tartaria in this forum thread please',
+    })
+    const text = result.content[0]?.type === 'text' ? result.content[0].text : ''
+    const parsed = JSON.parse(text) as {
+      seedArticles: { path: string }[]
+      agentInstructions: string
+      replyDraft?: string
+    }
+    assert.ok(parsed.seedArticles.length >= 1)
+    assert.ok(parsed.agentInstructions.includes('read_article'))
+    assert.equal(parsed.replyDraft, undefined)
+  })
+
+  it('list_index_entries filters by kind', async () => {
+    const result = await executeListIndexEntries({ kind: 'timeline', limit: 10 })
+    const text = result.content[0]?.type === 'text' ? result.content[0].text : ''
+    const parsed = JSON.parse(text) as { entries: { path: string }[] }
+    assert.equal(parsed.entries.length, 1)
+    assert.ok(parsed.entries[0]?.path.startsWith('timeline/'))
+  })
+
+  it('format_reply_citations builds footer', () => {
+    const result = executeFormatReplyCitations({
+      articles: [{ title: 'Aether', url: 'https://example.com/aether' }],
+      citationStyle: 'footer',
+    })
+    const text = result.content[0]?.type === 'text' ? result.content[0].text : ''
+    const parsed = JSON.parse(text) as { text: string }
+    assert.ok(parsed.text.includes('Sources:'))
+    assert.ok(parsed.text.includes('example.com/aether'))
   })
 })

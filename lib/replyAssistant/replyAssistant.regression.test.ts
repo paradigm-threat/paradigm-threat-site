@@ -1,13 +1,18 @@
 import assert from 'node:assert/strict'
-import { describe, it } from 'node:test'
+import { afterEach, describe, it } from 'node:test'
 import type { IndexedPathEntry } from '../components/helpers/indexHelper.ts'
 import { findArticlesForText } from './findArticlesForText.ts'
 import { composeReplyShell } from './composeReplyShell.ts'
 import { formatCitationBlock } from './formatCitations.ts'
+import { prepareReplyContext } from './prepareReplyContext.ts'
+import { listIndexEntries } from './listIndexEntries.ts'
+import { readArticleContentFromMarkdown, clampReadArticleMaxChars } from './readArticleContent.ts'
+import { buildReplyAgentPrompt } from './agentPrompt.ts'
 
 const entries: IndexedPathEntry[] = [
   { path: 'debunk/mud-flood.md', searchText: 'debunk/mud-flood.md Mud Flood Tartaria evidence' },
   { path: 'history/tartaria.md', searchText: 'history/tartaria.md Tartaria maps mud flood' },
+  { path: 'timeline/evt-golden', searchText: 'evt-golden Golden Age aether' },
   { path: 'blog/noise.md', searchText: 'blog/noise.md unrelated topic' },
 ]
 
@@ -25,6 +30,78 @@ describe('findArticlesForText', () => {
     const result = findArticlesForText(entries, { sourceText: 'too short' })
     assert.equal(result.results.length, 0)
     assert.ok(result.warnings.length > 0)
+  })
+})
+
+describe('prepareReplyContext', () => {
+  it('returns index seeds without fetching markdown', () => {
+    const result = prepareReplyContext(entries, {
+      sourceText: 'What about the mud flood and tartaria evidence in this thread?',
+      includeCitations: false,
+    })
+    assert.ok(result.seedArticles.length >= 1)
+    assert.ok(result.agentInstructions.includes('read_article'))
+    assert.equal(result.includeCitations, false)
+    assert.ok(!('replyDraft' in result))
+  })
+
+  it('warns on short paste', () => {
+    const result = prepareReplyContext(entries, { sourceText: 'short' })
+    assert.equal(result.seedArticles.length, 0)
+    assert.ok(result.warnings.length > 0)
+  })
+})
+
+describe('listIndexEntries', () => {
+  it('filters by prefix and kind', () => {
+    const result = listIndexEntries(entries, { prefix: 'debunk/', kind: 'article', limit: 10 })
+    assert.equal(result.count, 1)
+    assert.equal(result.entries[0]?.path, 'debunk/mud-flood.md')
+  })
+
+  it('lists timeline entries', () => {
+    const result = listIndexEntries(entries, { kind: 'timeline', limit: 10 })
+    assert.equal(result.count, 1)
+    assert.ok(result.entries[0]?.path.startsWith('timeline/'))
+  })
+})
+
+describe('readArticleContentFromMarkdown', () => {
+  const bodyRepeat = 'Detail sentence about mud flood evidence. '
+  const md = `---
+title: Test
+---
+
+# Test Article
+
+> **TL;DR:** Summary line here.
+
+${bodyRepeat.repeat(40)}`
+
+  it('returns tldr and paginated body', () => {
+    const result = readArticleContentFromMarkdown('debunk/test.md', md, { maxChars: 500 })
+    assert.ok(result.tldr.includes('Summary'))
+    assert.equal(result.bodyPlain.length, 500)
+    assert.equal(result.truncated, true)
+    assert.ok(result.canonicalUrl.includes('debunk/test'))
+  })
+
+  it('clamps max chars', () => {
+    assert.equal(clampReadArticleMaxChars(100), 500)
+    assert.equal(clampReadArticleMaxChars(99_999), 50_000)
+  })
+})
+
+describe('buildReplyAgentPrompt', () => {
+  it('mentions tools and pasted text', () => {
+    const prompt = buildReplyAgentPrompt({
+      sourceText: 'Forum post about mud floods and tartaria',
+      includeCitations: true,
+      tone: 'brief',
+    })
+    assert.ok(prompt.includes('read_article'))
+    assert.ok(prompt.includes('Forum post about mud floods'))
+    assert.ok(prompt.includes('Sources footer'))
   })
 })
 

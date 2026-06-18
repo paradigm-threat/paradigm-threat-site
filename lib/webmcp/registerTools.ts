@@ -3,14 +3,17 @@ import { getModelContext } from '@/lib/webmcp/modelContext'
 import {
   executeComposeShareText,
   executeCopyToClipboard,
-  executeDraftReplyToText,
   executeExpandSearchKeywords,
   executeFeelingLucky,
   executeFindArticlesForText,
+  executeFormatReplyCitations,
   executeGetArticleContext,
+  executeListIndexEntries,
   executeListSearchFilters,
   executeNavigateToResult,
   executeOpenTimelineEvent,
+  executePrepareReplyContext,
+  executeReadArticle,
   executeSearchSite,
   executeSetSearchFilters,
   executeSuggestSearchFromPath,
@@ -117,7 +120,7 @@ const TOOLS: AnyTool[] = [
     properties: {},
   }, () => executeFeelingLucky()),
 
-  wrap('find_articles_for_text', 'Extract terms from pasted forum text and find relevant site articles.', {
+  wrap('find_articles_for_text', 'Index-only: extract terms from pasted text and rank matching articles (no markdown fetch).', {
     type: 'object',
     properties: {
       sourceText: { type: 'string', minLength: 20 },
@@ -128,24 +131,60 @@ const TOOLS: AnyTool[] = [
     required: ['sourceText'],
   }, executeFindArticlesForText),
 
-  wrap(
-    'draft_reply_to_text',
-    'Draft a forum reply grounded in site articles. Returns template text (Mode B) plus agentContext for Gemini to refine. Citations off by default.',
-    {
-      type: 'object',
-      properties: {
-        sourceText: { type: 'string', minLength: 20 },
-        maxArticles: { type: 'integer', minimum: 1, maximum: 10, default: 3 },
-        includeCitations: { type: 'boolean', default: false },
-        citationStyle: { type: 'string', enum: ['inline', 'footer', 'markdown'], default: 'footer' },
-        tone: { type: 'string', enum: ['neutral', 'conversational', 'brief'], default: 'conversational' },
-        maxLength: { type: 'integer' },
-        includeBlog: { type: 'boolean', default: false },
-      },
-      required: ['sourceText'],
+  wrap('prepare_reply_context', 'Parse pasted forum text and return index seed hits plus agent workflow instructions. Does not fetch markdown — agent should use read_article.', {
+    type: 'object',
+    properties: {
+      sourceText: { type: 'string', minLength: 20 },
+      maxSeedArticles: { type: 'integer', minimum: 1, maximum: 10, default: 5 },
+      includeCitations: { type: 'boolean', default: false },
+      citationStyle: { type: 'string', enum: ['inline', 'footer', 'markdown'], default: 'footer' },
+      tone: { type: 'string', enum: ['neutral', 'conversational', 'brief'], default: 'conversational' },
+      includeBlog: { type: 'boolean', default: false },
     },
-    executeDraftReplyToText
-  ),
+    required: ['sourceText'],
+  }, executePrepareReplyContext),
+
+  wrap('list_index_entries', 'Browse the search index by prefix, kind, or query. Use before read_article to discover paths.', {
+    type: 'object',
+    properties: {
+      prefix: { type: 'string', description: 'Path prefix, e.g. debunk/ or timeline/' },
+      kind: { type: 'string', enum: ['article', 'timeline', 'other', 'all'], default: 'all' },
+      query: { type: 'string', description: 'Optional AND keyword filter on index searchText' },
+      limit: { type: 'integer', minimum: 1, maximum: 200, default: 50 },
+      includeBlog: { type: 'boolean', default: false },
+      includeSectionPages: { type: 'boolean', default: false },
+    },
+  }, executeListIndexEntries),
+
+  wrap('read_article', 'Fetch article or timeline markdown. Returns TL;DR, keywords, and plain body (paginate with offset/maxChars).', {
+    type: 'object',
+    properties: {
+      path: { type: 'string', description: 'Index path, e.g. debunk/foo.md or timeline/evt-123' },
+      offset: { type: 'integer', minimum: 0, default: 0 },
+      maxChars: { type: 'integer', minimum: 500, maximum: 50000, default: 12000 },
+      includeRawMarkdown: { type: 'boolean', default: false },
+    },
+    required: ['path'],
+  }, executeReadArticle),
+
+  wrap('format_reply_citations', 'Format a citation footer or inline block from title/url pairs.', {
+    type: 'object',
+    properties: {
+      articles: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            title: { type: 'string' },
+            url: { type: 'string' },
+          },
+          required: ['title', 'url'],
+        },
+      },
+      citationStyle: { type: 'string', enum: ['inline', 'footer', 'markdown'], default: 'footer' },
+    },
+    required: ['articles'],
+  }, (args) => executeFormatReplyCitations(args)),
 ]
 
 const ACTUATION_TOOLS: AnyTool[] = [

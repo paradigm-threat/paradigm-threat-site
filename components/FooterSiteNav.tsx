@@ -2,9 +2,20 @@
 
 import Link from 'next/link'
 import { isChatDisabled } from '@/lib/siteOpsFeature'
+import { useReplyAssistantAvailable } from '@/lib/replyAssistant/useReplyAssistantAvailable'
 
 const linkClass =
   'shrink-0 hover:text-slate-900 dark:hover:text-white transition-colors'
+
+function ReplyNavLink () {
+  const available = useReplyAssistantAvailable()
+  if (!available) return null
+  return (
+    <Link href="/reply" className={linkClass}>
+      Reply
+    </Link>
+  )
+}
 
 export function FooterSiteNav () {
   return (
@@ -15,9 +26,7 @@ export function FooterSiteNav () {
       <Link href="/search" className={linkClass}>
         Search
       </Link>
-      <Link href="/reply" className={linkClass}>
-        Reply
-      </Link>
+      <ReplyNavLink />
       <Link href="/" className={linkClass}>
         Home
       </Link>

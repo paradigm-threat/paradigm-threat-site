@@ -38,6 +38,14 @@ export function isWebMcpActuationEnabled (): boolean {
 }
 
 /**
+ * Reply assistant requires WebMCP tools (env). Actual agent availability is
+ * native `document.modelContext` — see `isReplyAssistantAgentAvailable` in the browser.
+ */
+export function isReplyAssistantFeatureEnabled (): boolean {
+  return isWebMcpEnabled()
+}
+
+/**
  * Reserved for a future Relay-hosted HTML + SEO phase. Must stay off while articles
  * use the Next app shell — redirecting to mirror md2ast HTML breaks client components.
  */

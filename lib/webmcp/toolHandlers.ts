@@ -6,10 +6,13 @@ import { feelingLuckyPathToHref } from '@/lib/feelingLucky'
 import { filterEntriesByPathQueries, hrefForSearchQuery } from '@/lib/pathSearchQuery'
 import { expandSearchKeywords } from '@/lib/replyAssistant/expandKeywords'
 import { findArticlesForText } from '@/lib/replyAssistant/findArticlesForText'
+import { formatCitationBlock, type CitationStyle } from '@/lib/replyAssistant/formatCitations'
+import { listIndexEntries } from '@/lib/replyAssistant/listIndexEntries'
+import { prepareReplyContext } from '@/lib/replyAssistant/prepareReplyContext'
+import { readArticleContentFromMarkdown } from '@/lib/replyAssistant/readArticleContent'
 import {
-  draftReplyToText,
   searchContentFiltersFromInput,
-} from '@/lib/replyAssistant/draftReply'
+} from '@/lib/replyAssistant/searchContentFilters'
 import { searchEntryTitle } from '@/lib/searchEntryDisplay'
 import {
   composeShareText,
@@ -253,25 +256,78 @@ export async function executeFindArticlesForText (args: Record<string, unknown>)
   return toolJsonResult(result)
 }
 
-export async function executeDraftReplyToText (args: Record<string, unknown>): Promise<CallToolResult> {
+export async function executePrepareReplyContext (args: Record<string, unknown>): Promise<CallToolResult> {
   const index = await loadIndex()
   if (!index) return indexUnavailable()
 
   const sourceText = String(args.sourceText ?? '')
-  const result = await draftReplyToText(
-    index,
-    {
-      sourceText,
-      maxArticles: parseIntBounded(args.maxArticles, 3, 1, 10),
-      includeCitations: parseBool(args.includeCitations, false),
-      citationStyle: (args.citationStyle as 'inline' | 'footer' | 'markdown') ?? 'footer',
-      tone: (args.tone as 'neutral' | 'conversational' | 'brief') ?? 'conversational',
-      maxLength: typeof args.maxLength === 'number' ? args.maxLength : undefined,
-      includeBlog: parseBool(args.includeBlog, false),
-    },
-    fetchArticleMarkdown
-  )
+  const result = prepareReplyContext(index, {
+    sourceText,
+    maxSeedArticles: parseIntBounded(args.maxSeedArticles, 5, 1, 10),
+    includeCitations: parseBool(args.includeCitations, false),
+    citationStyle: (args.citationStyle as CitationStyle) ?? 'footer',
+    tone: (args.tone as 'neutral' | 'conversational' | 'brief') ?? 'conversational',
+    includeBlog: parseBool(args.includeBlog, false),
+  })
   return toolJsonResult(result)
+}
+
+export async function executeListIndexEntries (args: Record<string, unknown>): Promise<CallToolResult> {
+  const index = await loadIndex()
+  if (!index) return indexUnavailable()
+
+  const filters = searchContentFiltersFromInput({
+    includeBlog: parseBool(args.includeBlog, false),
+    includeSectionPages: parseBool(args.includeSectionPages, false),
+  })
+  const kind = String(args.kind ?? 'all') as 'article' | 'timeline' | 'other' | 'all'
+  const result = listIndexEntries(index, {
+    prefix: typeof args.prefix === 'string' ? args.prefix : undefined,
+    kind: ['article', 'timeline', 'other', 'all'].includes(kind) ? kind : 'all',
+    query: typeof args.query === 'string' ? args.query : undefined,
+    limit: parseIntBounded(args.limit, 50, 1, 200),
+    includeBlog: parseBool(args.includeBlog, false),
+    includeSectionPages: parseBool(args.includeSectionPages, false),
+  }, filters)
+  return toolJsonResult(result)
+}
+
+export async function executeReadArticle (args: Record<string, unknown>): Promise<CallToolResult> {
+  const path = String(args.path ?? '').trim()
+  if (!path) return toolErrorResult('path is required')
+
+  const md = await fetchArticleMarkdown(path)
+  if (!md) return toolErrorResult(`Could not load markdown for path: ${path}`)
+
+  const result = readArticleContentFromMarkdown(path, md, {
+    offset: parseIntBounded(args.offset, 0, 0, 500_000),
+    maxChars: typeof args.maxChars === 'number' ? args.maxChars : undefined,
+    includeRawMarkdown: parseBool(args.includeRawMarkdown, false),
+  })
+  return toolJsonResult(result)
+}
+
+export function executeFormatReplyCitations (args: Record<string, unknown>): CallToolResult {
+  const raw = args.articles
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return toolErrorResult('articles array is required')
+  }
+  const items = raw
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null
+      const o = item as Record<string, unknown>
+      const title = String(o.title ?? '').trim()
+      const url = String(o.url ?? o.canonicalUrl ?? '').trim()
+      if (!title || !url) return null
+      return { title, url }
+    })
+    .filter((x): x is { title: string; url: string } => x !== null)
+
+  if (!items.length) return toolErrorResult('articles must include title and url')
+
+  const style = (args.citationStyle as CitationStyle) ?? 'footer'
+  const text = formatCitationBlock(items, style)
+  return toolJsonResult({ text, citationStyle: style, count: items.length })
 }
 
 export async function executeCopyToClipboard (args: Record<string, unknown>): Promise<CallToolResult> {
