@@ -22,7 +22,7 @@ export function SiteAiChrome () {
     <>
       <SiteAiChatModal />
       {showGlobalFab && (
-        <div className="fixed bottom-8 right-8 z-50 md:right-8">
+        <div className="fixed bottom-8 right-8 z-[120] md:right-8">
           <SiteAiLauncherButton size="fab" />
         </div>
       )}

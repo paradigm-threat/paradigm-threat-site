@@ -82,7 +82,7 @@ export function SiteAiChatModal () {
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end md:items-center justify-center p-2 md:p-6 bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-[130] flex items-end md:items-center justify-center p-2 md:p-6 bg-black/50 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="site-ai-title"
