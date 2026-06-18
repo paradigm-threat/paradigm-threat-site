@@ -2,14 +2,25 @@
 
 How to add [Chrome WebMCP](https://developer.chrome.com/docs/ai/webmcp) (Web Model Context Protocol) to paradigm-threat-site so AI agents can discover and call structured site tools — with optional polyfill fallback when native support is absent.
 
-**Status:** planning / not implemented  
+**Status:** implemented (behind `NEXT_PUBLIC_WEBMCP_ENABLED=1`)  
 **Last reviewed:** 2026-06-17
+
+### Implementation status (June 2026)
+
+| Area | Status |
+|------|--------|
+| WebMCP tools (`lib/webmcp/`) | Shipped — search, navigation, share, reply investigation |
+| Feature flags | `NEXT_PUBLIC_WEBMCP_ENABLED`, `NEXT_PUBLIC_WEBMCP_ACTUATION`, `NEXT_PUBLIC_WEBMCP_POLYFILL` (dev) |
+| `/reply` UI | Agent-workflow only; gated on native `document.modelContext` (not polyfill) |
+| Reply assistant | Mode A — Gemini investigates via tools; no bulk MD fetch without agent |
+| Project perspective seed | `get_project_perspective`, `lib/replyAssistant/projectPerspective.ts` |
+| Polyfill | Strict `@mcp-b/webmcp-polyfill` when native missing; does not enable `/reply` |
 
 ---
 
 ## Executive summary
 
-paradigm-threat-site is a content-heavy Next.js app with **client-side keyword search**, **share/clipboard composition**, and **timeline navigation** — but no AI agent surface today. WebMCP lets us expose those capabilities as typed, discoverable tools on `navigator.modelContext` instead of forcing agents to scrape the DOM.
+paradigm-threat-site is a content-heavy Next.js app with **client-side keyword search**, **share/clipboard composition**, **timeline navigation**, and **WebMCP tools** for AI agents when the feature flag is on.
 
 Recommended approach:
 
@@ -209,38 +220,32 @@ inputSchema: {
 - Optionally run 2–3 focused AND queries on the best term pairs and merge/dedupe results.
 - Reuse Relay index fetch + `get_article_context` for titles/TL;DR on top hits.
 
-##### `draft_reply_to_text`
+##### `prepare_reply_context` (replaces `draft_reply_to_text`)
 
-Orchestrator tool: retrieval + context bundle + optional citation formatting. **Does not require a site-hosted LLM** when a WebMCP agent (Gemini in Chrome) is the caller — see feasibility below.
+Index-only seed from pasted text plus `projectPerspective` and agent workflow instructions. **Does not fetch markdown** — the agent calls `read_article` iteratively.
 
 ```ts
-inputSchema: {
-  type: 'object',
-  properties: {
-    sourceText: { type: 'string', minLength: 20 },
-    maxArticles: { type: 'integer', default: 3 },
-    includeCitations: { type: 'boolean', default: false, description: 'Append source URLs; default false for forum-native tone' },
-    citationStyle: { enum: ['inline', 'footer', 'markdown'], default: 'footer' },
-    tone: { enum: ['neutral', 'conversational', 'brief'], default: 'conversational' },
-    maxLength: { type: 'integer', description: 'Soft cap on reply length (chars)' },
-  },
-  required: ['sourceText'],
-}
 // output: {
-//   replyDraft: string,              // see generation modes below
-//   articlesUsed: [{ path, title, canonicalUrl, tldr }],
-//   citationsIncluded: boolean,
-//   warnings: string[],              // e.g. "low confidence — few index matches"
+//   sourceText, extractedQueries, seedArticles[], projectPerspective,
+//   includeCitations, citationStyle, tone, warnings, agentInstructions
 // }
 ```
 
-**Generation modes (pick one per deployment):**
+##### `get_project_perspective`
 
-| Mode | Who writes prose | `replyDraft` contents | Feasibility |
-|---|---|---|---|
-| **A — Agent-composed** (recommended for WebMCP) | Gemini / inspector agent | Tool returns structured `articlesUsed` + `sourceText`; agent writes reply in chat; user copies from agent UI | **High** — no new server infra |
-| **B — Structured shell** | Site template only | Rule-based frame: “On \<topic\>, …” + TL;DR excerpts stitched together; citations appended if flag set | **Medium** — readable but not truly conversational |
-| **C — Server LLM** | `/api/draft-reply` route | Full generative reply from pasted text + article excerpts | **Medium** — needs API key, cost, privacy policy, rate limits |
+Returns Paradigm Threat worldview seed (history, æther science, reply voice). Included in `/reply` agent prompts.
+
+##### `read_article`, `list_index_entries`, `format_reply_citations`
+
+Agent investigation toolkit: browse index, read MD with pagination, format citation footers.
+
+**Generation (shipped): Mode A — Agent-composed only**
+
+| Mode | Status |
+|------|--------|
+| **A — Agent-composed** | **Shipped** — `/reply` copies prompt; Gemini uses WebMCP tools |
+| **B — Template shell** | Removed from UI (no bulk fetch without agent) |
+| **C — Server LLM** | Not implemented |
 
 **Default citation behavior:** `includeCitations: false` — forum replies usually read better without a link dump. When `true`, append a footer block:
 
@@ -342,7 +347,7 @@ These are **ideas**, not v1 tools:
 |---|---|
 | **Semantic / synonym search** | Today: substring AND only. Could add `search_site_semantic` backed by precomputed embeddings in files repo, or agent-side expansion calling `expand_search_keywords` first. |
 | **LLM-generated result blurbs** | Tool returns search hits; agent (Gemini) writes context copy — WebMCP does not require our server to host an LLM. Optional `summarize_results` could call `createMessage` only if using `@mcp-b/global`. |
-| **Forum reply (server LLM)** | `draft_reply_to_text` Mode C — full generative replies without Gemini; see Tier 1b. |
+| **Forum reply (server LLM)** | Not implemented; use Mode A (`prepare_reply_context` + agent tools). |
 | **Semantic paste → article matching** | Embeddings or synonym expansion when keyword overlap fails on long pasted rants. |
 | **Glossary / vocabulary lookup** | Expose canon terms from paradigm-threat-files as `registerResource` (requires `@mcp-b/global` or manual JSON resource). |
 | **Chat room queries** | Human chat only today; separate privacy review. |
@@ -362,7 +367,7 @@ lib/webmcp/
     search.ts              # search_site, suggest_search_from_path, expand_search_keywords
     article.ts             # get_article_context
     share.ts               # compose_share_text
-    reply.ts               # find_articles_for_text, draft_reply_to_text
+    reply.ts               # find_articles_for_text, prepare_reply_context, get_project_perspective
     navigate.ts            # navigate_to_result, open_timeline_event, feeling_lucky
   replyAssistant/          # shared by WebMCP tools + optional ReplyAssistant UI
     extractTerms.ts        # stopwords + term ranking from pasted prose
@@ -501,7 +506,7 @@ This reuses all existing share logic — WebMCP is a **facade**, not a rewrite.
 | “Hook that doesn’t repeat the title” | `variant: 'alternate_hook'` | Title + first non-TL;DR sentence |
 | “What would I copy if I clicked Share?” | `compose_share_text` + `full` | Parity with `ShareCopyModal` default |
 | Actually copy to clipboard | `copy_to_clipboard` (Tier 3) | Requires user confirm dialog |
-| “Reply to this forum post” | `draft_reply_to_text` | Paste `sourceText` → ranked articles → reply draft; citations **off** unless `includeCitations: true` |
+| “Reply to this forum post” | `prepare_reply_context` + agent tools | Paste `sourceText` → index seed + `projectPerspective`; agent calls `read_article`; citations **off** unless requested |
 | “What should I cite?” (no prose) | `find_articles_for_text` | Retrieval only; user or agent writes the reply |
 
 **Important:** v1 should **return text** rather than silently clipboard-write. Agents can display text for user copy; aligns with WebMCP security best practices.
@@ -575,35 +580,36 @@ Existing harness: `e2e/`, `cypress/` — add `e2e/webmcp-search.spec.ts`.
 
 ### Phase 0 — Spike (1–2 days)
 
-- [ ] Add feature flag + empty `WebMcpProvider`
-- [ ] Dynamic import polyfill; log native vs polyfill in dev
-- [ ] Register one tool: `search_site`
-- [ ] One regression test via `modelContextTesting`
+- [x] Add feature flag + `WebMcpProvider`
+- [x] Dynamic import polyfill; native captured before polyfill for reply gating
+- [x] Register tools including `search_site`
+- [x] Regression tests via tool handler unit tests
 
 ### Phase 1 — Read-only toolkit
 
-- [ ] `get_article_context`, `compose_share_text`, `suggest_search_from_path`
-- [ ] `find_articles_for_text` + `lib/replyAssistant/extractTerms.ts` (retrieval-only reply assistant)
-- [ ] Document tools in this file (schema appendix)
+- [x] `get_article_context`, `compose_share_text`, `suggest_search_from_path`
+- [x] `find_articles_for_text` + `lib/replyAssistant/extractTerms.ts`
+- [x] Document tools in this file (schema appendix)
 - [ ] Playwright e2e for search tool parity
 
 ### Phase 1b — Forum reply (agent-composed)
 
-- [ ] `draft_reply_to_text` Mode A — structured bundle for Gemini; `includeCitations` default `false`
-- [ ] Optional `ReplyAssistant` UI sharing `lib/replyAssistant/`
-- [ ] Regression tests: paste fixtures → stable ranked paths
+- [x] `prepare_reply_context` + `get_project_perspective`; `includeCitations` default `false`
+- [x] `read_article`, `list_index_entries`, `format_reply_citations`
+- [x] `ReplyAssistant` UI at `/reply` (agent prompt workflow)
+- [x] Regression tests: paste fixtures → stable ranked paths
 
 ### Phase 2 — Origin trial staging
 
 - [ ] COOP/COEP / Permissions-Policy audit on Vercel
-- [ ] Enable `NEXT_PUBLIC_WEBMCP_ENABLED=1` on preview deployments only
+- [x] `NEXT_PUBLIC_WEBMCP_ENABLED=1` in `.env` (enable on Vercel production as needed)
 - [ ] Inspector + Gemini manual test pass
 
 ### Phase 3 — UX integration
 
 - [ ] Wire `pathSearchQuery` into 404 → search via shared tool backend
 - [ ] Declarative annotations on refactored search form
-- [ ] Optional Tier 3 actuation behind `WEBMCP_ACTUATION`
+- [x] Tier 3 actuation behind `NEXT_PUBLIC_WEBMCP_ACTUATION`
 
 ### Phase 4 — Evaluate `@mcp-b/global`
 
@@ -641,7 +647,7 @@ pnpm add @mcp-b/webmcp-polyfill @mcp-b/webmcp-types
 1. **Origin trial timing** — enable on production domain or preview-only until Gemini testing passes?
 2. **Article fetch for tools** — use Relay client fetch (consistent with search page migration) or server `getRemoteFile` when `SERVER_RELAY_FETCH=1`?
 3. **`alternate_hook` copy** — rule-based (first paragraph) or leave wording entirely to the calling agent using `get_article_context`?
-4. **Forum reply generation** — Mode A (agent only) for v1, or also ship Mode B template UI for non-Gemini users?
+4. **Forum reply generation** — **Resolved:** Mode A only; `/reply` hidden without native WebMCP.
 5. **Server LLM (Mode C)** — ever gate `/api/draft-reply` behind env flag, or stay agent-only?
 6. **Sitemap / SEO** — expose `llms.txt` or tool manifest link for non-browser agents (complements WebMCP, does not replace it)?
 
@@ -668,7 +674,11 @@ pnpm add @mcp-b/webmcp-polyfill @mcp-b/webmcp-types
 | `compose_share_text` | 1 | Read | `composeShareText`, `platformLimits` |
 | `list_search_filters` | 1 | Read | `SearchContentFilters` |
 | `find_articles_for_text` | 1b | Read | `replyAssistant/extractTerms`, `rankForText` |
-| `draft_reply_to_text` | 1b | Read (+ agent prose) | `replyAssistant/*`, `get_article_context` |
+| `prepare_reply_context` | 1b | Read | `replyAssistant/prepareReplyContext` |
+| `get_project_perspective` | 1b | Read | `replyAssistant/projectPerspective` |
+| `read_article` | 1b | Read | `replyAssistant/readArticleContent`, Relay MD fetch |
+| `list_index_entries` | 1b | Read | `replyAssistant/listIndexEntries` |
+| `format_reply_citations` | 1b | Read | `replyAssistant/formatCitations` |
 | `expand_search_keywords` | 2 | Read | index token co-occurrence |
 | `navigate_to_result` | 2 | Navigate | `useSearchUrlState` / router |
 | `open_timeline_event` | 2 | Navigate | timeline index |

@@ -65,10 +65,12 @@ describe('webmcp tool handlers', () => {
     const parsed = JSON.parse(text) as {
       seedArticles: { path: string }[]
       agentInstructions: string
+      projectPerspective: string
       replyDraft?: string
     }
     assert.ok(parsed.seedArticles.length >= 1)
     assert.ok(parsed.agentInstructions.includes('read_article'))
+    assert.ok(parsed.projectPerspective.includes('æther'))
     assert.equal(parsed.replyDraft, undefined)
   })
 

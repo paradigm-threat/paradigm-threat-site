@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { Clipboard, ExternalLink } from 'lucide-react'
 import { buildReplyAgentPrompt } from '@/lib/replyAssistant/agentPrompt'
 import { useReplyAssistantAvailable } from '@/lib/replyAssistant/useReplyAssistantAvailable'
@@ -32,6 +32,12 @@ export function ReplyAssistant () {
   const [tone, setTone] = useState<'conversational' | 'neutral' | 'brief'>('conversational')
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const prev = document.title
+    document.title = agentAvailable ? 'Reply assistant — Paradigm Threat' : 'Reply assistant unavailable — Paradigm Threat'
+    return () => { document.title = prev }
+  }, [agentAvailable])
 
   const handlePaste = useCallback(async () => {
     try {
@@ -82,7 +88,7 @@ export function ReplyAssistant () {
           <li>Paste the post below.</li>
           <li>Copy the agent prompt (or paste the text into Gemini directly).</li>
           <li>Open Gemini in Chrome on this tab and send the prompt.</li>
-          <li>Let the agent call <code className="text-xs">search_site</code>, <code className="text-xs">read_article</code>, etc.</li>
+          <li>Let the agent call <code className="text-xs">get_project_perspective</code>, <code className="text-xs">search_site</code>, <code className="text-xs">read_article</code>, etc.</li>
           <li>Copy the finished reply from Gemini.</li>
         </ol>
       </section>
