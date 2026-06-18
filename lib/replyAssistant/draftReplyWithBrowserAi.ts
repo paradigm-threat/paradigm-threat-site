@@ -1,5 +1,7 @@
 import type { LanguageModelMessage } from '@/lib/replyAssistant/browserLanguageModel'
 import { buildReplySystemPrompt } from '@/lib/replyAssistant/agentPrompt'
+import type { SiteAiAgentProgress } from '@/lib/siteAi/agentProgress'
+import { formatToolProgressDetail } from '@/lib/siteAi/agentProgress'
 import { runSiteAiAgent } from '@/lib/siteAi/runSiteAiAgent'
 import { executeSiteAiTool } from '@/lib/siteAi/siteAiToolBridge'
 
@@ -8,13 +10,10 @@ export type DraftReplyInput = {
   includeCitations: boolean
   tone?: 'conversational' | 'neutral' | 'brief'
   signal?: AbortSignal
-  onProgress?: (event: DraftReplyProgress) => void
+  onProgress?: (event: SiteAiAgentProgress) => void
 }
 
-export type DraftReplyProgress =
-  | { phase: 'starting' }
-  | { phase: 'tool'; toolName: string }
-  | { phase: 'drafting' }
+export type { SiteAiAgentProgress as DraftReplyProgress } from '@/lib/siteAi/agentProgress'
 
 export type DraftReplyResult = {
   draft: string
@@ -28,14 +27,38 @@ export async function draftReplyWithBrowserAi (input: DraftReplyInput): Promise<
     throw new Error('Paste at least 20 characters before drafting a reply')
   }
 
-  input.onProgress?.({ phase: 'starting' })
-  input.onProgress?.({ phase: 'tool', toolName: 'prepare_reply_context' })
+  input.onProgress?.({ phase: 'init', message: 'Preparing reply assistant…' })
 
-  const seedContext = await executeSiteAiTool('prepare_reply_context', {
+  const seedArgs = {
     sourceText,
     includeCitations: input.includeCitations,
     tone: input.tone ?? 'conversational',
+  }
+  const seedDetail = formatToolProgressDetail('prepare_reply_context', seedArgs)
+  input.onProgress?.({
+    phase: 'context',
+    message: seedDetail,
   })
+  input.onProgress?.({
+    phase: 'tool',
+    toolName: 'prepare_reply_context',
+    status: 'start',
+    args: seedArgs,
+    detail: seedDetail,
+  })
+
+  let seedContext: string
+  try {
+    seedContext = await executeSiteAiTool('prepare_reply_context', seedArgs)
+  } finally {
+    input.onProgress?.({
+      phase: 'tool',
+      toolName: 'prepare_reply_context',
+      status: 'done',
+      args: seedArgs,
+      detail: seedDetail,
+    })
+  }
 
   const systemPrompt = buildReplySystemPrompt({
     includeCitations: input.includeCitations,
@@ -71,10 +94,7 @@ export async function draftReplyWithBrowserAi (input: DraftReplyInput): Promise<
   return {
     draft: result.finalText,
     toolCalls: [
-      {
-        name: 'prepare_reply_context',
-        arguments: { sourceText, includeCitations: input.includeCitations, tone: input.tone },
-      },
+      { name: 'prepare_reply_context', arguments: seedArgs },
       ...result.toolCalls,
     ],
     turns: result.turns,

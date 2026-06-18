@@ -88,3 +88,20 @@ describe('parseToolCall siteAi', () => {
     assert.equal(call?.name, 'search_site')
   })
 })
+
+describe('agentProgress', () => {
+  it('formats read_article detail with path', async () => {
+    const { formatToolProgressDetail, applyProgressEvent } = await import('./agentProgress.ts')
+    const detail = formatToolProgressDetail('read_article', { path: 'history/common-questions.md' })
+    assert.ok(detail.includes('common-questions'))
+    const { steps, current } = applyProgressEvent([], {
+      phase: 'tool',
+      toolName: 'read_article',
+      status: 'start',
+      args: { path: 'history/common-questions.md' },
+      detail,
+    })
+    assert.equal(steps.length, 1)
+    assert.equal(current, detail)
+  })
+})

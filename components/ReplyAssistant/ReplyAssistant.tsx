@@ -2,7 +2,9 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Clipboard, Loader2, Sparkles } from 'lucide-react'
-import { draftReplyWithBrowserAi, type DraftReplyProgress } from '@/lib/replyAssistant/draftReplyWithBrowserAi'
+import { AgentProgressPanel } from '@/components/SiteAi/AgentProgressPanel'
+import { useAgentProgressDisplay } from '@/components/SiteAi/useAgentProgressDisplay'
+import { draftReplyWithBrowserAi } from '@/lib/replyAssistant/draftReplyWithBrowserAi'
 import { useReplyDraftingAvailable } from '@/lib/replyAssistant/useReplyDraftingAvailable'
 
 function ReplyUnavailable () {
@@ -22,13 +24,6 @@ function ReplyUnavailable () {
   )
 }
 
-function progressLabel (progress: DraftReplyProgress | null): string {
-  if (!progress) return ''
-  if (progress.phase === 'starting') return 'Starting…'
-  if (progress.phase === 'tool') return `Searching site (${progress.toolName})…`
-  return 'Drafting reply…'
-}
-
 export function ReplyAssistant () {
   const availability = useReplyDraftingAvailable()
   const [sourceText, setSourceText] = useState('')
@@ -38,10 +33,10 @@ export function ReplyAssistant () {
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [drafting, setDrafting] = useState(false)
-  const [progress, setProgress] = useState<DraftReplyProgress | null>(null)
   const [toolLog, setToolLog] = useState<string[]>([])
   const [showLog, setShowLog] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
+  const { steps, current, slowHint, onProgress, reset: resetProgress } = useAgentProgressDisplay()
 
   useEffect(() => {
     const prev = document.title
@@ -86,7 +81,7 @@ export function ReplyAssistant () {
     setError(null)
     setDraftText('')
     setToolLog([])
-    setProgress({ phase: 'starting' })
+    resetProgress()
 
     try {
       const result = await draftReplyWithBrowserAi({
@@ -94,7 +89,7 @@ export function ReplyAssistant () {
         includeCitations,
         tone,
         signal: controller.signal,
-        onProgress: setProgress,
+        onProgress,
       })
       setDraftText(result.draft)
       setToolLog(result.toolCalls.map((t) => `${t.name}(${JSON.stringify(t.arguments)})`))
@@ -103,16 +98,16 @@ export function ReplyAssistant () {
       setError(e instanceof Error ? e.message : 'Draft failed')
     } finally {
       setDrafting(false)
-      setProgress(null)
+      resetProgress()
       abortRef.current = null
     }
-  }, [sourceText, includeCitations, tone])
+  }, [sourceText, includeCitations, tone, onProgress, resetProgress])
 
   const handleCancel = useCallback(() => {
     abortRef.current?.abort()
     setDrafting(false)
-    setProgress(null)
-  }, [])
+    resetProgress()
+  }, [resetProgress])
 
   if (availability === 'checking') {
     return (
@@ -201,10 +196,14 @@ export function ReplyAssistant () {
             Cancel
           </button>
         )}
-        {drafting && progress && (
-          <span className="text-sm text-slate-500">{progressLabel(progress)}</span>
-        )}
       </div>
+
+      <AgentProgressPanel
+        active={drafting}
+        current={current}
+        slowHint={slowHint}
+        steps={steps}
+      />
 
       {draftText && (
         <div className="space-y-2">

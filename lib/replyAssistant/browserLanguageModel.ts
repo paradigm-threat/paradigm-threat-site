@@ -11,6 +11,12 @@ export type LanguageModelMessage = {
   content: string
 }
 
+export type ModelSessionProgress = {
+  kind: 'checking' | 'downloading' | 'ready'
+  message: string
+  loaded?: number
+}
+
 const LM_OPTIONS = {
   expectedInputs: [{ type: 'text' as const, languages: ['en'] }],
   expectedOutputs: [{ type: 'text' as const, languages: ['en'] }],
@@ -31,26 +37,38 @@ export async function isBrowserLanguageModelAvailable (): Promise<boolean> {
 
 export async function createBrowserLanguageModelSession (
   systemPrompt: string,
-  signal?: AbortSignal
+  options?: {
+    signal?: AbortSignal
+    onSessionProgress?: (progress: ModelSessionProgress) => void
+  }
 ): Promise<BrowserLanguageModelSession> {
   const LM = window.LanguageModel
   if (!LM?.create) {
     throw new Error('Browser language model (Prompt API) is not available')
   }
 
+  options?.onSessionProgress?.({ kind: 'checking', message: 'Preparing on-device language model…' })
+
   const session = await LM.create({
     ...LM_OPTIONS,
-    signal,
+    signal: options?.signal,
     initialPrompts: [{ role: 'system', content: systemPrompt }],
     monitor (m) {
-      m.addEventListener('downloadprogress', () => {
-        /* model download — caller may surface UI separately */
+      m.addEventListener('downloadprogress', (e) => {
+        const loaded = (e as ProgressEvent & { loaded?: number }).loaded
+        options?.onSessionProgress?.({
+          kind: 'downloading',
+          message: 'Downloading language model…',
+          loaded: typeof loaded === 'number' ? loaded : undefined,
+        })
       })
     },
   })
 
+  options?.onSessionProgress?.({ kind: 'ready', message: 'Language model ready' })
+
   return {
-    prompt: (input, options) => session.prompt(input, options),
+    prompt: (input, opts) => session.prompt(input, opts),
     destroy: () => session.destroy(),
   }
 }

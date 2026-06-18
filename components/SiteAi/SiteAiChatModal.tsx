@@ -2,25 +2,20 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2, Send, Sparkles, Trash2, X } from 'lucide-react'
-import { askSiteAi } from '@/lib/siteAi/askSiteAi'
-import type { SiteAiAgentProgress } from '@/lib/siteAi/runSiteAiAgent'
+import { AgentProgressPanel } from '@/components/SiteAi/AgentProgressPanel'
+import { useAgentProgressDisplay } from '@/components/SiteAi/useAgentProgressDisplay'
 import { useSiteAi } from '@/components/SiteAi/SiteAiProvider'
-
-function progressLabel (progress: SiteAiAgentProgress | null): string {
-  if (!progress) return ''
-  if (progress.phase === 'starting') return 'Starting…'
-  if (progress.phase === 'tool') return `Searching site (${progress.toolName})…`
-  return 'Thinking…'
-}
+import { askSiteAi } from '@/lib/siteAi/askSiteAi'
 
 export function SiteAiChatModal () {
   const { open, closeModal, messages, appendExchange, clearHistory, pageContext } = useSiteAi()
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [progress, setProgress] = useState<SiteAiAgentProgress | null>(null)
+  const [pendingQuestion, setPendingQuestion] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  const { steps, current, slowHint, onProgress, reset: resetProgress } = useAgentProgressDisplay()
 
   useEffect(() => {
     if (!open) return
@@ -35,14 +30,15 @@ export function SiteAiChatModal () {
     if (open && listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight
     }
-  }, [open, messages, loading])
+  }, [open, messages, loading, steps, current])
 
   const handleClose = useCallback(() => {
     abortRef.current?.abort()
     setLoading(false)
-    setProgress(null)
+    setPendingQuestion(null)
+    resetProgress()
     closeModal()
-  }, [closeModal])
+  }, [closeModal, resetProgress])
 
   const handleSubmit = useCallback(async () => {
     const question = input.trim()
@@ -54,7 +50,8 @@ export function SiteAiChatModal () {
 
     setLoading(true)
     setError(null)
-    setProgress({ phase: 'starting' })
+    setPendingQuestion(question)
+    resetProgress()
     setInput('')
 
     try {
@@ -64,20 +61,22 @@ export function SiteAiChatModal () {
         history,
         pageContext,
         signal: controller.signal,
-        onProgress: setProgress,
+        onProgress,
       })
       appendExchange(question, answer)
+      setPendingQuestion(null)
     } catch (e) {
       if (!controller.signal.aborted) {
         setError(e instanceof Error ? e.message : 'Could not get an answer')
         setInput(question)
+        setPendingQuestion(null)
       }
     } finally {
       setLoading(false)
-      setProgress(null)
+      resetProgress()
       abortRef.current = null
     }
-  }, [input, loading, messages, pageContext, appendExchange])
+  }, [input, loading, messages, pageContext, appendExchange, onProgress, resetProgress])
 
   if (!open) return null
 
@@ -143,10 +142,23 @@ export function SiteAiChatModal () {
               </div>
             </div>
           ))}
+          {loading && pendingQuestion && (
+            <div className="flex justify-end">
+              <div className="max-w-[85%] rounded-2xl px-4 py-2.5 text-sm bg-indigo-600 text-white opacity-80">
+                {pendingQuestion}
+              </div>
+            </div>
+          )}
           {loading && (
-            <div className="flex items-center gap-2 text-sm text-slate-500">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              {progressLabel(progress)}
+            <div className="flex justify-start max-w-[90%]">
+              <AgentProgressPanel
+                active
+                current={current}
+                slowHint={slowHint}
+                steps={steps}
+                variant="panel"
+                className="w-full border-slate-700/50 bg-slate-900/80"
+              />
             </div>
           )}
         </div>

@@ -66,6 +66,9 @@ export async function askSiteAi (input: AskSiteAiInput): Promise<string> {
     throw new Error('Enter a question (at least 3 characters)')
   }
 
+  input.onProgress?.({ phase: 'init', message: 'Starting…' })
+  input.onProgress?.({ phase: 'context', message: 'Searching Q&A pages and related articles…' })
+
   const ctx = await prepareQuestionContext(question)
   const seedContext = formatQuestionContextForPrompt(ctx)
 
