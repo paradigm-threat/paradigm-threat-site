@@ -9,9 +9,10 @@ import {
 
 describe('siteClaimsIndex', () => {
   it('includes hub and demo claims', () => {
-    assert.ok(SITE_CLAIMS_INDEX.length >= 15)
+    assert.ok(SITE_CLAIMS_INDEX.length >= 16)
     assert.ok(getSiteClaimById('giants-fate'))
-    assert.ok(getSiteClaimById('mfee-mud-flood-reset'))
+    assert.ok(getSiteClaimById('ufos-two-camps'))
+    assert.ok(getSiteClaimById('pole-shift-ruled-out'))
   })
 
   it('every demo question matches at least one claim', () => {

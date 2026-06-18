@@ -10,7 +10,7 @@ Curated **major conclusions** Paradigm Threat supports, used by Site AI and the 
 
 | Label | Meaning |
 |-------|---------|
-| `site-distinctive` | Synthesis or framing specific to this site |
+| `site-distinctive` | Synthesis or framing specific to this site (incl. Saturnian+Fomenko+Blip, two-camp UFO frame, sealed-hood/WebMCP thesis when marked repo-unique) |
 | `broader-tradition` | Builds on mud-flood, EU, Fomenko, etc. literature |
 | `site-position` | Our explicit stance on a common question (includes debunks) |
 
