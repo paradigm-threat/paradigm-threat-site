@@ -8,6 +8,7 @@ import {
   executeFindArticlesForText,
   executeFormatReplyCitations,
   executeGetArticleContext,
+  executeGetProjectPerspective,
   executeListIndexEntries,
   executeListSearchFilters,
   executeNavigateToResult,
@@ -67,6 +68,11 @@ const TOOLS: AnyTool[] = [
     },
     required: ['path'],
   }, executeGetArticleContext),
+
+  wrap('get_project_perspective', 'Return Paradigm Threat worldview seed: history, science (æther), and reply voice. Use before drafting forum replies.', {
+    type: 'object',
+    properties: {},
+  }, () => executeGetProjectPerspective()),
 
   wrap('compose_share_text', 'Generate platform-specific share or clipboard text for an article.', {
     type: 'object',

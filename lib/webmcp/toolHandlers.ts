@@ -9,6 +9,7 @@ import { findArticlesForText } from '@/lib/replyAssistant/findArticlesForText'
 import { formatCitationBlock, type CitationStyle } from '@/lib/replyAssistant/formatCitations'
 import { listIndexEntries } from '@/lib/replyAssistant/listIndexEntries'
 import { prepareReplyContext } from '@/lib/replyAssistant/prepareReplyContext'
+import { getProjectPerspective } from '@/lib/replyAssistant/projectPerspective'
 import { readArticleContentFromMarkdown } from '@/lib/replyAssistant/readArticleContent'
 import {
   searchContentFiltersFromInput,
@@ -254,6 +255,13 @@ export async function executeFindArticlesForText (args: Record<string, unknown>)
     includeCitations: parseBool(args.includeCitations, false),
   })
   return toolJsonResult(result)
+}
+
+export function executeGetProjectPerspective (): CallToolResult {
+  return toolJsonResult({
+    perspective: getProjectPerspective(),
+    summary: 'Paradigm Threat worldview: alternate chronology, Tartaria/mud flood, æther physics, epistemic labeling.',
+  })
 }
 
 export async function executePrepareReplyContext (args: Record<string, unknown>): Promise<CallToolResult> {

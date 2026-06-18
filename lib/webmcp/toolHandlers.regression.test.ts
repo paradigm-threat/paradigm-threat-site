@@ -8,6 +8,7 @@ import {
   executePrepareReplyContext,
   executeListIndexEntries,
   executeFormatReplyCitations,
+  executeGetProjectPerspective,
 } from './toolHandlers.ts'
 import { setWebMcpSearchIndexOverride } from './indexStore.ts'
 
@@ -88,5 +89,13 @@ describe('webmcp tool handlers', () => {
     const parsed = JSON.parse(text) as { text: string }
     assert.ok(parsed.text.includes('Sources:'))
     assert.ok(parsed.text.includes('example.com/aether'))
+  })
+
+  it('get_project_perspective returns worldview seed', () => {
+    const result = executeGetProjectPerspective()
+    const text = result.content[0]?.type === 'text' ? result.content[0].text : ''
+    const parsed = JSON.parse(text) as { perspective: string }
+    assert.ok(parsed.perspective.includes('æther'))
+    assert.ok(parsed.perspective.includes('Tartaria'))
   })
 })

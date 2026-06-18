@@ -41,6 +41,8 @@ describe('prepareReplyContext', () => {
     })
     assert.ok(result.seedArticles.length >= 1)
     assert.ok(result.agentInstructions.includes('read_article'))
+    assert.ok(result.projectPerspective.includes('æther'))
+    assert.ok(result.projectPerspective.includes('Tartaria'))
     assert.equal(result.includeCitations, false)
     assert.ok(!('replyDraft' in result))
   })
@@ -102,6 +104,8 @@ describe('buildReplyAgentPrompt', () => {
     assert.ok(prompt.includes('read_article'))
     assert.ok(prompt.includes('Forum post about mud floods'))
     assert.ok(prompt.includes('Sources footer'))
+    assert.ok(prompt.includes('æther'))
+    assert.ok(prompt.includes('Paradigm Threat'))
   })
 })
 

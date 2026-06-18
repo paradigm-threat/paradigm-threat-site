@@ -71,6 +71,7 @@ export function ReplyAssistant () {
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Reply assistant</h1>
         <p className="text-sm text-slate-600 dark:text-slate-400">
           Paste a forum post, then ask Gemini in Chrome to draft a reply using this site&apos;s WebMCP tools.
+          The copied prompt includes Paradigm Threat&apos;s perspective on history, science, and technology.
           The agent searches the index, reads articles on demand, and drafts prose — citations optional.
         </p>
       </header>

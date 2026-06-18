@@ -1,3 +1,5 @@
+import { getProjectPerspective } from '@/lib/replyAssistant/projectPerspective'
+
 export type BuildAgentPromptInput = {
   sourceText: string
   includeCitations: boolean
@@ -12,7 +14,10 @@ export function buildReplyAgentPrompt (input: BuildAgentPromptInput): string {
   return [
     'Draft a forum reply grounded in paradigm-threat site articles.',
     '',
+    getProjectPerspective(),
+    '',
     'Use WebMCP tools on this tab to investigate:',
+    '- get_project_perspective — re-read this worldview seed if needed',
     '- search_site, expand_search_keywords, list_index_entries — find candidates',
     '- read_article — read markdown content (use offset when truncated)',
     '- prepare_reply_context — optional index-only seed from the paste below',
@@ -20,6 +25,7 @@ export function buildReplyAgentPrompt (input: BuildAgentPromptInput): string {
     '',
     `Tone: ${input.tone ?? 'conversational'}. ${citationLine}`,
     'Investigate iteratively; do not assume — read articles before citing them.',
+    'Write in Paradigm Threat perspective above; ground specific claims in articles you read.',
     '',
     '--- Post to reply to ---',
     input.sourceText.trim(),

@@ -2,6 +2,7 @@ import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
 import { findArticlesForText } from '@/lib/replyAssistant/findArticlesForText'
 import type { CitationStyle } from '@/lib/replyAssistant/formatCitations'
 import type { ReplyTone } from '@/lib/replyAssistant/composeReplyShell'
+import { getProjectPerspective } from '@/lib/replyAssistant/projectPerspective'
 
 export type PrepareReplyContextInput = {
   sourceText: string
@@ -27,12 +28,13 @@ export type PrepareReplyContextResult = {
   tone: ReplyTone
   warnings: string[]
   agentInstructions: string
+  projectPerspective: string
 }
 
 const AGENT_WORKFLOW = [
   'Use search_site, expand_search_keywords, and list_index_entries to explore the corpus.',
   'Read only articles you need with read_article (paginate with offset when truncated).',
-  'Draft a reply addressing the pasted post in the requested tone.',
+  'Draft a reply in Paradigm Threat voice (see projectPerspective); ground claims in articles read.',
   'Do not bulk-fetch the entire index — investigate iteratively.',
 ].join(' ')
 
@@ -55,6 +57,7 @@ export function prepareReplyContext (
       tone,
       warnings: ['sourceText must be at least 20 characters'],
       agentInstructions: AGENT_WORKFLOW,
+      projectPerspective: getProjectPerspective(),
     }
   }
 
@@ -78,5 +81,6 @@ export function prepareReplyContext (
     tone,
     warnings: found.warnings,
     agentInstructions: `${AGENT_WORKFLOW} ${citationNote} Tone: ${tone}.`,
+    projectPerspective: getProjectPerspective(),
   }
 }
