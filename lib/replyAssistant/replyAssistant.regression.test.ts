@@ -53,6 +53,15 @@ describe('prepareReplyContext', () => {
     assert.equal(result.seedArticles.length, 0)
     assert.ok(result.warnings.length > 0)
   })
+
+  it('passes user instructions into agent workflow', () => {
+    const result = prepareReplyContext(entries, {
+      sourceText: 'What about the mud flood and tartaria evidence in this thread?',
+      userInstructions: 'Emphasize chronology revision, not generic skeptic debunking.',
+    })
+    assert.ok(result.agentInstructions.includes('Emphasize chronology revision'))
+    assert.equal(result.userInstructions, 'Emphasize chronology revision, not generic skeptic debunking.')
+  })
 })
 
 describe('listIndexEntries', () => {
@@ -105,6 +114,16 @@ describe('buildReplySystemPrompt', () => {
     assert.ok(prompt.includes('history-qa'))
     assert.ok(prompt.includes(TOOL_CALL_START))
     assert.ok(prompt.includes('æther'))
+  })
+
+  it('includes optional user reply instructions', () => {
+    const prompt = buildReplySystemPrompt({
+      includeCitations: false,
+      tone: 'brief',
+      instructions: 'Lead with giants/MFEE thesis; stay under 3 paragraphs.',
+    })
+    assert.ok(prompt.includes('User reply instructions'))
+    assert.ok(prompt.includes('Lead with giants/MFEE thesis'))
   })
 })
 

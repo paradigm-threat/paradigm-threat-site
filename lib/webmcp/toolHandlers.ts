@@ -292,6 +292,9 @@ export async function executePrepareReplyContext (args: Record<string, unknown>)
   if (!index) return indexUnavailable()
 
   const sourceText = String(args.sourceText ?? '')
+  const userInstructions = typeof args.userInstructions === 'string'
+    ? args.userInstructions.trim()
+    : undefined
   const result = prepareReplyContext(index, {
     sourceText,
     maxSeedArticles: parseIntBounded(args.maxSeedArticles, 5, 1, 10),
@@ -299,6 +302,7 @@ export async function executePrepareReplyContext (args: Record<string, unknown>)
     citationStyle: (args.citationStyle as CitationStyle) ?? 'footer',
     tone: (args.tone as 'neutral' | 'conversational' | 'brief') ?? 'conversational',
     includeBlog: parseBool(args.includeBlog, false),
+    userInstructions: userInstructions || undefined,
   })
   return toolJsonResult(result)
 }

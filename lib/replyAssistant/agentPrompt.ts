@@ -5,6 +5,7 @@ import { TOOL_CALL_END, TOOL_CALL_START } from '@/lib/siteAi/siteAiToolBridge'
 export type BuildReplySystemPromptInput = {
   includeCitations: boolean
   tone?: string
+  instructions?: string
 }
 
 export function buildReplySystemPrompt (input: BuildReplySystemPromptInput): string {
@@ -13,6 +14,7 @@ export function buildReplySystemPrompt (input: BuildReplySystemPromptInput): str
     : 'Do not include article URLs or a link dump unless essential to the argument.'
 
   const toolList = REPLY_INVESTIGATION_TOOL_NAMES.map((n) => `- ${n}`).join('\n')
+  const userInstructions = input.instructions?.trim()
 
   return [
     'You draft forum replies grounded in paradigm-threat.net articles.',
@@ -26,6 +28,14 @@ export function buildReplySystemPrompt (input: BuildReplySystemPromptInput): str
     '4. Use read_article with offset when content is truncated.',
     '5. When you have enough context, write the final reply only — no tool markers.',
     '',
+    ...(userInstructions
+      ? [
+        '## User reply instructions',
+        'The visitor provided direction for angle, tone, or emphasis. Follow these closely when they conflict with defaults:',
+        userInstructions,
+        '',
+      ]
+      : []),
     '## Allowed tools',
     toolList,
     '',

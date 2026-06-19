@@ -9,6 +9,8 @@ export type DraftReplyInput = {
   sourceText: string
   includeCitations: boolean
   tone?: 'conversational' | 'neutral' | 'brief'
+  /** Optional angle / emphasis — how the reply should be framed. */
+  instructions?: string
   signal?: AbortSignal
   onProgress?: (event: SiteAiAgentProgress) => void
 }
@@ -23,6 +25,7 @@ export type DraftReplyResult = {
 
 export async function draftReplyWithBrowserAi (input: DraftReplyInput): Promise<DraftReplyResult> {
   const sourceText = input.sourceText.trim()
+  const instructions = input.instructions?.trim() || undefined
   if (sourceText.length < 20) {
     throw new Error('Paste at least 20 characters before drafting a reply')
   }
@@ -34,6 +37,7 @@ export async function draftReplyWithBrowserAi (input: DraftReplyInput): Promise<
       sourceText,
       includeCitations: input.includeCitations,
       tone: input.tone ?? 'conversational',
+      ...(instructions ? { userInstructions: instructions } : {}),
     }
     const seedDetail = formatToolProgressDetail('prepare_reply_context', seedArgs)
     input.onProgress?.({
@@ -64,22 +68,37 @@ export async function draftReplyWithBrowserAi (input: DraftReplyInput): Promise<
     const systemPrompt = buildReplySystemPrompt({
       includeCitations: input.includeCitations,
       tone: input.tone,
+      instructions,
     })
+
+    const userMessageParts = [
+      'Draft a forum reply to the post below.',
+      'Use tools when you need site context. When finished, output only the reply text.',
+      '',
+      'Index seed (from prepare_reply_context):',
+      seedContext,
+    ]
+
+    if (instructions) {
+      userMessageParts.push(
+        '',
+        '--- Reply instructions (angle / tone / emphasis) ---',
+        instructions,
+        '---',
+      )
+    }
+
+    userMessageParts.push(
+      '',
+      '--- Post to reply to ---',
+      sourceText,
+      '---',
+    )
 
     const conversation: LanguageModelMessage[] = [
       {
         role: 'user',
-        content: [
-          'Draft a forum reply to the post below.',
-          'Use tools when you need site context. When finished, output only the reply text.',
-          '',
-          'Index seed (from prepare_reply_context):',
-          seedContext,
-          '',
-          '--- Post to reply to ---',
-          sourceText,
-          '---',
-        ].join('\n'),
+        content: userMessageParts.join('\n'),
       },
     ]
 

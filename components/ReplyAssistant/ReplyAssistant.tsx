@@ -13,6 +13,7 @@ export function ReplyAssistant () {
   const availability = useReplyDraftingAvailable()
   const support = useBrowserAiSupport()
   const [sourceText, setSourceText] = useState('')
+  const [replyInstructions, setReplyInstructions] = useState('')
   const [draftText, setDraftText] = useState('')
   const [includeCitations, setIncludeCitations] = useState(false)
   const [tone, setTone] = useState<'conversational' | 'neutral' | 'brief'>('conversational')
@@ -80,6 +81,7 @@ export function ReplyAssistant () {
     try {
       const result = await draftReplyWithBrowserAi({
         sourceText,
+        instructions: replyInstructions.trim() || undefined,
         includeCitations,
         tone,
         signal: controller.signal,
@@ -95,7 +97,7 @@ export function ReplyAssistant () {
       resetProgress()
       abortRef.current = null
     }
-  }, [ready, sourceText, includeCitations, tone, onProgress, resetProgress])
+  }, [ready, sourceText, replyInstructions, includeCitations, tone, onProgress, resetProgress])
 
   const handleCancel = useCallback(() => {
     abortRef.current?.abort()
@@ -183,6 +185,24 @@ export function ReplyAssistant () {
             </select>
           </label>
         </div>
+      </div>
+
+      <div className={`space-y-2 ${setupMode ? 'opacity-50 pointer-events-none' : ''}`}>
+        <label htmlFor="reply-instructions" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          Reply instructions <span className="font-normal text-slate-500">(optional)</span>
+        </label>
+        <textarea
+          id="reply-instructions"
+          rows={3}
+          value={replyInstructions}
+          onChange={(e) => setReplyInstructions(e.target.value)}
+          placeholder="e.g. Push back gently on the deep-time assumption, lead with MFEE, keep it under 3 paragraphs, avoid sounding preachy…"
+          disabled={formDisabled}
+          className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-sm disabled:opacity-60"
+        />
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Angle, emphasis, or tone beyond the preset — the agent follows this when drafting.
+        </p>
       </div>
 
       <div className={`flex flex-wrap items-center gap-3 ${setupMode ? 'opacity-50 pointer-events-none' : ''}`}>

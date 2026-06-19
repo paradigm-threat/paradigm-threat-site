@@ -11,6 +11,8 @@ export type PrepareReplyContextInput = {
   citationStyle?: CitationStyle
   tone?: ReplyTone
   includeBlog?: boolean
+  /** Optional angle / emphasis from the user — influences agent workflow, not index seeding alone. */
+  userInstructions?: string
 }
 
 export type PrepareReplyContextResult = {
@@ -26,6 +28,7 @@ export type PrepareReplyContextResult = {
   includeCitations: boolean
   citationStyle: CitationStyle
   tone: ReplyTone
+  userInstructions?: string
   warnings: string[]
   agentInstructions: string
   projectPerspective: string
@@ -45,6 +48,7 @@ export function prepareReplyContext (
   const includeCitations = input.includeCitations === true
   const citationStyle = input.citationStyle ?? 'footer'
   const tone = input.tone ?? 'conversational'
+  const userInstructions = input.userInstructions?.trim() || undefined
   const text = input.sourceText?.trim() ?? ''
 
   if (text.length < 20) {
@@ -55,6 +59,7 @@ export function prepareReplyContext (
       includeCitations,
       citationStyle,
       tone,
+      userInstructions,
       warnings: ['sourceText must be at least 20 characters'],
       agentInstructions: AGENT_WORKFLOW,
       projectPerspective: getProjectPerspective(),
@@ -62,7 +67,7 @@ export function prepareReplyContext (
   }
 
   const found = findArticlesForText(entries, {
-    sourceText: text,
+    sourceText: userInstructions ? `${text}\n\n${userInstructions}` : text,
     maxArticles: Math.min(10, Math.max(1, input.maxSeedArticles ?? 5)),
     includeBlog: input.includeBlog,
     includeCitations,
@@ -72,6 +77,10 @@ export function prepareReplyContext (
     ? `Include citations (${citationStyle} style) with canonical URLs from read_article.`
     : 'Do not include article URLs unless the user explicitly asked for citations.'
 
+  const instructionNote = userInstructions
+    ? `User reply instructions (follow closely): ${userInstructions}`
+    : ''
+
   return {
     sourceText: text,
     extractedQueries: found.extractedQueries,
@@ -79,8 +88,9 @@ export function prepareReplyContext (
     includeCitations,
     citationStyle,
     tone,
+    userInstructions,
     warnings: found.warnings,
-    agentInstructions: `${AGENT_WORKFLOW} ${citationNote} Tone: ${tone}.`,
+    agentInstructions: [AGENT_WORKFLOW, citationNote, `Tone: ${tone}.`, instructionNote].filter(Boolean).join(' '),
     projectPerspective: getProjectPerspective(),
   }
 }

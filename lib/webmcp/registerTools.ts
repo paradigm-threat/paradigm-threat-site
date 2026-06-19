@@ -154,6 +154,7 @@ const TOOLS: AnyTool[] = [
       includeCitations: { type: 'boolean', default: false },
       citationStyle: { type: 'string', enum: ['inline', 'footer', 'markdown'], default: 'footer' },
       tone: { type: 'string', enum: ['neutral', 'conversational', 'brief'], default: 'conversational' },
+      userInstructions: { type: 'string', description: 'Optional angle, tone, or emphasis for the reply draft' },
       includeBlog: { type: 'boolean', default: false },
     },
     required: ['sourceText'],
