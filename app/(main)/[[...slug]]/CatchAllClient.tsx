@@ -6,7 +6,7 @@ import { RelayMarkdown } from '@/components/RelayMarkdown'
 import { PopImage, useFiles, ArticleNav } from '@/components'
 import { ArticleRemote404Notice } from '@/components/ArticleRemote404Notice'
 import Link from 'next/link'
-import { prepareArticleMarkdown, extractFirstHeading } from '@/lib/articleBody'
+import { prepareArticleMarkdown, extractFirstHeading, resolveArticleDisplayTitle } from '@/lib/articleBody'
 import { ArticleTTSProvider } from '@/components/ArticleTTS/ArticleTTSProvider'
 import { ArticleTTSOverlay } from '@/components/ArticleTTS/ArticleTTSOverlay'
 import { stripMarkdownForTTS, buildParagraphStarts } from '@/components/Timeline/ttsHelpers'
@@ -146,10 +146,8 @@ export const CatchAllClient = memo(function CatchAllClient() {
             const calcBasePath = /\.mdx?$/i.test(lastSeg)
               ? requestPath.split('/').slice(0, -1).join('/')
               : requestPath
-            const failTitle =
-              extractFirstHeading(mdxSource) ||
-              lastSeg.replace(/\.mdx?$/i, '').replace(/_/g, ' ') ||
-              'Article'
+            const inferredTargetPath = /\.mdx?$/i.test(lastSeg) ? requestPath : `${requestPath}.md`
+            const articleTitleResolved = resolveArticleDisplayTitle(inferredTargetPath, mdxSource)
             const apiOg = resolveOgImageUrl(mdxSource, calcBasePath)
 
             if (isMounted && loadingPathRef.current === requestPath) {
@@ -160,7 +158,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
               setBasePath(calcBasePath || '')
               setContent(mdxSource)
               setArticleMeta({ ogImageUrl: apiOg })
-              setArticleTitle(failTitle)
+              setArticleTitle(articleTitleResolved)
               setDirectFiles([])
               setSubDirs([])
               setImages([])

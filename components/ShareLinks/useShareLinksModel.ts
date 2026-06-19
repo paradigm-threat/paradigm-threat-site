@@ -13,6 +13,7 @@ import {
 } from '@/lib/share'
 import { REDDIT_TITLE_MAX, platformModalCopyLimit } from '@/lib/share/platformLimits'
 import type { ShareLinksProps } from '@/components/ShareLinks/types'
+import { extractFirstHeading, prepareArticleMarkdown } from '@/lib/articleBody'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://paradigmthreat.net'
 
@@ -132,16 +133,25 @@ export function useShareLinksModel({
     }
   }, [shareExtractProp, mdSource, description])
 
+  const shareTitle = useMemo(() => {
+    const trimmed = title.trim()
+    if (mdSource) {
+      const fromHeading = extractFirstHeading(prepareArticleMarkdown(mdSource))
+      if (fromHeading) return fromHeading
+    }
+    return trimmed
+  }, [title, mdSource])
+
   const composeInput = useMemo(
     () => ({
-      title,
+      title: shareTitle,
       canonicalUrl: absUrl,
       snippetPlain: shareExtract.snippetPlain,
       hashtagsLine: shareExtract.hashtagsLine,
       articleBodyPlain: shareExtract.articleBodyPlain,
       substackUrl: shareExtract.substackUrl,
     }),
-    [title, absUrl, shareExtract]
+    [shareTitle, absUrl, shareExtract]
   )
 
   const [modalOpen, setModalOpen] = useState(false)
@@ -177,7 +187,7 @@ export function useShareLinksModel({
       const intent = platformUsesTruncatedOutboundIntent(id)
         ? truncateShareTextForOutbound(id, composeInput)
         : activeCopyText
-      const ob = buildOutboundHref(id, absUrl, title, intent)
+      const ob = buildOutboundHref(id, absUrl, shareTitle, intent)
       const outboundOpenUsesShortDraft =
         platformUsesTruncatedOutboundIntent(id) && intent !== activeCopyText
       const intentCharCount = outboundOpenUsesShortDraft
@@ -193,7 +203,7 @@ export function useShareLinksModel({
         intentCharCount,
       }
     })
-  }, [activeCopyText, composeInput, absUrl, title])
+  }, [activeCopyText, composeInput, absUrl, shareTitle])
 
   const openModal = useCallback((_platform: SharePlatformId, _label: string) => {
     setModalOpen(true)

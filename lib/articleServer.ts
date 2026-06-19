@@ -4,6 +4,7 @@
  */
 
 import { isNonArticlePath } from '@/lib/isNonArticlePath'
+import { prepareArticleMarkdown, resolveArticleDisplayTitle } from '@/lib/articleBody'
 import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
 
 const FILES_BASE_URL = getPrimaryFilesBaseUrl()
@@ -81,14 +82,14 @@ export async function fetchArticle(path: string): Promise<ArticleData | null> {
   const basePath = targetPath.includes('/')
     ? targetPath.split('/').slice(0, -1).join('/')
     : ''
-  const titleFromPath = basePath
-    ? basePath.split('/').pop()?.replace(/_/g, ' ')
-    : 'Article'
-  const title = (frontMatter?.title as string) || titleFromPath || 'Article'
+  const mdxSource = prepareArticleMarkdown(rawContent)
+  const title = resolveArticleDisplayTitle(
+    targetPath,
+    mdxSource,
+    frontMatter?.title as string | undefined
+  )
 
-  // Same autolink transform as API (MDX treats < as JSX)
-  const mdxSource = rawContent.replace(/<(https?:\/\/[^>]+)>/g, (_, url) => `[${url}](${url})`)
-
+  // Same autolink transform as API (MDX treats < as JSX) — already applied in prepareArticleMarkdown for angle URLs
   // OG image: frontmatter.image or first image in content
   const filesBase = getPrimaryFilesBaseUrl()
   let ogImageUrl: string | undefined

@@ -3,7 +3,6 @@
 import React, { useState } from 'react'
 import { Play, Pause, Square, ChevronUp, Settings2, X } from 'lucide-react'
 import { SiteAiLauncherButton } from '@/components/SiteAi/SiteAiLauncherButton'
-import { SiteAiPageAskButton } from '@/components/SiteAi/SiteAiPageAskButton'
 import type { TTSState, SubtitleMode, PiperVoice, TTSProvider } from '@/lib/hooks/useTTS'
 
 const RATES = [0.75, 1.0, 1.25, 1.5, 2.0]
@@ -197,7 +196,6 @@ export function ArticleTTSOverlay({
               </span>
             </div>
           )}
-          <SiteAiPageAskButton />
           <SiteAiLauncherButton size="dock" />
           <button
             onClick={() => setExpanded(!expanded)}
