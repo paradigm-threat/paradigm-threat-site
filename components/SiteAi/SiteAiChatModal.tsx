@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import Link from 'next/link'
 import { Loader2, Send, Sparkles, Trash2, X } from 'lucide-react'
 import { AgentProgressPanel } from '@/components/SiteAi/AgentProgressPanel'
 import { BrowserAiSetupPanel } from '@/components/SiteAi/BrowserAiSetupPanel'
@@ -11,9 +12,11 @@ import { useBrowserAiSupport } from '@/lib/browserAi/useBrowserAiSupport'
 import { askSiteAi } from '@/lib/siteAi/askSiteAi'
 import { SITE_AI_EXAMPLE_QUESTIONS } from '@/lib/siteAi/siteAiExampleQuestions'
 import { getPageContextQuestions } from '@/lib/siteAi/siteAiPageQuestions'
+import { SITE_AI_REPLY_STARTERS } from '@/lib/siteAi/siteAiReplyStarters'
+import { isReplyAssistantFeatureEnabled } from '@/lib/siteOpsFeature'
 
 export function SiteAiChatModal () {
-  const { open, closeModal, openOptions, clearOpenOptions, messages, appendExchange, clearHistory, pageContext } = useSiteAi()
+  const { open, closeModal, openOptions, clearOpenOptions, messages, appendExchange, clearHistory, pageContext, replyMode, enterReplyMode } = useSiteAi()
   const support = useBrowserAiSupport()
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -54,7 +57,10 @@ export function SiteAiChatModal () {
     closeModal()
   }, [closeModal, resetProgress])
 
-  const handleSubmit = useCallback(async (questionOverride?: string) => {
+  const handleSubmit = useCallback(async (
+    questionOverride?: string,
+    options?: { forceReplyMode?: boolean },
+  ) => {
     if (!ready) return
     const question = (questionOverride ?? input).trim()
     if (question.length < 3 || loading) return
@@ -69,12 +75,15 @@ export function SiteAiChatModal () {
     resetProgress()
     setInput('')
 
+    const effectiveReplyMode = options?.forceReplyMode ?? replyMode
+
     try {
       const history = messages.map((m) => ({ role: m.role, content: m.content }))
       const answer = await askSiteAi({
         question,
         history,
         pageContext,
+        replyMode: effectiveReplyMode,
         signal: controller.signal,
         onProgress,
       })
@@ -91,7 +100,12 @@ export function SiteAiChatModal () {
       resetProgress()
       abortRef.current = null
     }
-  }, [ready, input, loading, messages, pageContext, appendExchange, onProgress, resetProgress])
+  }, [ready, input, loading, messages, pageContext, replyMode, appendExchange, onProgress, resetProgress])
+
+  const handleReplyStarter = useCallback((prompt: string, shouldEnterReplyMode: boolean) => {
+    if (shouldEnterReplyMode) enterReplyMode()
+    void handleSubmit(prompt, { forceReplyMode: shouldEnterReplyMode || replyMode })
+  }, [enterReplyMode, handleSubmit, replyMode])
 
   useEffect(() => {
     if (!open || !openOptions?.question) return
@@ -106,6 +120,7 @@ export function SiteAiChatModal () {
 
   const showEmptyState = messages.length === 0 && !loading
   const pageQuestions = pageContext ? getPageContextQuestions(pageContext.title) : []
+  const showReplyAssist = isReplyAssistantFeatureEnabled()
 
   if (!open || !mounted) return null
 
@@ -202,6 +217,31 @@ export function SiteAiChatModal () {
                       </button>
                     ))}
                   </div>
+                  {showReplyAssist && (
+                    <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                      <p className="text-xs text-slate-500 text-center">Reply in a thread</p>
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {SITE_AI_REPLY_STARTERS.map((starter) => (
+                          <button
+                            key={starter.id}
+                            type="button"
+                            onClick={() => handleReplyStarter(starter.prompt, starter.enterReplyMode)}
+                            disabled={!ready}
+                            className="rounded-full border border-amber-600/40 bg-amber-950/30 px-3 py-1.5 text-left text-xs text-amber-100/90 hover:border-amber-500/60 hover:bg-amber-900/40 disabled:opacity-50 transition-colors"
+                          >
+                            {starter.label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-slate-600 text-center">
+                        Chat keeps history for back-and-forth.{' '}
+                        <Link href="/reply" className="text-indigo-400 hover:underline">
+                          Open Reply assistant →
+                        </Link>
+                        {' '}for one-shot paste + tone controls.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
               {messages.map((m) => (

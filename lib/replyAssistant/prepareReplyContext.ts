@@ -1,4 +1,10 @@
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
+import {
+  antisemitismPlaybookSeedPaths,
+  antisemitismReplyAgentInstructions,
+  formatAntisemitismPlaybookForPrompt,
+  matchAntisemitismAttacks,
+} from '@/lib/replyAssistant/antisemitismReplyPlaybook'
 import { findArticlesForText } from '@/lib/replyAssistant/findArticlesForText'
 import type { CitationStyle } from '@/lib/replyAssistant/formatCitations'
 import type { ReplyTone } from '@/lib/replyAssistant/composeReplyShell'
@@ -32,6 +38,8 @@ export type PrepareReplyContextResult = {
   warnings: string[]
   agentInstructions: string
   projectPerspective: string
+  /** Present when pasted text matches a Substack tropes / antisemitism attack profile */
+  antisemitismPlaybook?: string
 }
 
 const AGENT_WORKFLOW = [
@@ -66,12 +74,37 @@ export function prepareReplyContext (
     }
   }
 
+  const combinedForMatch = userInstructions ? `${text}\n\n${userInstructions}` : text
+  const antisemitismMatches = matchAntisemitismAttacks(combinedForMatch, { maxResults: 2 })
+
   const found = findArticlesForText(entries, {
-    sourceText: userInstructions ? `${text}\n\n${userInstructions}` : text,
+    sourceText: combinedForMatch,
     maxArticles: Math.min(10, Math.max(1, input.maxSeedArticles ?? 5)),
     includeBlog: input.includeBlog,
     includeCitations,
   })
+
+  const playbookPaths = antisemitismMatches.length > 0
+    ? antisemitismPlaybookSeedPaths(antisemitismMatches)
+    : []
+  const seedByPath = new Map(found.results.map((r) => [r.path, r]))
+  for (const path of playbookPaths) {
+    if (!seedByPath.has(path)) {
+      seedByPath.set(path, {
+        path,
+        title: path.split('/').pop()?.replace(/\.md$/, '') ?? path,
+        score: 6,
+        matchedTerms: ['antisemitism-playbook'],
+      })
+    }
+  }
+  const seedArticles = Array.from(seedByPath.values())
+    .sort((a, b) => b.score - a.score)
+    .slice(0, Math.min(10, Math.max(1, input.maxSeedArticles ?? 5) + (antisemitismMatches.length > 0 ? 3 : 0)))
+
+  const antisemitismPlaybook = antisemitismMatches.length > 0
+    ? formatAntisemitismPlaybookForPrompt(antisemitismMatches)
+    : undefined
 
   const citationNote = includeCitations
     ? `Include citations (${citationStyle} style) with canonical URLs from read_article.`
@@ -81,16 +114,25 @@ export function prepareReplyContext (
     ? `User reply instructions (follow closely): ${userInstructions}`
     : ''
 
+  const antisemitismNote = antisemitismReplyAgentInstructions(antisemitismMatches)
+
   return {
     sourceText: text,
     extractedQueries: found.extractedQueries,
-    seedArticles: found.results,
+    seedArticles,
     includeCitations,
     citationStyle,
     tone,
     userInstructions,
     warnings: found.warnings,
-    agentInstructions: [AGENT_WORKFLOW, citationNote, `Tone: ${tone}.`, instructionNote].filter(Boolean).join(' '),
+    agentInstructions: [
+      AGENT_WORKFLOW,
+      citationNote,
+      `Tone: ${tone}.`,
+      instructionNote,
+      antisemitismNote,
+    ].filter(Boolean).join(' '),
     projectPerspective: getProjectPerspective(),
+    antisemitismPlaybook,
   }
 }

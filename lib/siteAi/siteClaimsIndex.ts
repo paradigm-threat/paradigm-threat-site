@@ -357,6 +357,45 @@ export const SITE_CLAIMS_INDEX: SiteClaimEntry[] = [
     relatedClaimIds: ['giants-fate', 'saturnian-collinear-config'],
     doNotSay: ['Star forts are only gunpowder forts with no energetic function.'],
   },
+  {
+    id: 'antisemitism-reply-playbook',
+    title: 'Replying to antisemitic attacks (Ten Commandments + tropes Q&A)',
+    claim: 'Antisemitism in this repo means monolithing Jews into one intent—not forbidding evidence-based naming of actors. Forum replies to attacks should follow §5 Ten Commandments and the matched Substack tropes Q&A entry (Q1–Q8): boundary the slur, hold contradictory truths, scope factions/dissent, redirect to institutional lanes the trope skipped.',
+    answerOpener: 'We do not answer slurs with slurs — we name the trope, apply the Ten Commandments, and reply to the specific claim using the matching tropes Q&A (monolithing, Hitler=Rothschild, Epstein collective guilt, Zionist rat-hole, etc.).',
+    bullets: [
+      'Normative anchor: working definition of antisemitism (§5 commandments, anti-monolithing).',
+      'Living playbook: history/chronology/qa/substack-tropes/ — one file per common attack pattern.',
+      'Reply craft: substance where dockets exist; boundary where only slurs exist.',
+    ],
+    confidence: 'documented',
+    uniqueness: 'site-distinctive',
+    uniquenessNote: 'Ten Commandments + per-trope reply strategy wired to Substack Notes Q&A is a Paradigm Threat reply-assistant package.',
+    topics: [
+      'antisemitism', 'anti-semitism', 'monolithing', 'zionist', 'rothschild', 'epstein',
+      'hitler jewish', 'blood libel', 'substack tropes', 'ten commandments', 'jewish',
+    ],
+    searchQueries: [
+      'antisemitism monolithing ten commandments substack tropes reply',
+      'zionist rat hole epstein collective guilt hitler rothschild',
+    ],
+    searchPrefixes: [
+      'history/chronology/qa/substack-tropes/',
+      'history/chronology/investigations/',
+      'governance/war/qa/',
+    ],
+    canonicalPaths: [
+      'history/chronology/investigations/paradigm-threat-working-definition-antisemitism.md',
+      'history/chronology/qa/substack-tropes/page.md',
+      'history/chronology/page.md',
+      'history/chronology/history-qa/page.md',
+    ],
+    relatedClaimIds: ['controlled-opposition'],
+    doNotSay: [
+      'Agree with collective guilt or essential evil claims about Jews.',
+      'Give a generic “we condemn antisemitism” without addressing the specific trope in the post.',
+      'Collapse all Zionism critique into antisemitism or all antisemitism into “just criticizing Israel.”',
+    ],
+  },
 ]
 
 export function getSiteClaimById (id: string): SiteClaimEntry | undefined {

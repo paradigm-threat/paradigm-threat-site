@@ -1,11 +1,13 @@
 import type { LanguageModelMessage } from '@/lib/replyAssistant/browserLanguageModel'
 import { buildSiteChatSystemPrompt } from '@/lib/siteAi/buildSiteChatSystemPrompt'
+import { extractReplySourceText } from '@/lib/siteAi/extractReplySourceText'
 import {
   formatQuestionContextForPrompt,
   prepareQuestionContext,
 } from '@/lib/siteAi/prepareQuestionContext'
+import { formatToolProgressDetail, withFetchProgressReporting } from '@/lib/siteAi/agentProgress'
 import { runSiteAiAgent, type SiteAiAgentProgress } from '@/lib/siteAi/runSiteAiAgent'
-import { withFetchProgressReporting } from '@/lib/siteAi/agentProgress'
+import { executeSiteAiTool } from '@/lib/siteAi/siteAiToolBridge'
 
 export type SiteAiPageContext = {
   path: string
@@ -22,6 +24,7 @@ export type AskSiteAiInput = {
   question: string
   history?: SiteAiChatTurn[]
   pageContext?: SiteAiPageContext | null
+  replyMode?: boolean
   signal?: AbortSignal
   onProgress?: (event: SiteAiAgentProgress) => void
 }
@@ -32,34 +35,61 @@ function trimHistory (history: SiteAiChatTurn[]): SiteAiChatTurn[] {
   return history.slice(-MAX_HISTORY_TURNS)
 }
 
-function buildUserMessage (
-  question: string,
-  seedContext: string,
+function buildUserMessage (input: {
+  question: string
+  seedContext: string
   pageContext?: SiteAiPageContext | null
-): string {
+  replyMode?: boolean
+  replySeedContext?: string
+  replySourceText?: string | null
+}): string {
   const parts = [
-    'Answer the visitor question using site tools when needed.',
+    input.replyMode
+      ? 'Help the visitor draft forum replies using site tools when needed.'
+      : 'Answer the visitor question using site tools when needed.',
     'When a site claim card matches, lead with its thesis then expand from read_article results.',
     'When finished, output only the answer prose.',
     '',
     'Question context seed (claims + Q&A-first index lookup):',
-    seedContext,
+    input.seedContext,
   ]
 
-  if (pageContext?.path) {
+  if (input.replyMode && input.replySeedContext) {
+    parts.push(
+      '',
+      'Reply context seed (from prepare_reply_context):',
+      input.replySeedContext,
+    )
+    if (input.replySourceText) {
+      parts.push(
+        '',
+        '--- Post to reply to ---',
+        input.replySourceText,
+        '---',
+      )
+    }
+  } else if (input.replyMode) {
+    parts.push(
+      '',
+      'Reply mode: the visitor wants help replying in a social thread but has not pasted the target post yet (or it is too short).',
+      'Ask them to paste the post they want to reply to, then draft grounded replies using site articles.',
+    )
+  }
+
+  if (input.pageContext?.path) {
     parts.push(
       '',
       'Current page context (visitor is reading this article now):',
       JSON.stringify({
-        path: pageContext.path,
-        title: pageContext.title,
-        excerpt: pageContext.excerpt?.slice(0, 600),
+        path: input.pageContext.path,
+        title: input.pageContext.title,
+        excerpt: input.pageContext.excerpt?.slice(0, 600),
       }, null, 2),
       'When the question refers to "this page" or asks for a summary, read_article on path first.',
     )
   }
 
-  parts.push('', '--- Question ---', question.trim(), '---')
+  parts.push('', '--- Question ---', input.question.trim(), '---')
   return parts.join('\n')
 }
 
@@ -73,10 +103,45 @@ export async function askSiteAi (input: AskSiteAiInput): Promise<string> {
     input.onProgress?.({ phase: 'init', message: 'Starting…' })
     input.onProgress?.({ phase: 'context', message: 'Searching Q&A pages and related articles…' })
 
+    const history = trimHistory(input.history ?? [])
+    const replySourceText = input.replyMode
+      ? extractReplySourceText({ question, history })
+      : null
+    const hasReplySource = Boolean(replySourceText && replySourceText.length >= 20)
+
     const ctx = await prepareQuestionContext(question, input.pageContext)
     const seedContext = formatQuestionContextForPrompt(ctx)
 
-    const historyMessages: LanguageModelMessage[] = trimHistory(input.history ?? []).map((m) => ({
+    let replySeedContext: string | undefined
+    if (input.replyMode && hasReplySource && replySourceText) {
+      const seedArgs = {
+        sourceText: replySourceText,
+        includeCitations: false,
+        tone: 'conversational' as const,
+      }
+      const seedDetail = formatToolProgressDetail('prepare_reply_context', seedArgs)
+      input.onProgress?.({ phase: 'context', message: seedDetail })
+      input.onProgress?.({
+        phase: 'tool',
+        toolName: 'prepare_reply_context',
+        status: 'start',
+        args: seedArgs,
+        detail: seedDetail,
+      })
+      try {
+        replySeedContext = await executeSiteAiTool('prepare_reply_context', seedArgs)
+      } finally {
+        input.onProgress?.({
+          phase: 'tool',
+          toolName: 'prepare_reply_context',
+          status: 'done',
+          args: seedArgs,
+          detail: seedDetail,
+        })
+      }
+    }
+
+    const historyMessages: LanguageModelMessage[] = history.map((m) => ({
       role: m.role,
       content: m.content,
     }))
@@ -85,17 +150,36 @@ export async function askSiteAi (input: AskSiteAiInput): Promise<string> {
       ...historyMessages,
       {
         role: 'user',
-        content: buildUserMessage(question, seedContext, input.pageContext),
+        content: buildUserMessage({
+          question,
+          seedContext,
+          pageContext: input.pageContext,
+          replyMode: input.replyMode,
+          replySeedContext,
+          replySourceText,
+        }),
       },
     ]
 
+    const systemPrompt = buildSiteChatSystemPrompt({
+      includeReplySections: Boolean(input.replyMode),
+    })
+
+    const finalInstruction = input.replyMode && hasReplySource
+      ? 'Write the forum reply as plain prose ready to paste (no tool markers).'
+      : input.replyMode
+        ? 'Coach the visitor: ask them to paste the post if missing, then offer to draft a reply.'
+        : 'Write the final answer for the visitor as plain prose (no tool markers).'
+
+    const minFinalLength = input.replyMode && hasReplySource ? 20 : 8
+
     const result = await runSiteAiAgent({
-      systemPrompt: buildSiteChatSystemPrompt(),
+      systemPrompt,
       conversation,
       signal: input.signal,
       onProgress: input.onProgress,
-      finalInstruction: 'Write the final answer for the visitor as plain prose (no tool markers).',
-      minFinalLength: 8,
+      finalInstruction,
+      minFinalLength,
     })
 
     return result.finalText

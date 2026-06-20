@@ -35,6 +35,9 @@ type SiteAiContextValue = {
   clearHistory: () => void
   pageContext: SiteAiPageContext | null
   setPageContext: (ctx: SiteAiPageContext | null) => void
+  replyMode: boolean
+  enterReplyMode: () => void
+  setReplyMode: (value: boolean) => void
 }
 
 const SiteAiContext = createContext<SiteAiContextValue | null>(null)
@@ -44,6 +47,7 @@ export function SiteAiProvider ({ children }: { children: React.ReactNode }) {
   const [openOptions, setOpenOptions] = useState<SiteAiOpenOptions | null>(null)
   const [messages, setMessagesState] = useState<SiteAiStoredMessage[]>([])
   const [pageContext, setPageContextState] = useState<SiteAiPageContext | null>(null)
+  const [replyMode, setReplyModeState] = useState(false)
   const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
@@ -71,6 +75,15 @@ export function SiteAiProvider ({ children }: { children: React.ReactNode }) {
   const clearHistory = useCallback(() => {
     clearSiteAiSession()
     setMessagesState([])
+    setReplyModeState(false)
+  }, [])
+
+  const enterReplyMode = useCallback(() => {
+    setReplyModeState(true)
+  }, [])
+
+  const setReplyMode = useCallback((value: boolean) => {
+    setReplyModeState(value)
   }, [])
 
   const clearOpenOptions = useCallback(() => {
@@ -95,7 +108,10 @@ export function SiteAiProvider ({ children }: { children: React.ReactNode }) {
     clearHistory,
     pageContext,
     setPageContext: setPageContextState,
-  }), [open, openOptions, clearOpenOptions, messages, setMessages, appendExchange, clearHistory, pageContext])
+    replyMode,
+    enterReplyMode,
+    setReplyMode,
+  }), [open, openOptions, clearOpenOptions, messages, setMessages, appendExchange, clearHistory, pageContext, replyMode, enterReplyMode, setReplyMode])
 
   return (
     <SiteAiContext.Provider value={value}>

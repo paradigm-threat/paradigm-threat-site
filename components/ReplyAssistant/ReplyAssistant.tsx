@@ -8,6 +8,7 @@ import { useAgentProgressDisplay } from '@/components/SiteAi/useAgentProgressDis
 import { draftReplyWithBrowserAi } from '@/lib/replyAssistant/draftReplyWithBrowserAi'
 import { useReplyDraftingAvailable } from '@/lib/replyAssistant/useReplyDraftingAvailable'
 import { useBrowserAiSupport } from '@/lib/browserAi/useBrowserAiSupport'
+import { ReplyAssistantTunedContext } from '@/components/ReplyAssistant/ReplyAssistantTunedContext'
 
 export function ReplyAssistant () {
   const availability = useReplyDraftingAvailable()
@@ -276,6 +277,8 @@ export function ReplyAssistant () {
       {error && (
         <p className="text-sm text-red-600 dark:text-red-400" role="alert">{error}</p>
       )}
+
+      <ReplyAssistantTunedContext />
     </div>
   )
 }

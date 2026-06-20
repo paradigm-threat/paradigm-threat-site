@@ -1,4 +1,8 @@
 import { getProjectPerspective } from '@/lib/replyAssistant/projectPerspective'
+import {
+  replyAntisemitismPromptSection,
+  replyInvestigationWorkflowSection,
+} from '@/lib/replyAssistant/replyAssistantPromptSections'
 import { REPLY_INVESTIGATION_TOOL_NAMES } from '@/lib/replyAssistant/replyInvestigationTools'
 import { TOOL_CALL_END, TOOL_CALL_START } from '@/lib/siteAi/siteAiToolBridge'
 
@@ -21,12 +25,9 @@ export function buildReplySystemPrompt (input: BuildReplySystemPromptInput): str
     '',
     getProjectPerspective(),
     '',
-    '## Investigation workflow',
-    '1. Understand the pasted post.',
-    '2. Call tools to search and read site content before making factual claims.',
-    '3. For Q&A or FAQ-style challenges, browse Q&A paths with list_index_entries (e.g. prefix history/, query common questions or qa) and read_article on hits such as history/common-questions.md or history/chronology/history-qa/.',
-    '4. Use read_article with offset when content is truncated.',
-    '5. When you have enough context, write the final reply only — no tool markers.',
+    replyInvestigationWorkflowSection(),
+    '',
+    replyAntisemitismPromptSection(),
     '',
     ...(userInstructions
       ? [

@@ -112,6 +112,8 @@ describe('buildReplySystemPrompt', () => {
     })
     assert.ok(prompt.includes('list_index_entries'))
     assert.ok(prompt.includes('history-qa'))
+    assert.ok(prompt.includes('Ten Commandments'))
+    assert.ok(prompt.includes('substack-tropes'))
     assert.ok(prompt.includes(TOOL_CALL_START))
     assert.ok(prompt.includes('æther'))
   })

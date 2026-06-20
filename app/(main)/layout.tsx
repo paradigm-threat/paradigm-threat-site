@@ -10,7 +10,7 @@ import { SuspenseLoader } from "@client";
 import { BottomChromeProvider } from "@/lib/BottomChromeContext";
 import { SiteAiProvider } from "@/components/SiteAi/SiteAiProvider";
 import { SiteAiChrome } from "@/components/SiteAi/SiteAiChrome";
-import { isMarkdownHubPath } from "@/lib/visitResumeStorage";
+import { shouldHideLegacyFloatingBackToTop } from "@/lib/siteChrome/bottomChrome";
 
 export default function MainLayout({
     children
@@ -19,9 +19,8 @@ export default function MainLayout({
 }) {
     const pathname = usePathname();
     const { fileList } = useFiles();
-    // Hide FloatingDiv's Back to top on article pages (2+ path segments) and markdown hubs where TTS dock handles chrome
     const hideFloatingButtons = pathname
-        ? pathname.split('/').filter(Boolean).length >= 2 || isMarkdownHubPath(pathname)
+        ? shouldHideLegacyFloatingBackToTop(pathname)
         : false;
     const isChatPage = pathname?.startsWith('/chat') ?? false;
 

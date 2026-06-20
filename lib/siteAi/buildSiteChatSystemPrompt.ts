@@ -1,11 +1,19 @@
 import { getProjectPerspective } from '@/lib/replyAssistant/projectPerspective'
+import {
+  replyAntisemitismPromptSection,
+  replyInvestigationWorkflowSection,
+} from '@/lib/replyAssistant/replyAssistantPromptSections'
 import { SITE_AI_INVESTIGATION_TOOL_NAMES } from '@/lib/siteAi/investigationTools'
 import { TOOL_CALL_END, TOOL_CALL_START } from '@/lib/siteAi/siteAiToolBridge'
 
-export function buildSiteChatSystemPrompt (): string {
+export type BuildSiteChatSystemPromptInput = {
+  includeReplySections?: boolean
+}
+
+export function buildSiteChatSystemPrompt (input: BuildSiteChatSystemPromptInput = {}): string {
   const toolList = SITE_AI_INVESTIGATION_TOOL_NAMES.map((n) => `- ${n}`).join('\n')
 
-  return [
+  const sections = [
     'You answer questions about paradigm-threat.net in the site\'s voice — not as a neutral Wikipedia summary.',
     '',
     getProjectPerspective(),
@@ -29,6 +37,18 @@ export function buildSiteChatSystemPrompt (): string {
     '4. If seeds are weak, search_site using claim searchQueries or extracted terms.',
     '5. Read at least two relevant sources when the question is broad.',
     '6. Reply in clear prose — cite article titles inline; no raw path dumps unless asked.',
+  ]
+
+  if (input.includeReplySections) {
+    sections.push(
+      '',
+      replyInvestigationWorkflowSection(),
+      '',
+      replyAntisemitismPromptSection(),
+    )
+  }
+
+  sections.push(
     '',
     '## Allowed tools',
     toolList,
@@ -38,5 +58,7 @@ export function buildSiteChatSystemPrompt (): string {
     TOOL_CALL_START,
     '{"name":"<tool_name>","arguments":{...}}',
     TOOL_CALL_END,
-  ].join('\n')
+  )
+
+  return sections.join('\n')
 }
