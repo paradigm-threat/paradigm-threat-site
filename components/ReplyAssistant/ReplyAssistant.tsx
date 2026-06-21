@@ -8,6 +8,7 @@ import { useAgentProgressDisplay } from '@/components/SiteAi/useAgentProgressDis
 import { draftReplyWithBrowserAi } from '@/lib/replyAssistant/draftReplyWithBrowserAi'
 import { useReplyDraftingAvailable } from '@/lib/replyAssistant/useReplyDraftingAvailable'
 import { useBrowserAiSupport } from '@/lib/browserAi/useBrowserAiSupport'
+import { AGENT_STALL_ERROR_MESSAGE } from '@/lib/siteAi/agentProgress'
 import { ReplyAssistantTunedContext } from '@/components/ReplyAssistant/ReplyAssistantTunedContext'
 
 export function ReplyAssistant () {
@@ -24,7 +25,16 @@ export function ReplyAssistant () {
   const [toolLog, setToolLog] = useState<string[]>([])
   const [showLog, setShowLog] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
-  const { steps, current, slowHint, onProgress, reset: resetProgress } = useAgentProgressDisplay()
+
+  const handleStalled = useCallback(() => {
+    abortRef.current?.abort()
+    setDrafting(false)
+    setError(AGENT_STALL_ERROR_MESSAGE)
+  }, [])
+
+  const { steps, current, slowHint, stallError, onProgress, reset: resetProgress } = useAgentProgressDisplay({
+    onStalled: handleStalled,
+  })
 
   const ready = availability === 'available'
   const setupMode = availability === 'needs-setup'
@@ -231,6 +241,7 @@ export function ReplyAssistant () {
         active={drafting}
         current={current}
         slowHint={slowHint}
+        error={stallError}
         steps={steps}
       />
 

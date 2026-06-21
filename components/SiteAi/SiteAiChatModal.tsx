@@ -5,10 +5,11 @@ import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { Loader2, Send, Sparkles, Trash2, X } from 'lucide-react'
 import { AgentProgressPanel } from '@/components/SiteAi/AgentProgressPanel'
-import { BrowserAiSetupPanel } from '@/components/SiteAi/BrowserAiSetupPanel'
+import { BrowserAiSetupPanel, BrowserAiUnsupportedPanel } from '@/components/SiteAi/BrowserAiSetupPanel'
 import { useAgentProgressDisplay } from '@/components/SiteAi/useAgentProgressDisplay'
 import { useSiteAi } from '@/components/SiteAi/SiteAiProvider'
 import { useBrowserAiSupport } from '@/lib/browserAi/useBrowserAiSupport'
+import { AGENT_STALL_ERROR_MESSAGE } from '@/lib/siteAi/agentProgress'
 import { askSiteAi } from '@/lib/siteAi/askSiteAi'
 import { SITE_AI_EXAMPLE_QUESTIONS } from '@/lib/siteAi/siteAiExampleQuestions'
 import { getPageContextQuestions } from '@/lib/siteAi/siteAiPageQuestions'
@@ -25,9 +26,21 @@ export function SiteAiChatModal () {
   const [mounted, setMounted] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
-  const { steps, current, slowHint, onProgress, reset: resetProgress } = useAgentProgressDisplay()
 
+  const handleStalled = useCallback(() => {
+    abortRef.current?.abort()
+    setLoading(false)
+    setPendingQuestion(null)
+    setError(AGENT_STALL_ERROR_MESSAGE)
+  }, [])
+
+  const { steps, current, slowHint, stallError, onProgress, reset: resetProgress } = useAgentProgressDisplay({
+    onStalled: handleStalled,
+  })
+
+  const checking = support.status === 'checking'
   const setupMode = support.status === 'needs-setup'
+  const unsupported = support.status === 'unsupported'
   const ready = support.status === 'ready'
 
   useEffect(() => {
@@ -47,7 +60,14 @@ export function SiteAiChatModal () {
     if (open && listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight
     }
-  }, [open, messages, loading, steps, current, setupMode])
+  }, [open, messages, loading, steps, current, setupMode, checking, unsupported])
+
+  const handleCancelLoading = useCallback(() => {
+    abortRef.current?.abort()
+    setLoading(false)
+    setPendingQuestion(null)
+    resetProgress()
+  }, [resetProgress])
 
   const handleClose = useCallback(() => {
     abortRef.current?.abort()
@@ -140,12 +160,16 @@ export function SiteAiChatModal () {
               Ask Paradigm Threat
             </h2>
             <p className="text-xs text-slate-500 truncate">
-              {setupMode
-                ? 'Setup required · desktop Chrome with on-device AI'
-                : `On-device AI · searches site Q&A and articles${pageContext?.title ? ` · ${pageContext.title}` : ''}`}
+              {checking
+                ? 'Checking browser AI…'
+                : setupMode
+                  ? 'Setup required · desktop Chrome with on-device AI'
+                  : unsupported
+                    ? 'Not available on this device'
+                    : `On-device AI · searches site Q&A and articles${pageContext?.title ? ` · ${pageContext.title}` : ''}`}
             </p>
           </div>
-          {!setupMode && (
+          {!setupMode && !checking && !unsupported && (
             <button
               type="button"
               onClick={clearHistory}
@@ -167,7 +191,16 @@ export function SiteAiChatModal () {
           </button>
         </header>
 
-        {setupMode ? (
+        {checking ? (
+          <div className="flex-1 flex items-center justify-center gap-2 text-sm text-slate-400 min-h-0">
+            <Loader2 className="h-5 w-5 animate-spin text-indigo-400" />
+            Checking browser AI and WebMCP…
+          </div>
+        ) : unsupported ? (
+          <div className="flex-1 overflow-y-auto px-4 py-6 min-h-0">
+            <BrowserAiUnsupportedPanel variant="modal" />
+          </div>
+        ) : setupMode ? (
           <div className="flex-1 overflow-y-auto px-4 py-6 min-h-0">
             <BrowserAiSetupPanel
               reason={support.reason}
@@ -268,15 +301,23 @@ export function SiteAiChatModal () {
                 </div>
               )}
               {loading && (
-                <div className="flex justify-start max-w-[90%]">
+                <div className="flex justify-start max-w-[90%] space-y-2">
                   <AgentProgressPanel
                     active
                     current={current}
                     slowHint={slowHint}
+                    error={stallError}
                     steps={steps}
                     variant="panel"
                     className="w-full border-slate-700/50 bg-slate-900/80"
                   />
+                  <button
+                    type="button"
+                    onClick={handleCancelLoading}
+                    className="text-xs text-slate-500 hover:text-slate-300"
+                  >
+                    Cancel
+                  </button>
                 </div>
               )}
             </div>

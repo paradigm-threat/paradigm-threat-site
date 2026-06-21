@@ -198,6 +198,12 @@ export function applyProgressEvent (
 export const SLOW_MODEL_HINT = 'On-device AI can take 30–60 seconds per step on first run — still working…'
 export const SLOW_MODEL_HINT_EXTENDED = 'Model is still processing. You can cancel and try a shorter question if this persists.'
 
+export const AGENT_STALL_ERROR_MESSAGE =
+  'On-device AI stopped making progress. Open chrome://on-device-internals to check the model download, refresh, and try again — or cancel and use a shorter post.'
+
+export const LM_CREATE_TIMEOUT_MESSAGE =
+  'On-device model did not start within 2 minutes. Check chrome://on-device-internals, then refresh and try again.'
+
 export function bindFetchProgressToAgent (
   onProgress?: (event: SiteAiAgentProgress) => void
 ): () => void {

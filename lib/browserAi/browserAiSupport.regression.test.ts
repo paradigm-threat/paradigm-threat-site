@@ -72,4 +72,24 @@ describe('detectBrowserAiSupport', () => {
     const result = await detectBrowserAiSupport()
     assert.deepEqual(result, { status: 'unsupported', reason: 'no-prompt-api' })
   })
+
+  it('returns feature-disabled before probing LanguageModel when flag is off', async () => {
+    delete process.env.NEXT_PUBLIC_WEBMCP_ENABLED
+    let availabilityCalled = false
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: { userAgent: 'Chrome/146', platform: 'Linux x86_64', maxTouchPoints: 0 },
+    })
+    globalThis.window = {
+      LanguageModel: {
+        availability: async () => {
+          availabilityCalled = true
+          return 'readily'
+        },
+      },
+    } as unknown as Window
+    const result = await detectBrowserAiSupport()
+    assert.deepEqual(result, { status: 'needs-setup', reason: 'feature-disabled' })
+    assert.equal(availabilityCalled, false)
+  })
 })

@@ -1,27 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import {
-  detectBrowserAiSupport,
-  type BrowserAiSupport,
-} from '@/lib/browserAi/detectBrowserAiSupport'
+import { useBrowserAiSupportContext } from '@/components/SiteAi/BrowserAiSupportProvider'
+import type { BrowserAiSupportState } from '@/components/SiteAi/BrowserAiSupportProvider'
 
-export type BrowserAiSupportState =
-  | { status: 'checking' }
-  | BrowserAiSupport
+export type { BrowserAiSupportState } from '@/components/SiteAi/BrowserAiSupportProvider'
 
 export function useBrowserAiSupport (): BrowserAiSupportState {
-  const [state, setState] = useState<BrowserAiSupportState>({ status: 'checking' })
-
-  useEffect(() => {
-    let cancelled = false
-    void detectBrowserAiSupport().then((result) => {
-      if (!cancelled) setState(result)
-    }).catch(() => {
-      if (!cancelled) setState({ status: 'unsupported', reason: 'no-prompt-api' })
-    })
-    return () => { cancelled = true }
-  }, [])
-
-  return state
+  return useBrowserAiSupportContext().support
 }

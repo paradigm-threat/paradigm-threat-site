@@ -9,6 +9,19 @@ type BrowserAiSetupPanelProps = {
   variant?: 'modal' | 'page'
 }
 
+function setupHeadline (reason?: BrowserAiSetupReason): string {
+  switch (reason) {
+    case 'feature-disabled':
+      return 'AI features are disabled on this deployment'
+    case 'detection-timeout':
+      return 'Browser AI check timed out'
+    case 'webmcp-unavailable':
+      return 'WebMCP or on-device model not ready'
+    default:
+      return 'Enable on-device AI in Chrome'
+  }
+}
+
 export function BrowserAiSetupPanel ({
   reason,
   variant = 'modal',
@@ -21,13 +34,33 @@ export function BrowserAiSetupPanel ({
         <Sparkles className="h-5 w-5 text-violet-400 shrink-0 mt-0.5" aria-hidden />
         <div className="space-y-2 min-w-0">
           <p className={`font-medium text-slate-100 ${isPage ? 'text-base' : 'text-sm'}`}>
-            Enable on-device AI in Chrome
+            {setupHeadline(reason)}
           </p>
           <p className="text-sm text-slate-400 leading-relaxed">
             Experimental — desktop Chrome 146+ with built-in Gemini Nano. Mobile and other browsers are not supported.
           </p>
         </div>
       </div>
+
+      {reason === 'feature-disabled' && (
+        <p className="text-sm text-amber-400/90 leading-relaxed">
+          This deployment needs{' '}
+          <code className="text-[11px]">NEXT_PUBLIC_WEBMCP_ENABLED=1</code>{' '}
+          in the build environment (e.g. Vercel Production env vars), then a redeploy.
+        </p>
+      )}
+
+      {reason === 'detection-timeout' && (
+        <p className="text-sm text-amber-400/90 leading-relaxed">
+          The browser AI check did not finish in time. Refresh the page, confirm WebMCP and the on-device model below, then try again.
+        </p>
+      )}
+
+      {reason === 'webmcp-unavailable' && (
+        <p className="text-sm text-slate-400 leading-relaxed">
+          Chrome has the Prompt API but WebMCP tools or the language model session are not available yet. Complete the steps below — this is separate from the site deployment flag.
+        </p>
+      )}
 
       <ol className="list-decimal space-y-2 pl-5 text-sm text-slate-300 leading-relaxed">
         <li>
@@ -52,12 +85,6 @@ export function BrowserAiSetupPanel ({
         </li>
         <li>Refresh this page, then try again.</li>
       </ol>
-
-      {reason === 'feature-disabled' && (
-        <p className="text-xs text-amber-400/90">
-          This deployment also needs <code className="text-[11px]">NEXT_PUBLIC_WEBMCP_ENABLED=1</code>.
-        </p>
-      )}
 
       <button
         type="button"

@@ -2,15 +2,18 @@ import { isBrowserLanguageModelAvailable } from '@/lib/replyAssistant/browserLan
 import { isSiteAiEnabled } from '@/lib/siteOpsFeature'
 import { getModelContext } from '@/lib/webmcp/modelContext'
 import { isMobileClient } from '@/lib/browserAi/isMobileClient'
+import { TimeoutError, withTimeout } from '@/lib/browserAi/withTimeout'
 
 export type BrowserAiUnsupportedReason = 'mobile' | 'no-prompt-api' | 'model-unavailable'
 
-export type BrowserAiSetupReason = 'feature-disabled' | 'webmcp-unavailable'
+export type BrowserAiSetupReason = 'feature-disabled' | 'webmcp-unavailable' | 'detection-timeout'
 
 export type BrowserAiSupport =
   | { status: 'unsupported'; reason: BrowserAiUnsupportedReason }
   | { status: 'needs-setup'; reason: BrowserAiSetupReason }
   | { status: 'ready' }
+
+const DETECTION_TIMEOUT_MS = 12_000
 
 const LM_PROBE = {
   expectedInputs: [{ type: 'text' as const, languages: ['en'] }],
@@ -21,8 +24,7 @@ function hasPromptApi (): boolean {
   return typeof window !== 'undefined' && !!window.LanguageModel?.availability
 }
 
-/** Client-side tier detection for Site AI and reply assistant. */
-export async function detectBrowserAiSupport (): Promise<BrowserAiSupport> {
+async function detectBrowserAiSupportInner (): Promise<BrowserAiSupport> {
   if (typeof window === 'undefined') {
     return { status: 'unsupported', reason: 'no-prompt-api' }
   }
@@ -35,6 +37,10 @@ export async function detectBrowserAiSupport (): Promise<BrowserAiSupport> {
     return { status: 'unsupported', reason: 'no-prompt-api' }
   }
 
+  if (!isSiteAiEnabled()) {
+    return { status: 'needs-setup', reason: 'feature-disabled' }
+  }
+
   let modelStatus: Awaited<ReturnType<NonNullable<typeof window.LanguageModel>['availability']>> | null = null
   try {
     modelStatus = await window.LanguageModel!.availability(LM_PROBE)
@@ -44,10 +50,6 @@ export async function detectBrowserAiSupport (): Promise<BrowserAiSupport> {
 
   if (modelStatus === 'unavailable') {
     return { status: 'unsupported', reason: 'model-unavailable' }
-  }
-
-  if (!isSiteAiEnabled()) {
-    return { status: 'needs-setup', reason: 'feature-disabled' }
   }
 
   const { initWebMcp } = await import('@/lib/webmcp/init')
@@ -63,6 +65,22 @@ export async function detectBrowserAiSupport (): Promise<BrowserAiSupport> {
   }
 
   return { status: 'ready' }
+}
+
+/** Client-side tier detection for Site AI and reply assistant. */
+export async function detectBrowserAiSupport (): Promise<BrowserAiSupport> {
+  try {
+    return await withTimeout(
+      detectBrowserAiSupportInner(),
+      DETECTION_TIMEOUT_MS,
+      'Browser AI detection',
+    )
+  } catch (e) {
+    if (e instanceof TimeoutError) {
+      return { status: 'needs-setup', reason: 'detection-timeout' }
+    }
+    throw e
+  }
 }
 
 /** Whether the purple launcher should appear (capable desktop, not fully blocked). */

@@ -8,6 +8,7 @@ type AgentProgressPanelProps = {
   active: boolean
   current: string
   slowHint: string | null
+  error?: string | null
   steps: AgentProgressStep[]
   className?: string
   variant?: 'inline' | 'panel'
@@ -17,6 +18,7 @@ export function AgentProgressPanel ({
   active,
   current,
   slowHint,
+  error = null,
   steps,
   className = '',
   variant = 'panel',
@@ -30,15 +32,17 @@ export function AgentProgressPanel ({
   return (
     <div className={`${shell} ${className}`.trim()} role="status" aria-live="polite">
       <div className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300">
-        <Loader2 className="h-4 w-4 shrink-0 animate-spin mt-0.5 text-indigo-500" />
+        {!error && <Loader2 className="h-4 w-4 shrink-0 animate-spin mt-0.5 text-indigo-500" />}
         <div className="min-w-0 flex-1">
-          <p className="font-medium">{current || 'Working…'}</p>
-          {slowHint && (
+          <p className={`font-medium ${error ? 'text-red-600 dark:text-red-400' : ''}`}>
+            {error || current || 'Working…'}
+          </p>
+          {!error && slowHint && (
             <p className="text-xs text-amber-700 dark:text-amber-400/90 mt-1">{slowHint}</p>
           )}
         </div>
       </div>
-      {steps.length > 0 && (
+      {!error && steps.length > 0 && (
         <ul className="space-y-1 pl-6 text-xs text-slate-500 dark:text-slate-400 max-h-32 overflow-y-auto">
           {steps.map((step) => (
             <li key={step.id} className="flex items-start gap-1.5">
