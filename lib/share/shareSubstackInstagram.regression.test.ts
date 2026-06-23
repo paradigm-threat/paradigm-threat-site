@@ -5,9 +5,11 @@ import { extractShareMetadata } from './extractShareMetadata.ts'
 import {
   composeShareText,
   fitComposeShareToCharLimit,
+  READ_FULL_ARTICLE_LINE,
   truncateShareTextForOutbound,
 } from './composeShareText.ts'
 import {
+  FACEBOOK_COPY_MAX,
   INSTAGRAM_CAPTION_MAX,
   INSTAGRAM_HASHTAG_MAX,
   NEXTDOOR_COPY_MAX,
@@ -106,6 +108,81 @@ test('composeShareText caps Instagram hashtags at the platform limit', () => {
   assert.equal(tagTokens.length, INSTAGRAM_HASHTAG_MAX)
 })
 
+const DECK_LINE_BODY = `# The Peace Deal Nobody Cares About
+
+Iran 2026 — Installment III — Islamabad deck line with **bold emphasis**.
+
+![Hero](https://paradigmthreat.net/example.png)
+
+The Islamabad Memorandum is not missing from the news feed.
+
+Keywords: #Islamabad #Peace
+`
+
+test('composeShareText does not repeat deck-line snippet at start of article body', () => {
+  const meta = extractShareMetadata({ rawMarkdown: DECK_LINE_BODY })
+  assert.ok(meta.snippetPlain.includes('Islamabad deck line'))
+  assert.ok(meta.articleBodyPlain.includes('Islamabad Memorandum'))
+
+  const text = composeShareText('instagram', {
+    title: 'The Peace Deal Nobody Cares About',
+    canonicalUrl: 'https://paradigmthreat.net/governance/war/islamabad',
+    snippetPlain: meta.snippetPlain,
+    hashtagsLine: meta.hashtagsLine,
+    articleBodyPlain: meta.articleBodyPlain,
+  })
+
+  const deck = 'Iran 2026 — Installment III — Islamabad deck line with bold emphasis.'
+  const occurrences = text.split(deck).length - 1
+  assert.equal(occurrences, 1, 'deck line appears exactly once in composed text')
+  assert.ok(text.includes('The Islamabad Memorandum is not missing'))
+})
+
+test('fitComposeShareToCharLimit dedupes deck-line snippet from article body', () => {
+  const meta = extractShareMetadata({ rawMarkdown: DECK_LINE_BODY })
+  const fitted = fitComposeShareToCharLimit(
+    'truthsocial',
+    {
+      title: 'The Peace Deal Nobody Cares About',
+      canonicalUrl: 'https://paradigmthreat.net/governance/war/islamabad',
+      snippetPlain: meta.snippetPlain,
+      hashtagsLine: '',
+      articleBodyPlain: meta.articleBodyPlain,
+    },
+    TRUTHSOCIAL_COPY_MAX
+  )
+  const deck = 'Iran 2026 — Installment III — Islamabad deck line with bold emphasis.'
+  assert.equal(fitted.split(deck).length - 1, 1)
+})
+
+test('composeShareText does not repeat TL;DR snippet in article body', () => {
+  const meta = extractShareMetadata({ rawMarkdown: SAMPLE_BODY })
+  assert.equal(meta.snippetPlain, 'A short summary line.')
+
+  const text = composeShareText('instagram', {
+    title: 'Sample Article',
+    canonicalUrl: 'https://paradigmthreat.net/sample',
+    snippetPlain: meta.snippetPlain,
+    hashtagsLine: meta.hashtagsLine,
+    articleBodyPlain: meta.articleBodyPlain,
+  })
+
+  assert.equal(text.split('A short summary line.').length - 1, 1)
+  assert.ok(text.includes('Body paragraph one.'))
+})
+
+test('composeShareText short copy with snippet only and empty article is unchanged', () => {
+  const text = composeShareText('facebook', {
+    title: 'Sample',
+    canonicalUrl: 'https://paradigmthreat.net/sample',
+    snippetPlain: 'Deck line only.',
+    hashtagsLine: '#Tag',
+    articleBodyPlain: '',
+  })
+  assert.ok(text.includes('Deck line only.'))
+  assert.equal(text.split('Deck line only.').length - 1, 1)
+})
+
 test('composeShareText for Instagram includes article body when within caption limit', () => {
   const article = 'First paragraph. Second paragraph with enough words to be recognizable.'
   const text = composeShareText('instagram', {
@@ -119,11 +196,65 @@ test('composeShareText for Instagram includes article body when within caption l
   assert.ok(text.includes('Snippet line.'), 'snippet appears before article block')
 })
 
-test('platformModalCopyLimit enables long modal copy for Instagram, Truth Social, and Nextdoor', () => {
+test('composeShareText for Facebook uses paragraph breaks in article body', () => {
+  const meta = extractShareMetadata({ rawMarkdown: DECK_LINE_BODY })
+  assert.ok(meta.articleBodyParagraphsPlain.includes('\n\n'))
+  const text = composeShareText('facebook', {
+    title: 'The Peace Deal Nobody Cares About',
+    canonicalUrl: 'https://paradigmthreat.net/governance/war/islamabad',
+    snippetPlain: meta.snippetPlain,
+    hashtagsLine: meta.hashtagsLine,
+    articleBodyPlain: meta.articleBodyParagraphsPlain,
+  })
+  assert.ok(text.includes('The Islamabad Memorandum is not missing'))
+  assert.match(text, /deck line[\s\S]+\n\n[\s\S]+Islamabad Memorandum/)
+})
+
+test('fitComposeShareToCharLimit adds Read full article above URLs when Facebook copy is clipped', () => {
+  const paras = Array.from({ length: 40 }, (_, i) => `Paragraph ${i + 1}. ${'word '.repeat(80)}`).join('\n\n')
+  const fitted = fitComposeShareToCharLimit(
+    'facebook',
+    {
+      title: 'Long Article',
+      canonicalUrl: 'https://paradigmthreat.net/long',
+      snippetPlain: 'Opening deck line.',
+      hashtagsLine: '#Tag',
+      articleBodyPlain: paras,
+    },
+    FACEBOOK_COPY_MAX,
+    { readFullArticleWhenClipped: true, preserveParagraphs: true }
+  )
+  assert.ok(fitted.length <= FACEBOOK_COPY_MAX)
+  assert.ok(fitted.includes(READ_FULL_ARTICLE_LINE))
+  const urlIdx = fitted.indexOf('https://paradigmthreat.net/long')
+  const readIdx = fitted.indexOf(READ_FULL_ARTICLE_LINE)
+  assert.ok(readIdx >= 0 && urlIdx > readIdx, 'Read full article appears above canonical URL')
+})
+
+test('fitComposeShareToCharLimit omits Read full article when Facebook copy fits', () => {
+  const meta = extractShareMetadata({ rawMarkdown: DECK_LINE_BODY })
+  const fitted = fitComposeShareToCharLimit(
+    'facebook',
+    {
+      title: 'Short',
+      canonicalUrl: 'https://paradigmthreat.net/short',
+      snippetPlain: meta.snippetPlain,
+      hashtagsLine: '',
+      articleBodyPlain: meta.articleBodyParagraphsPlain,
+    },
+    FACEBOOK_COPY_MAX,
+    { readFullArticleWhenClipped: true, preserveParagraphs: true }
+  )
+  assert.ok(!fitted.includes(READ_FULL_ARTICLE_LINE))
+})
+
+test('platformModalCopyLimit enables long modal copy for Facebook, Instagram, Truth Social, and Nextdoor', () => {
+  assert.equal(platformModalCopyLimit('facebook'), FACEBOOK_COPY_MAX)
   assert.equal(platformModalCopyLimit('instagram'), INSTAGRAM_CAPTION_MAX)
   assert.equal(platformModalCopyLimit('truthsocial'), TRUTHSOCIAL_COPY_MAX)
   assert.equal(platformModalCopyLimit('nextdoor'), NEXTDOOR_COPY_MAX)
   assert.equal(platformModalCopyLimit('x'), null)
+  assert.equal(FACEBOOK_COPY_MAX, NEXTDOOR_COPY_MAX)
 })
 
 test('fitComposeShareToCharLimit trims oversized Truth Social modal copy to at most TRUTHSOCIAL_COPY_MAX', () => {

@@ -10,5 +10,8 @@ export {
   platformUsesTruncatedOutboundIntent,
   platformUsesSeparateUrlInShareIntent,
   dedupeCanonicalUrlInPlainText,
+  stripSnippetPrefixFromArticle,
+  READ_FULL_ARTICLE_LINE,
   type ComposeShareInput,
+  type FitComposeShareOptions,
 } from '@/lib/share/composeShareText'

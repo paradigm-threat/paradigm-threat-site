@@ -1,36 +1,50 @@
 'use client'
 
-import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import React, { useEffect, useState, useMemo, Suspense, useRef, useCallback } from 'react'
+import { getMergedSearchIndex, getRemoteFile } from '@/server/remoteFiles'
+import { SearchHeader, FolderGrid, ArticleStack, ImageGallery } from '@/components/search'
+import matter from 'gray-matter'
+import { Loader2, Search } from 'lucide-react'
+import { useRouter, useSearchParams, useParams } from 'next/navigation'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
-import { SearchContentFiltersBar, SearchInputIsland } from '@/components/search'
-import { SearchResultsPanel } from '@/components/search/SearchResultsPanel'
-import type { SearchContentFilters } from '@/lib/searchIndexFilter'
-import { DEFAULT_SEARCH_CONTENT_FILTERS } from '@/lib/searchIndexFilter'
-import { getCachedMergedSearchIndex, isSearchIndexCached } from '@/lib/searchIndexCache'
-import { readSearchQueryFromLocation } from '@/lib/useSearchUrlState'
+
+const DEBOUNCE_MS = 350
 
 function SearchContent() {
-  const initialQuery = useMemo(() => readSearchQueryFromLocation(), [])
-  const onDebouncedQueryRef = useRef<(q: string) => void>(() => {})
-  const [debouncedQuery, setDebouncedQuery] = useState<string>(initialQuery)
-  useEffect(() => {
-    onDebouncedQueryRef.current = (q: string) => setDebouncedQuery(q)
-  }, [])
+  const router = useRouter()
+  const params = useParams()
+  const searchParams = useSearchParams()
+  const topicFromPath = Array.isArray(params?.topic) ? params.topic[0] : (params?.topic as string)
+  const queryFromPath = topicFromPath ? decodeURIComponent(topicFromPath) : ''
+  const queryFromSearch = searchParams.get('q') || ''
+  const urlQuery = queryFromPath || queryFromSearch
+
+  // Local state for input - avoids router.replace on every keystroke (prevents mobile keyboard dismiss)
+  const [inputValue, setInputValue] = useState(urlQuery)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastUrlUpdateRef = useRef<string>(urlQuery)
+  const isDebounsingRef = useRef<boolean>(false)
 
   const [filesIndex, setFilesIndex] = useState<IndexedPathEntry[]>([])
-  const [contentFilters, setContentFilters] = useState<SearchContentFilters>(DEFAULT_SEARCH_CONTENT_FILTERS)
-  const [loading, setLoading] = useState(() => !isSearchIndexCached())
+  const [renderedMds, setRenderedMds] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [contentLoading, setContentLoading] = useState(false)
 
+  // Sync from URL to input only when URL changed externally (back/forward), not from our debounce
   useEffect(() => {
-    if (!isSearchIndexCached()) {
-      queueMicrotask(() => {
-        setLoading(true)
-        setError(null)
-      })
+    // Only sync if URL changed externally (not from our own updateUrl call) and we're not actively debouncing
+    if (urlQuery !== lastUrlUpdateRef.current && !isDebounsingRef.current && urlQuery !== inputValue.trim()) {
+      queueMicrotask(() => setInputValue(urlQuery))
     }
-    getCachedMergedSearchIndex()
+    // Update ref to track what we expect the URL to be
+    lastUrlUpdateRef.current = urlQuery
+  }, [urlQuery, inputValue])
+
+  // Fetch index once
+  useEffect(() => {
+    queueMicrotask(() => setLoading(true))
+    getMergedSearchIndex()
       .then((entries) => {
         if (entries !== null) {
           setFilesIndex(entries)
@@ -38,7 +52,7 @@ function SearchContent() {
           setError('Received invalid file index')
         }
       })
-      .catch((err) => {
+      .catch(err => {
         console.error('Search index fetch error:', err)
         setError('Failed to load search index')
       })
@@ -47,12 +61,107 @@ function SearchContent() {
       })
   }, [])
 
+  // Trigger DynamicIndex update when content changes
+  useEffect(() => {
+    if (!loading && !contentLoading) {
+      setTimeout(() => {
+        window.dispatchEvent(new Event('dynamic-index-update'));
+      }, 500);
+    }
+  }, [loading, contentLoading, renderedMds]);
+
+  const searchResults = useMemo(() => {
+    if (!filesIndex || !Array.isArray(filesIndex)) return []
+    const cleanQuery = inputValue.trim().toLowerCase()
+    if (cleanQuery.length < 2) return []
+
+    const searchTerms = cleanQuery.split(/\s+/).filter(Boolean)
+    return filesIndex.filter((entry) => {
+      if (!entry || typeof entry.path !== 'string') return false
+      if (entry.path.includes('.auto.md')) return false
+      const haystack = entry.searchText.toLowerCase()
+      return searchTerms.every((term) => haystack.includes(term))
+    })
+  }, [inputValue, filesIndex])
+
+  // Fetch MD content for the top results when search results change
+  useEffect(() => {
+    const mds = searchResults.filter((e) =>
+      e.path.endsWith('.md') &&
+      !e.path.endsWith('page.md') &&
+      !e.path.endsWith('index.md') &&
+      !e.path.includes('.auto.md')
+    ).slice(0, 5)
+
+    if (mds.length === 0) {
+      queueMicrotask(() => setRenderedMds([]))
+      return
+    }
+
+    queueMicrotask(() => setContentLoading(true))
+    Promise.all(mds.map(async (e) => {
+      const path = e.path
+      const content = await getRemoteFile(path)
+      if (!content) return null
+      const { content: mdxSource, data: frontMatter } = matter(content)
+      const basePath = path.includes('/') ? path.split('/').slice(0, -1).join('/') : ''
+      return { path, mdxSource, frontMatter, basePath }
+    })).then(results => {
+      setRenderedMds(results.filter(Boolean))
+      setContentLoading(false)
+    })
+  }, [searchResults])
+
+  const updateUrl = useCallback((val: string) => {
+    lastUrlUpdateRef.current = val
+    if (val && !val.includes(' ')) {
+      router.replace(`/search/${encodeURIComponent(val)}`, { scroll: false })
+    } else if (val) {
+      router.replace(`/search?q=${encodeURIComponent(val)}`, { scroll: false })
+    } else {
+      router.replace('/search', { scroll: false })
+    }
+  }, [router])
+
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value
+    setInputValue(val)
+    const trimmed = val.trim()
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    isDebounsingRef.current = true
+    debounceRef.current = setTimeout(() => {
+      debounceRef.current = null
+      isDebounsingRef.current = false
+      updateUrl(trimmed)
+    }, DEBOUNCE_MS)
+  }, [updateUrl])
+
+  useEffect(() => () => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
+      isDebounsingRef.current = false
+    }
+  }, [])
+
+  // Extract unique folders
+  const folderPaths = Array.from(new Set(searchResults.map((e) => {
+    const parts = e.path.split('/')
+    return parts.length > 1 ? parts.slice(0, -1).join('/') : null
+  }).filter(Boolean))) as string[]
+
+  const folders = folderPaths.sort()
+  const images = searchResults
+    .filter((e) => /\.(jpg|jpeg|png|gif|svg|webp)$/i.test(e.path))
+    .map((e) => e.path)
+
   return (
     <div className="w-full min-h-screen bg-white dark:bg-slate-950">
       <div className="max-w-[90rem] mx-auto px-4 py-12 space-y-16">
-        <SearchInputIsland initialQuery={initialQuery} loading={loading} onDebouncedQueryRef={onDebouncedQueryRef} />
-
-        <SearchContentFiltersBar filters={contentFilters} onChange={setContentFilters} />
+        <SearchHeader
+          query={inputValue}
+          loading={loading}
+          onChange={handleSearchChange}
+        />
 
         {error && (
           <div className="max-w-2xl mx-auto p-6 bg-red-500/10 border border-red-500/20 text-red-500 rounded-3xl text-center">
@@ -67,12 +176,32 @@ function SearchContent() {
           </div>
         )}
 
-        {!loading && !error && (
-          <SearchResultsPanel
-            debouncedQuery={debouncedQuery}
-            filesIndex={filesIndex}
-            contentFilters={contentFilters}
-          />
+        {inputValue.length > 0 && inputValue.trim().length < 2 && (
+          <div className="text-center py-20 text-slate-400">
+            Please enter at least 2 characters to search...
+          </div>
+        )}
+
+        {!loading && inputValue.trim().length >= 2 && searchResults.length === 0 && (
+          <div className="text-center py-24 bg-slate-50 dark:bg-slate-900/30 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800 max-w-2xl mx-auto">
+            <Search size={48} className="mx-auto text-slate-300 dark:text-slate-700 mb-4" />
+            <div className="text-xl font-bold text-slate-900 dark:text-white mb-2">No matching files found</div>
+            <p className="text-slate-500 dark:text-slate-400">Try different terms or browse the directory directly.</p>
+          </div>
+        )}
+
+        {searchResults.length > 0 && (
+          <div className="space-y-20">
+            <FolderGrid folders={folders} />
+
+            <ArticleStack
+              renderedMds={renderedMds}
+              contentLoading={contentLoading}
+              totalArticles={searchResults.filter((f) => f.path.endsWith('.md')).length}
+            />
+
+            <ImageGallery images={images} />
+          </div>
         )}
       </div>
     </div>
@@ -81,13 +210,7 @@ function SearchContent() {
 
 export default function SearchPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center min-h-screen">
-          <Loader2 className="animate-spin text-blue-500" size={48} />
-        </div>
-      }
-    >
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin text-blue-500" size={48} /></div>}>
       <SearchContent />
     </Suspense>
   )

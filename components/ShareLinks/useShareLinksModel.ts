@@ -42,6 +42,8 @@ function buildOutboundHref(
       return {
         href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
         label: 'Open Facebook share',
+        copyOnlyNote:
+          'Facebook’s web share link only passes the URL. Copy the text here, then paste into a new post (up to ~8,000 characters).',
       }
     case 'linkedin':
       return {
@@ -130,6 +132,7 @@ export function useShareLinksModel({
       snippetPlain: description?.trim() || '',
       hashtagsLine: '',
       articleBodyPlain: '',
+      articleBodyParagraphsPlain: '',
     }
   }, [shareExtractProp, mdSource, description])
 
@@ -149,6 +152,7 @@ export function useShareLinksModel({
       snippetPlain: shareExtract.snippetPlain,
       hashtagsLine: shareExtract.hashtagsLine,
       articleBodyPlain: shareExtract.articleBodyPlain,
+      articleBodyParagraphsPlain: shareExtract.articleBodyParagraphsPlain,
       substackUrl: shareExtract.substackUrl,
     }),
     [shareTitle, absUrl, shareExtract]
@@ -159,17 +163,26 @@ export function useShareLinksModel({
 
   /**
    * Modal copy: full compose order (incl. Substack under canonical URL). X omits snippet to stay minimal.
-   * Instagram / Truth Social / Nextdoor include snippet + article up to each platform’s modal limit.
+   * Instagram / Truth Social / Nextdoor / Facebook include snippet + article up to each platform’s modal limit.
    */
   const activeCopyText = useMemo(() => {
     const p = copyFormatPlatform
     const isXMinimal = p === 'x'
     const modalLimit = platformModalCopyLimit(p)
     if (modalLimit != null) {
-      const longInput = { ...composeInput }
+      const useParagraphBody = p === 'facebook'
+      const longInput = {
+        ...composeInput,
+        articleBodyPlain: useParagraphBody
+          ? composeInput.articleBodyParagraphsPlain || composeInput.articleBodyPlain
+          : composeInput.articleBodyPlain,
+      }
       const full = composeShareText(p, longInput)
       if (full.length <= modalLimit) return full
-      return fitComposeShareToCharLimit(p, longInput, modalLimit)
+      return fitComposeShareToCharLimit(p, longInput, modalLimit, {
+        readFullArticleWhenClipped: useParagraphBody,
+        preserveParagraphs: useParagraphBody,
+      })
     }
     return composeShareText(p, {
       ...composeInput,

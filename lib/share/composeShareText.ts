@@ -32,6 +32,39 @@ export function dedupeCanonicalUrlInPlainText (text: string, canonicalUrl: strin
   return s.replace(/\n{3,}/g, '\n\n').trim()
 }
 
+/** Collapse whitespace the same way {@link markdownToPlainBody} does for prefix comparison. */
+function normalizeSharePlain (text: string): string {
+  return text.replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * When snippet is the deck/first paragraph and article is the full collapsed body,
+ * drop the repeated opening from article so compose emits the deck once.
+ */
+export function stripSnippetPrefixFromArticle (snippet: string, article: string): string {
+  const s = snippet.trim()
+  const a = article.trim()
+  if (!s || !a) return a
+
+  const ns = normalizeSharePlain(s)
+
+  if (a.includes('\n\n')) {
+    const paras = a.split(/\n\n+/).map((p) => p.trim()).filter(Boolean)
+    if (paras.length > 0 && normalizeSharePlain(paras[0]) === ns) {
+      const rest = paras.slice(1).join('\n\n').trim()
+      return rest || ''
+    }
+  }
+
+  const na = normalizeSharePlain(a)
+  if (!na.startsWith(ns)) return a
+
+  return na.slice(ns.length).trim()
+}
+
+/** Inserted above URLs when modal copy is trimmed for Facebook. */
+export const READ_FULL_ARTICLE_LINE = 'Read full article'
+
 export interface ComposeShareInput {
   title: string
   canonicalUrl: string
@@ -59,7 +92,7 @@ export function effectiveLengthX (text: string): number {
 
 /**
  * Full share text, no truncation.
- * Order: title → canonical URL → (optional Substack URL) → hashtags → snippet → article body.
+ * Order: title → snippet → article body → canonical URL → (optional Substack URL) → hashtags.
  * Per-platform hashtag caps (e.g. Instagram's copy limit) are honored.
  */
 export function composeShareText (platform: SharePlatformId, input: ComposeShareInput): string {
@@ -70,13 +103,7 @@ export function composeShareText (platform: SharePlatformId, input: ComposeShare
   const snippet = input.snippetPlain.trim()
   const article = input.articleBodyPlain.trim()
 
-  const parts: string[] = [title]
-  parts.push('', url)
-  if (substack && substack !== url) parts.push(substack)
-  if (hashtags) parts.push('', hashtags)
-  if (snippet) parts.push('', snippet)
-  if (article) parts.push('', article)
-  return parts.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+  return joinShareParts(title, hashtags, url, snippet, article, { substackUrl: substack })
 }
 
 /** Character count for the copy box (no platform cap). */
@@ -90,19 +117,22 @@ function joinShareParts (
   url: string,
   snippet: string,
   article: string,
-  opts?: { includeCanonicalUrl?: boolean; substackUrl?: string }
+  opts?: { includeCanonicalUrl?: boolean; substackUrl?: string; readFullArticleLine?: string }
 ): string {
   const includeUrl = opts?.includeCanonicalUrl !== false
   const substack = (opts?.substackUrl || '').trim()
+  const readMore = (opts?.readFullArticleLine || '').trim()
   const parts: string[] = [title]
+  if (snippet) parts.push('', snippet)
+  const articleDeduped = stripSnippetPrefixFromArticle(snippet, article)
+  if (articleDeduped) parts.push('', articleDeduped)
+  if (readMore) parts.push('', readMore)
   if (includeUrl) parts.push('', url)
   if (substack && substack !== url) {
     if (!includeUrl) parts.push('')
     parts.push(substack)
   }
   if (hashtags) parts.push('', hashtags)
-  if (snippet) parts.push('', snippet)
-  if (article) parts.push('', article)
   return parts.join('\n').replace(/\n{3,}/g, '\n\n').trim()
 }
 
@@ -203,6 +233,33 @@ export function truncateShareTextForOutbound (
   return text
 }
 
+function trimArticleChunk (
+  article: string,
+  preserveParagraphs: boolean
+): string {
+  if (!article) return ''
+  if (preserveParagraphs && article.includes('\n\n')) {
+    const paras = article.split(/\n\n+/).map((p) => p.trim()).filter(Boolean)
+    if (paras.length > 1) return paras.slice(0, -1).join('\n\n')
+    const only = paras[0] || article
+    if (only.length <= 80) return ''
+    const trimmed = only.slice(0, Math.max(0, only.length - 120)).trim()
+    return trimmed.length > 0 && !trimmed.endsWith('…') ? `${trimmed}…` : trimmed
+  }
+  if (article.length > 80) {
+    const trimmed = article.slice(0, Math.max(0, article.length - 120)).trim()
+    return trimmed.length > 0 && !trimmed.endsWith('…') ? `${trimmed}…` : trimmed
+  }
+  return ''
+}
+
+export interface FitComposeShareOptions {
+  /** When set, adds {@link READ_FULL_ARTICLE_LINE} above URLs if output was trimmed. */
+  readFullArticleWhenClipped?: boolean
+  /** Trim whole paragraphs before mid-paragraph character chops. */
+  preserveParagraphs?: boolean
+}
+
 /**
  * Shrink composed share text to a hard character limit (e.g. Instagram caption 2,200).
  * Same block order as {@link composeShareText}; trims article → snippet → Substack URL →
@@ -211,7 +268,8 @@ export function truncateShareTextForOutbound (
 export function fitComposeShareToCharLimit (
   platform: SharePlatformId,
   input: ComposeShareInput,
-  maxChars: number
+  maxChars: number,
+  fitOpts?: FitComposeShareOptions
 ): string {
   let title = input.title.trim()
   let hashtags = limitHashtagsLine(input.hashtagsLine.trim(), platformHashtagLimit(platform))
@@ -219,16 +277,23 @@ export function fitComposeShareToCharLimit (
   let substackUrl = (input.substackUrl || '').trim()
   let snippet = input.snippetPlain.trim()
   let article = input.articleBodyPlain.trim()
+  const preserveParagraphs = fitOpts?.preserveParagraphs === true
 
-  const buildOpts = () => ({ includeCanonicalUrl: true as const, substackUrl })
+  let clipped = false
+  const buildOpts = () => ({
+    includeCanonicalUrl: true as const,
+    substackUrl,
+    readFullArticleLine:
+      clipped && fitOpts?.readFullArticleWhenClipped ? READ_FULL_ARTICLE_LINE : undefined,
+  })
 
   let text = joinShareParts(title, hashtags, url, snippet, article, buildOpts())
+  if (text.length > maxChars) clipped = true
   let guard = 0
   while (text.length > maxChars && guard < 500) {
     guard++
     if (article.length > 80) {
-      article = article.slice(0, Math.max(0, article.length - 120)).trim()
-      if (article.length > 0 && !article.endsWith('…')) article += '…'
+      article = trimArticleChunk(article, preserveParagraphs)
     } else if (article.length > 0) {
       article = ''
     } else if (snippet.length > 20) {

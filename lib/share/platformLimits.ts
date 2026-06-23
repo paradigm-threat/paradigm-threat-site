@@ -43,8 +43,11 @@ export const TRUTHSOCIAL_COPY_MAX = 3000
 /** LinkedIn feed post (common cap; document if Meta changes) */
 export const LINKEDIN_MAX = 3000
 
-/** Facebook — very large; cap avoids runaway copy */
+/** Facebook status post — Meta hard limit is 63,206 (not used for Copy & Share modal). */
 export const FACEBOOK_MAX = 63000
+
+/** Copy & Share modal: paragraph body + clip CTA (same budget as Nextdoor). */
+export const FACEBOOK_COPY_MAX = 8192
 
 /** Reddit self-text / pasted caption (no single hard cap; keep reasonable) */
 export const REDDIT_COPY_MAX = 40000
@@ -61,6 +64,8 @@ export const NEXTDOOR_COPY_MAX = 8192
  */
 export function platformModalCopyLimit (platform: SharePlatformId): number | null {
   switch (platform) {
+    case 'facebook':
+      return FACEBOOK_COPY_MAX
     case 'instagram':
       return INSTAGRAM_CAPTION_MAX
     case 'truthsocial':
@@ -92,7 +97,7 @@ export function platformCopyLimit (platform: SharePlatformId): number {
     case 'linkedin':
       return LINKEDIN_MAX
     case 'facebook':
-      return FACEBOOK_MAX
+      return FACEBOOK_COPY_MAX
     case 'nextdoor':
       return NEXTDOOR_COPY_MAX
     default:

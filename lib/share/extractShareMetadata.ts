@@ -12,6 +12,8 @@ export interface ShareExtractResult {
   hashtagsLine: string
   /** Plain article body for long platforms (excludes TL;DR block text when possible) */
   articleBodyPlain: string
+  /** Same body with paragraph breaks (`\\n\\n`) preserved — used for Facebook modal copy */
+  articleBodyParagraphsPlain: string
   /**
    * Substack mirror URL from `**Substack:**` marker or bare substack.com/p/ URL in body.
    */
@@ -145,7 +147,11 @@ function removeKeywordsFooter (md: string): string {
   return md.replace(/\n*(?:---\s*\n*)?Keywords:\s+[^\n]+\s*$/im, '').trim()
 }
 
-function markdownToPlainBody (md: string): string {
+function normalizePlainParagraph (text: string): string {
+  return text.replace(/\s+/g, ' ').trim()
+}
+
+function markdownToPlainBodySource (md: string): string {
   const noFm = stripYamlFrontmatter(md)
   const noH1 = stripLeadingH1(noFm)
   const noTldr = removeTldrBlockForBody(noH1)
@@ -156,11 +162,22 @@ function markdownToPlainBody (md: string): string {
   s = s.replace(/`([^`]+)`/g, '$1')
   s = s.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
   s = s.replace(/\*\*([^*]+)\*\*/g, '$1')
-  s = s.replace(/\*([^*]+)\*\*/g, '$1')
+  s = s.replace(/\*([^*]+)\*/g, '$1')
   s = s.replace(/^[-*]\s+/gm, '')
   s = s.replace(/^\d+\.\s+/gm, '')
-  s = s.replace(/\n{2,}/g, '\n\n')
-  return s.replace(/\s+/g, ' ').trim()
+  return s.replace(/\n{2,}/g, '\n\n').trim()
+}
+
+function markdownToPlainBody (md: string): string {
+  return normalizePlainParagraph(markdownToPlainBodySource(md).replace(/\n+/g, ' '))
+}
+
+function markdownToPlainBodyParagraphs (md: string): string {
+  return markdownToPlainBodySource(md)
+    .split(/\n\n+/)
+    .map(normalizePlainParagraph)
+    .filter(Boolean)
+    .join('\n\n')
 }
 
 function extractSubstackUrl (rawMarkdown: string): string | undefined {
@@ -187,7 +204,8 @@ export function extractShareMetadata (input: ShareExtractInput): ShareExtractRes
   const fromSection = extractKeywordsSectionFromMarkdownBody(rawMarkdown)
   const hashtagsLine = mergeHashtagLines(fromBody, fromSection)
   const articleBodyPlain = markdownToPlainBody(rawMarkdown)
+  const articleBodyParagraphsPlain = markdownToPlainBodyParagraphs(rawMarkdown)
   const substackUrl = extractSubstackUrl(rawMarkdown)
 
-  return { snippetPlain, hashtagsLine, articleBodyPlain, substackUrl }
+  return { snippetPlain, hashtagsLine, articleBodyPlain, articleBodyParagraphsPlain, substackUrl }
 }

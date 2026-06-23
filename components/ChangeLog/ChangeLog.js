@@ -1,20 +1,25 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
-import Link from 'next/link'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Maximize2, Minimize2 } from 'lucide-react'
 import { useImageGallery } from '@/components/Image/ImageGalleryContext'
-import { canonicalSiteAssetToMirrorUrl } from '@/lib/canonicalSiteAssetUrl'
-import { buildOptimizedAssetUrl } from '@/lib/relayOptimizedAssetUrl'
+import { buildContentItemsFromChangelog } from '@/lib/changelog/buildContentItemsFromChangelog'
+import { buildBlogItemsFromIndex, mergeBlogTabItems } from '@/lib/changelog/buildBlogItemsFromIndex'
 import { getPrimaryFilesBaseUrl, getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
+import ChangeLogTabs from './ChangeLogTabs'
+import ChangeLogContentList from './ChangeLogContentList'
+import ChangeLogFeed from './ChangeLogFeed'
+import {
+  changelogSrcMatchesHash,
+  buildGalleryItemsForEntry,
+} from './changelogThumbUtils'
 import styles from './ChangeLog.module.css'
 
-/** Same mark as Navbar triangle — local to Next app. */
-const PARADIGM_LOGO_SRC = '/site/favicon.svg'
+const TAB_STORAGE_KEY = 'paradigm-changelog-tab'
 
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg)$/i
 
-function toHrefForRepo(pathLike, repo) {
+function toHrefForRepo (pathLike, repo) {
   const clean = String(pathLike || '').replace(/^\/+/, '')
   if (!clean) return null
   if (repo === 'paradigm-threat-timeline') {
@@ -23,9 +28,9 @@ function toHrefForRepo(pathLike, repo) {
   return `/${clean}`
 }
 
-function inferFilesFromMessage(message, repo) {
+function inferFilesFromMessage (message, repo) {
   if (typeof message !== 'string' || !message) return []
-  const pathMatch = message.match(/\b([a-z0-9._-]+\/[a-z0-9._\/-]+)\b/i)
+  const pathMatch = message.match(/\b([a-z0-9._-]+\/[a-z0-9._/-]+)\b/i)
   if (!pathMatch) return []
   const rawPath = pathMatch[1].replace(/[),.;:!?]+$/, '')
   const href = toHrefForRepo(rawPath, repo)
@@ -33,7 +38,7 @@ function inferFilesFromMessage(message, repo) {
   return [{ path: rawPath, href, status: 'M' }]
 }
 
-function inferImagesFromFiles(files) {
+function inferImagesFromFiles (files) {
   if (!Array.isArray(files)) return []
   const out = []
   const seen = new Set()
@@ -49,7 +54,7 @@ function inferImagesFromFiles(files) {
   return out
 }
 
-function normalizeEntry(entry, fallbackRepo) {
+function normalizeEntry (entry, fallbackRepo) {
   if (!entry || typeof entry !== 'object') return null
   const repo = entry.repo || fallbackRepo
   const explicitFiles =
@@ -67,96 +72,53 @@ function normalizeEntry(entry, fallbackRepo) {
     date: entry.date || '',
     message: entry.message || '',
     files,
-    images
+    images,
   }
 }
 
-/** Stable React key without git hash (changelog is paths-first). */
-function entryKey(entry, index) {
-  return `${entry.repo}:${entry.date}:${entry.message}:${index}`
-}
-
-function getFileLabel(filePath) {
-  if (typeof filePath !== 'string' || filePath.length === 0) return 'file'
-  const normalized = filePath.replace(/\\/g, '/')
-  const parts = normalized.split('/')
-  return parts[parts.length - 1] || normalized
-}
-
-/** Root-relative path for same-origin / #img=; pass through external http(s) only. */
-function changelogPublicImageSrc(src) {
-  if (!src) return ''
-  const s = String(src).trim()
-  if (/^https?:\/\//i.test(s)) return s
-  const noQuery = s.split('?')[0]
-  const withSlash = noQuery.startsWith('/') ? noQuery : `/${noQuery}`
-  return withSlash.replace(/\/+/g, '/')
-}
-
-const CHANGELOG_THUMB_IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg)$/i
-
-/**
- * Changelog strip `<img>` must not use raw `/history/...` on the Next origin (404).
- * Uses primary mirror URL + `?w=` for rasters.
- */
-function changelogThumbSrc(src) {
-  const publicSrc = changelogPublicImageSrc(src)
-  if (!publicSrc) return ''
-  if (publicSrc.startsWith('/site/')) return publicSrc
-  if (/^https?:\/\//i.test(publicSrc)) {
-    return canonicalSiteAssetToMirrorUrl(publicSrc, 160) ?? publicSrc
-  }
-  const pathOnly = publicSrc.split('?')[0]
-  if (pathOnly.startsWith('/') && CHANGELOG_THUMB_IMAGE_EXT.test(pathOnly)) {
-    return buildOptimizedAssetUrl(pathOnly, 160)
-  }
-  return publicSrc
-}
-
-/** Match #img= targets to gallery src (relative or legacy absolute bookmarks). */
-function changelogSrcMatchesHash(resolvedSrc, hashDecoded) {
-  if (!hashDecoded || !resolvedSrc) return false
-  if (resolvedSrc === hashDecoded) return true
-  const r = resolvedSrc.split('?')[0]
-  const h = String(hashDecoded).split('?')[0]
-  if (r === h) return true
-
-  if (r.startsWith('/') && /^https?:\/\//i.test(h)) {
-    try {
-      const u = new URL(h)
-      const p = u.pathname.replace(/\/+$/, '') || '/'
-      const rp = r.replace(/\/+$/, '') || '/'
-      return p === rp
-    } catch {
-      /* fall through */
-    }
-  }
-
+function readStoredTab () {
+  if (typeof window === 'undefined') return 'articles'
   try {
-    const u1 = new URL(resolvedSrc)
-    const u2 = new URL(hashDecoded, typeof window !== 'undefined' ? window.location.origin : 'https://paradigmthreat.net')
-    return u1.pathname === u2.pathname && u1.hostname === u2.hostname
+    const stored = window.sessionStorage.getItem(TAB_STORAGE_KEY)
+    if (stored === 'articles' || stored === 'investigations' || stored === 'blog' || stored === 'changelog') {
+      return stored
+    }
   } catch {
-    return false
+    /* ignore */
   }
+  return 'articles'
 }
 
-function buildGalleryItemsForEntry(entry) {
-  const imgs = Array.isArray(entry.images) ? entry.images.filter((x) => x && x.src) : []
-  if (imgs.length === 0) {
-    return [{ src: PARADIGM_LOGO_SRC, alt: 'Paradigm Threat' }]
-  }
-  return imgs.map((im) => ({
-    src: changelogPublicImageSrc(im.src),
-    alt: im.alt
-  }))
-}
-
-export default function ChangeLog({ target = '_self' }) {
-  const [changeLog, setChangeLog] = useState([])
+export default function ChangeLog ({ target = '_self' }) {
+  const [feedLog, setFeedLog] = useState([])
+  const [filesChangelog, setFilesChangelog] = useState([])
+  const [blogIndexNode, setBlogIndexNode] = useState(null)
   const [loading, setLoading] = useState(true)
   const [fullscreen, setFullscreen] = useState(false)
+  const [activeTab, setActiveTab] = useState('articles')
   const { openGallery, isOpen: galleryOpen } = useImageGallery()
+
+  useEffect(() => {
+    setActiveTab(readStoredTab())
+  }, [])
+
+  const handleTabChange = useCallback((tabId) => {
+    setActiveTab(tabId)
+    try {
+      window.sessionStorage.setItem(TAB_STORAGE_KEY, tabId)
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  const contentByTab = useMemo(() => {
+    const fromChangelog = buildContentItemsFromChangelog(filesChangelog)
+    const blogFromIndex = buildBlogItemsFromIndex(blogIndexNode)
+    return {
+      ...fromChangelog,
+      blog: mergeBlogTabItems(blogFromIndex, fromChangelog.blog),
+    }
+  }, [filesChangelog, blogIndexNode])
 
   const toggleFullscreen = useCallback(() => {
     setFullscreen((v) => !v)
@@ -184,9 +146,10 @@ export default function ChangeLog({ target = '_self' }) {
         const filesBaseUrl = getPrimaryFilesBaseUrl()
         const timelineBaseUrl = getPrimaryTimelineBaseUrl()
 
-        const [filesRes, timelineRes] = await Promise.allSettled([
+        const [filesRes, timelineRes, indexRes] = await Promise.allSettled([
           fetch(`${filesBaseUrl}/changelog.json`, { cache: 'no-store' }),
-          fetch(`${timelineBaseUrl}/changelog.json`, { cache: 'no-store' })
+          fetch(`${timelineBaseUrl}/changelog.json`, { cache: 'no-store' }),
+          fetch(`${filesBaseUrl}/index.json`, { cache: 'no-store' }),
         ])
 
         const filesData =
@@ -197,15 +160,25 @@ export default function ChangeLog({ target = '_self' }) {
           timelineRes.status === 'fulfilled' && timelineRes.value.ok
             ? await timelineRes.value.json()
             : []
+        const indexData =
+          indexRes.status === 'fulfilled' && indexRes.value.ok
+            ? await indexRes.value.json()
+            : null
 
-        const merged = [
-          ...(Array.isArray(filesData) ? filesData.map((x) => normalizeEntry(x, 'paradigm-threat-files')).filter(Boolean) : []),
-          ...(Array.isArray(timelineData) ? timelineData.map((x) => normalizeEntry(x, 'paradigm-threat-timeline')).filter(Boolean) : [])
-        ]
+        const filesEntries = Array.isArray(filesData)
+          ? filesData.map((x) => normalizeEntry(x, 'paradigm-threat-files')).filter(Boolean)
+          : []
+        const timelineEntries = Array.isArray(timelineData)
+          ? timelineData.map((x) => normalizeEntry(x, 'paradigm-threat-timeline')).filter(Boolean)
+          : []
+
+        const feedMerged = [...filesEntries, ...timelineEntries]
           .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
           .slice(0, 16)
 
-        setChangeLog(merged)
+        setFeedLog(feedMerged)
+        setFilesChangelog(filesEntries)
+        setBlogIndexNode(indexData?.blog ?? null)
       } catch (e) {
         console.error('Failed to fetch changelog.json', e)
       } finally {
@@ -217,25 +190,25 @@ export default function ChangeLog({ target = '_self' }) {
   }, [])
 
   useEffect(() => {
-    if (changeLog.length === 0) return undefined
+    if (feedLog.length === 0) return undefined
 
-    function tryOpenFromHash() {
+    function tryOpenFromHash () {
       if (typeof window === 'undefined') return
       const hash = window.location.hash
       if (!hash.startsWith('#img=')) {
         return
       }
-      let target
+      let hashTarget
       try {
-        target = decodeURIComponent(hash.slice(5))
+        hashTarget = decodeURIComponent(hash.slice(5))
       } catch {
         return
       }
-      if (!target) return
+      if (!hashTarget) return
 
-      for (const entry of changeLog) {
+      for (const entry of feedLog) {
         const items = buildGalleryItemsForEntry(entry)
-        const idx = items.findIndex((item) => changelogSrcMatchesHash(item.src, target))
+        const idx = items.findIndex((item) => changelogSrcMatchesHash(item.src, hashTarget))
         if (idx >= 0) {
           openGallery(items, idx)
           return
@@ -246,7 +219,7 @@ export default function ChangeLog({ target = '_self' }) {
     tryOpenFromHash()
     window.addEventListener('hashchange', tryOpenFromHash)
     return () => window.removeEventListener('hashchange', tryOpenFromHash)
-  }, [changeLog, openGallery])
+  }, [feedLog, openGallery])
 
   if (loading) {
     return (
@@ -259,11 +232,19 @@ export default function ChangeLog({ target = '_self' }) {
   }
 
   const wrapClass = fullscreen ? styles.wrapFullscreen : styles.wrap
-  const listClass = `${styles.changelog}${fullscreen ? ` ${styles.changelogFullscreen}` : ''}`
+
+  const panelItems = activeTab === 'articles'
+    ? contentByTab.articles
+    : activeTab === 'investigations'
+      ? contentByTab.investigations
+      : activeTab === 'blog'
+        ? contentByTab.blog
+        : []
 
   return (
     <div className={`not-prose w-full min-w-0 max-w-none ${wrapClass}`}>
       <div className={styles.toolbar}>
+        <ChangeLogTabs activeTab={activeTab} onTabChange={handleTabChange} />
         <button
           type="button"
           className={styles.toolbarBtn}
@@ -275,88 +256,36 @@ export default function ChangeLog({ target = '_self' }) {
           {fullscreen ? <Minimize2 className="w-4 h-4" aria-hidden /> : <Maximize2 className="w-4 h-4" aria-hidden />}
         </button>
       </div>
-      <ul className={listClass}>
-        {Array.isArray(changeLog) && changeLog.map((entry, entryIdx) => {
-          const imgs = Array.isArray(entry.images) ? entry.images.filter((x) => x && x.src) : []
-          const galleryItems = buildGalleryItemsForEntry(entry)
 
-          const openAt = (i) => {
-            openGallery(galleryItems, i)
-          }
-
-          return (
-            <li key={entryKey(entry, entryIdx)} className={styles.entry}>
-              <div
-                className={styles.imageStripScroll}
-                role="region"
-                aria-label="Images for this change"
-              >
-                {imgs.length > 0 ? (
-                  imgs.map((im, i) => (
-                    <button
-                      key={`${entryKey(entry, entryIdx)}:img:${im.src}:${i}`}
-                      type="button"
-                      className={styles.thumbBtn}
-                      onClick={() => openAt(i)}
-                      aria-label={im.alt ? `Open image: ${im.alt}` : 'Open image in viewer'}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element -- remote changelog thumbnails */}
-                      <img
-                        src={changelogThumbSrc(im.src)}
-                        alt={im.alt || ''}
-                        className={`${styles.thumb}${fullscreen ? ` ${styles.thumbFs}` : ''}`}
-                        loading="lazy"
-                      />
-                      <span className={styles.thumbMaximize} aria-hidden>
-                        <Maximize2 className="w-4 h-4" />
-                      </span>
-                    </button>
-                  ))
-                ) : (
-                  <button
-                    type="button"
-                    className={styles.thumbBtn}
-                    onClick={() => openAt(0)}
-                    aria-label="Open Paradigm Threat logo in viewer"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element -- static site logo */}
-                    <img
-                      src={PARADIGM_LOGO_SRC}
-                      alt="Paradigm Threat"
-                      className={`${styles.thumbLogo}${fullscreen ? ` ${styles.thumbLogoFs}` : ''}`}
-                    />
-                    <span className={styles.thumbMaximize} aria-hidden>
-                      <Maximize2 className="w-4 h-4" />
-                    </span>
-                  </button>
-                )}
-              </div>
-              <div className={styles.entryBody}>
-                <div>
-                  {new Date(entry.date).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })} - {entry.message} ({entry.repo})
-                </div>
-                {Array.isArray(entry.files) && entry.files.length > 0 && (
-                  <div>
-                    {entry.files.map((file, idx) => (
-                      <React.Fragment key={`${entryKey(entry, entryIdx)}:${file.path}:${idx}`}>
-                        {idx > 0 ? ' | ' : ''}
-                        {/^https?:\/\//i.test(file.href) ? (
-                          <a href={file.href} target={target} rel={target === '_blank' ? 'noopener noreferrer' : undefined} title={file.path}>{getFileLabel(file.path)}</a>
-                        ) : (
-                          <Link href={file.href} title={file.path} target={target} rel={target === '_blank' ? 'noopener noreferrer' : undefined}>{getFileLabel(file.path)}</Link>
-                        )}
-                      </React.Fragment>
-                    ))}
-                  </div>
-                )}
-                {(!Array.isArray(entry.files) || entry.files.length === 0) && (
-                  <div className="opacity-70 text-sm">no file links in source changelog yet</div>
-                )}
-              </div>
-            </li>
-          )
-        })}
-      </ul>
+      {activeTab === 'changelog' ? (
+        <div
+          role="tabpanel"
+          id="changelog-panel-changelog"
+          aria-labelledby="changelog-tab-changelog"
+          className={styles.tabPanel}
+        >
+          <ChangeLogFeed
+            changeLog={feedLog}
+            target={target}
+            fullscreen={fullscreen}
+            openGallery={openGallery}
+          />
+        </div>
+      ) : (
+        <div
+          role="tabpanel"
+          id={`changelog-panel-${activeTab}`}
+          aria-labelledby={`changelog-tab-${activeTab}`}
+          className={styles.tabPanel}
+        >
+          <ChangeLogContentList
+            items={panelItems}
+            tabKind={activeTab}
+            target={target}
+            fullscreen={fullscreen}
+          />
+        </div>
+      )}
     </div>
   )
 }
