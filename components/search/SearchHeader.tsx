@@ -34,6 +34,20 @@ export const SearchHeader = memo(function SearchHeader({
     const urlTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     useEffect(() => {
+        if (process.env.NODE_ENV === 'production') return
+        if (onChange && onDebouncedSearchQuery) {
+            console.warn(
+                '[SearchHeader] onChange + onDebouncedSearchQuery both set — controlled mode re-renders the parent on every keystroke and breaks mobile typing. Use SearchInputIsland instead.',
+            )
+        }
+        if (query !== undefined && initialQuery === undefined) {
+            console.warn(
+                '[SearchHeader] `query` prop without `initialQuery` — parent-controlled input refreshes on every keystroke. Use SearchInputIsland with initialQuery instead.',
+            )
+        }
+    }, [onChange, onDebouncedSearchQuery, query, initialQuery])
+
+    useEffect(() => {
         if (resolvedInitial !== prevInitial.current) {
             prevInitial.current = resolvedInitial
             queueMicrotask(() => setLocal(resolvedInitial))
