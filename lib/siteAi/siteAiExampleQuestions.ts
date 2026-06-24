@@ -8,4 +8,8 @@ export const SITE_AI_EXAMPLE_QUESTIONS = [
   'What is the Mandela Effect?',
   'Is there a risk of pole shift?',
   'What are star forts, and how do they work?',
+  'Why is the Judy Wood DEW theory called poison the well in 9/11 truth?',
+  'Was the NSA Anthropic Mythos hack story choreography to dump commercial AI?',
+  'How does DEW bypass the no-planes debate in 9/11 truth?',
+  'What is the good-actor antibody theory of 9/11?',
 ] as const

@@ -9,7 +9,7 @@ import {
 
 describe('siteClaimsIndex', () => {
   it('includes hub and demo claims', () => {
-    assert.ok(SITE_CLAIMS_INDEX.length >= 16)
+    assert.ok(SITE_CLAIMS_INDEX.length >= 20)
     assert.ok(getSiteClaimById('giants-fate'))
     assert.ok(getSiteClaimById('ufos-two-camps'))
     assert.ok(getSiteClaimById('pole-shift-ruled-out'))
@@ -33,6 +33,17 @@ describe('siteClaimsIndex', () => {
   it('matches short earth-age question', () => {
     const matched = matchSiteClaims('How old is the earth?')
     assert.ok(matched.some((c) => c.id === 'earth-age-young'))
+  })
+
+  it('matches DEW poison-the-well and Mythos dump-and-cover questions', () => {
+    const dew = matchSiteClaims('Why is the Judy Wood DEW theory called poison the well in 9/11 truth?')
+    assert.ok(dew.some((c) => c.id === 'dew-poison-well-911'))
+    const mythos = matchSiteClaims('Was the NSA Anthropic Mythos hack story choreography to dump commercial AI?')
+    assert.ok(mythos.some((c) => c.id === 'mythos-dump-and-cover'))
+    const bypass = matchSiteClaims('How does DEW bypass the no-planes debate in 9/11 truth?')
+    assert.ok(bypass.some((c) => c.id === 'dew-no-planes-bypass'))
+    const antibody = matchSiteClaims('What is the good-actor antibody theory of 9/11?')
+    assert.ok(antibody.some((c) => c.id === '911-good-actor-antibody'))
   })
 
   it('claimsAgentInstructions references read_article', () => {
