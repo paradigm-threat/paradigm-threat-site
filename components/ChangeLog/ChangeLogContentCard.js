@@ -1,8 +1,8 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import Link from 'next/link'
-import { changelogThumbSrc, PARADIGM_LOGO_SRC } from './changelogThumbUtils'
+import { changelogThumbSrc } from './changelogThumbUtils'
 import styles from './ChangeLog.module.css'
 
 function placeholderTitleFromPath (path) {
@@ -19,10 +19,12 @@ export default function ChangeLogContentCard ({
   fullscreen = false,
 }) {
   const displayTitle = title || placeholderTitleFromPath(item.path)
-  const thumbSrc = item.imageSrc ? changelogThumbSrc(item.imageSrc) : PARADIGM_LOGO_SRC
-  const thumbClass = item.imageSrc
-    ? `${styles.contentCardThumb}${fullscreen ? ` ${styles.thumbFs}` : ''}`
-    : `${styles.contentCardThumbLogo}${fullscreen ? ` ${styles.thumbLogoFs}` : ''}`
+  const [imageFailed, setImageFailed] = useState(false)
+
+  const hasImageSrc = typeof item.imageSrc === 'string' && item.imageSrc.trim().length > 0
+  const showImage = hasImageSrc && !imageFailed
+  const thumbSrc = showImage ? changelogThumbSrc(item.imageSrc) : ''
+  const thumbClass = `${styles.contentCardThumb}${fullscreen ? ` ${styles.thumbFs}` : ''}`
 
   const dateLabel = item.date
     ? new Date(item.date).toLocaleString('en-US', { dateStyle: 'medium' })
@@ -30,15 +32,18 @@ export default function ChangeLogContentCard ({
 
   const inner = (
   <>
-    <div className={styles.contentCardMedia} aria-hidden>
-      {/* eslint-disable-next-line @next/next/no-img-element -- remote changelog thumbnails */}
-      <img
-        src={thumbSrc}
-        alt=""
-        className={thumbClass}
-        loading="lazy"
-      />
-    </div>
+    {showImage && thumbSrc ? (
+      <div className={styles.contentCardMedia} aria-hidden>
+        {/* eslint-disable-next-line @next/next/no-img-element -- remote changelog thumbnails */}
+        <img
+          src={thumbSrc}
+          alt=""
+          className={thumbClass}
+          loading="lazy"
+          onError={() => setImageFailed(true)}
+        />
+      </div>
+    ) : null}
     <div className={styles.contentCardBody}>
       <h3 className={styles.contentCardTitle}>{displayTitle}</h3>
       {dateLabel ? (

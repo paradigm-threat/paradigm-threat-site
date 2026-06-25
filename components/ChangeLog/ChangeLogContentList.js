@@ -107,6 +107,7 @@ export default function ChangeLogContentList ({
         return (
           <li key={item.path} className={styles.contentListItem}>
             <ChangeLogContentCard
+              key={`${item.path}:${item.imageSrc ?? ''}`}
               item={item}
               title={meta?.title}
               description={meta?.description}

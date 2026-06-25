@@ -82,4 +82,26 @@ describe('buildContentItemsFromChangelog', () => {
     assert.equal(result.investigations.length, 1)
     assert.equal(result.blog.length, 1)
   })
+
+  it('does not assign unrelated commit images to investigations without a matching slug', () => {
+    const result = buildContentItemsFromChangelog([
+      {
+        repo: 'paradigm-threat-files',
+        date: '2026-06-24T14:05:01.000Z',
+        message: 'mixed commit',
+        files: [
+          {
+            path: 'science/ai/llm-history-governance-theater-investigation.md',
+            href: '/science/ai/llm-history-governance-theater-investigation',
+          },
+        ],
+        images: [
+          { src: '/events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation.png' },
+        ],
+      },
+    ])
+
+    assert.equal(result.investigations.length, 1)
+    assert.equal(result.investigations[0].imageSrc, null)
+  })
 })
