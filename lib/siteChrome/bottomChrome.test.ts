@@ -15,9 +15,9 @@ describe('bottomChrome', () => {
     assert.equal(hasArticleTtsDock('/science/computing/bar'), true)
   })
 
-  it('hubs and tool pages use minimal variant', () => {
-    assert.equal(getBottomChromeVariant('/'), 'minimal')
-    assert.equal(getBottomChromeVariant('/book'), 'minimal')
+  it('markdown hubs use article-tts (ArticleTTSOverlay); tool pages use minimal', () => {
+    assert.equal(getBottomChromeVariant('/'), 'article-tts')
+    assert.equal(getBottomChromeVariant('/book'), 'article-tts')
     assert.equal(getBottomChromeVariant('/reply'), 'minimal')
     assert.equal(getBottomChromeVariant('/chat'), 'minimal')
     assert.equal(getBottomChromeVariant('/timeline'), 'minimal')

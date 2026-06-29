@@ -10,5 +10,4 @@ export {
   prefetchSiteClaims,
   resetSiteClaimsCache,
   setSiteClaimsIndexOverride,
-  loadSiteClaimsFromFilesystem,
 } from '@/lib/siteAi/siteClaimsStore'

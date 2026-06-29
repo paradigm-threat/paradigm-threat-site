@@ -5,6 +5,7 @@ import { PtLink } from '@/components/PtLink'
 import { usePathname } from 'next/navigation'
 import { useArticleNav } from '@/components/ArticleNav/ArticleNav'
 import { scrollToHeadingById } from '@/lib/tocScroll'
+import { findTocScanRoot, isHeadingExcludedFromToc } from '@/lib/tocScope'
 
 export type DynamicIndexMode = 'sidebar' | 'inline' | 'menu'
 
@@ -216,8 +217,7 @@ export default function DynamicIndex ({
 }
 
 function generateHeaderList (rootEl: HTMLElement, scrollToHash?: string) {
-  const contentElm =
-    document.querySelector('main') || rootEl.closest('article, section, body')
+  const contentElm = findTocScanRoot() || rootEl.closest('article, section, body')
   if (!contentElm) throw new Error('DynamicIndex contentElm not found')
   const list = contentElm.querySelectorAll('h1, h2, h3, h4, h5, h6')
   const root: HeaderEntry = { id: 'root', title: 'root', children: [] }
@@ -225,7 +225,7 @@ function generateHeaderList (rootEl: HTMLElement, scrollToHash?: string) {
   const usedIds = new Set<string>()
 
   ;[].forEach.call(list, (headerElm: HTMLHeadingElement) => {
-    if (headerElm.classList.contains('no-index')) {
+    if (isHeadingExcludedFromToc(headerElm)) {
       return
     }
     const { nodeName, textContent } = headerElm

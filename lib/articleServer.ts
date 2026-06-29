@@ -5,6 +5,7 @@
 
 import { isNonArticlePath } from '@/lib/isNonArticlePath'
 import { prepareArticleMarkdown, resolveArticleDisplayTitle } from '@/lib/articleBody'
+import { fetchFilesRepoMarkdown } from '@/lib/fetchFilesRepoMarkdown'
 import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
 
 const FILES_BASE_URL = getPrimaryFilesBaseUrl()
@@ -36,46 +37,10 @@ function extractFirstImageUrl(md: string, basePath: string): string | undefined 
 export async function fetchArticle(path: string): Promise<ArticleData | null> {
   if (isNonArticlePath(path)) return null
 
-  let targetPath = ''
-  let fileContent: string | null = null
+  const fetched = await fetchFilesRepoMarkdown(path)
+  if (!fetched) return null
 
-  // 1. Try direct .md/.mdx
-  if (path.endsWith('.md') || path.endsWith('.mdx')) {
-    const res = await fetch(`${FILES_BASE_URL}/${path}`, { cache: 'no-store' })
-    if (res.ok) {
-      fileContent = await res.text()
-      targetPath = path
-    }
-  }
-
-  // 2. Try path.md then path.mdx (extension omitted in URL)
-  if (!fileContent && path && !path.endsWith('.md') && !path.endsWith('.mdx')) {
-    for (const ext of ['.md', '.mdx']) {
-      const p = `${path}${ext}`
-      const res = await fetch(`${FILES_BASE_URL}/${p}`, { cache: 'no-store' })
-      if (res.ok) {
-        fileContent = await res.text()
-        targetPath = p
-        break
-      }
-    }
-  }
-
-  // 3. Try page.md then page.mdx (directory index)
-  if (!fileContent) {
-    const base = path ? `${path}/` : ''
-    for (const name of ['page.md', 'page.mdx']) {
-      const p = `${base}${name}`
-      const res = await fetch(`${FILES_BASE_URL}/${p}`, { cache: 'no-store' })
-      if (res.ok) {
-        fileContent = await res.text()
-        targetPath = p
-        break
-      }
-    }
-  }
-
-  if (!fileContent) return null
+  const { text: fileContent, relPath: targetPath } = fetched
 
   const matter = await import('gray-matter')
   const { content: rawContent, data: frontMatter } = matter.default(fileContent)

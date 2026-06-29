@@ -59,13 +59,16 @@ describe('siteClaimsIndex', () => {
     assert.ok(antibody.some((c) => c.id === '911-good-actor-antibody'))
   })
 
-  it('matches JFK fake-assassination thesis', () => {
+  it('matches JFK and RFK fake-assassination thesis', () => {
     const claims = getSiteClaimsIndexCached()
     const matched = matchSiteClaims('Was JFK really assassinated in Dallas?', { claims })
     assert.equal(matched[0]?.id, 'jfk-fake-assassination')
     assert.ok(getSiteClaimById('jfk-fake-assassination'))
     const literal = matchSiteClaims('JFK was never assassinated', { claims })
     assert.ok(literal.some((c) => c.id === 'jfk-fake-assassination'))
+    const rfk = matchSiteClaims('Was RFK really shot by Sirhan at the Ambassador Hotel?', { claims })
+    assert.equal(rfk[0]?.id, 'jfk-fake-assassination')
+    assert.ok(rfk[0]!.canonicalPaths.some((p) => p.includes('jfk-rfk-staged-assassination')))
   })
 
   it('claimsAgentInstructions references read_article', () => {

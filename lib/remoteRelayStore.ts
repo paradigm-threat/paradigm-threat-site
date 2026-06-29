@@ -523,7 +523,7 @@ class RemoteRelayStore {
         if (!res.ok) continue
         const data = (await res.json()) as unknown
         if (p.files !== this.filesOrigin || p.timeline !== this.timelineOrigin) {
-          this.switchToPair(p, 'site_claims_failover')
+          this.switchToPair(p, 'index_failover')
         }
         return data
       } catch (e) {

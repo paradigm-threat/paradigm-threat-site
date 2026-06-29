@@ -15,6 +15,7 @@ export function hasArticleTtsDock (pathname: string): boolean {
 
 export function getBottomChromeVariant (pathname: string): BottomChromeVariant {
   if (isArticleReadRoute(pathname)) return 'article-tts'
+  if (isMarkdownHubPath(pathname)) return 'article-tts'
   return 'minimal'
 }
 

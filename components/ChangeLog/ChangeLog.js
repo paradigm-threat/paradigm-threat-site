@@ -223,7 +223,7 @@ export default function ChangeLog ({ target = '_self' }) {
 
   if (loading) {
     return (
-      <div className="not-prose w-full min-w-0 max-w-none animate-pulse flex space-x-4 py-2">
+      <div className="not-prose w-full min-w-0 max-w-none animate-pulse flex space-x-4 py-2" data-toc-ignore>
         <div className="flex-1 space-y-4 py-1 min-w-0">
           <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
         </div>
@@ -242,7 +242,7 @@ export default function ChangeLog ({ target = '_self' }) {
         : []
 
   return (
-    <div className={`not-prose w-full min-w-0 max-w-none ${wrapClass}`}>
+    <div className={`not-prose w-full min-w-0 max-w-none ${wrapClass}`} data-toc-ignore>
       <div className={styles.toolbar}>
         <ChangeLogTabs activeTab={activeTab} onTabChange={handleTabChange} />
         <button

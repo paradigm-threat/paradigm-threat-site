@@ -606,7 +606,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
             </div>
           )
         ) : (
-          <>
+          <div data-toc-ignore>
             {subDirs.length > 0 && (
               <div className="space-y-6 mb-16">
                 <div className="flex items-center gap-3 mb-8">
@@ -749,7 +749,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
                 </div>
               </div>
             )}
-          </>
+          </div>
         )}
 
         <ShareLinks

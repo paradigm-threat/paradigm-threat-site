@@ -17,6 +17,10 @@ export type BottomChromeContextValue = {
   isHub: boolean
   /** thirdstory.site-style landing: omit TTS overlay */
   suppressOverlay: boolean
+  /** ArticleTTSOverlay (or equivalent) is mounted — hide MinimalBottomChrome */
+  articleTtsDockActive: boolean
+  registerArticleTtsDock: () => void
+  unregisterArticleTtsDock: () => void
   /**
    * Pixels from the viewport bottom to the top edge of the TTS dock (fixed overlay).
    * Updated via ResizeObserver on the dock.
@@ -44,6 +48,7 @@ function getThirdStoryLandingServerSnapshot() {
 export function BottomChromeProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || ''
   const [ttsDockHeightPx, setTtsDockHeightPxState] = useState(0)
+  const [articleTtsDockCount, setArticleTtsDockCount] = useState(0)
 
   const thirdLanding = useSyncExternalStore(
     subscribeThirdStoryLanding,
@@ -57,16 +62,36 @@ export function BottomChromeProvider({ children }: { children: React.ReactNode }
     setTtsDockHeightPxState(Math.max(0, Math.ceil(px)))
   }, [])
 
+  const registerArticleTtsDock = useCallback(() => {
+    setArticleTtsDockCount((n) => n + 1)
+  }, [])
+
+  const unregisterArticleTtsDock = useCallback(() => {
+    setArticleTtsDockCount((n) => Math.max(0, n - 1))
+  }, [])
+
   const suppressOverlay = thirdLanding
+  const articleTtsDockActive = articleTtsDockCount > 0
 
   const value = useMemo(
     () => ({
       isHub,
       suppressOverlay,
+      articleTtsDockActive,
+      registerArticleTtsDock,
+      unregisterArticleTtsDock,
       ttsDockHeightPx,
       setTtsDockHeightPx,
     }),
-    [isHub, suppressOverlay, ttsDockHeightPx, setTtsDockHeightPx],
+    [
+      isHub,
+      suppressOverlay,
+      articleTtsDockActive,
+      registerArticleTtsDock,
+      unregisterArticleTtsDock,
+      ttsDockHeightPx,
+      setTtsDockHeightPx,
+    ],
   )
 
   return <BottomChromeContext.Provider value={value}>{children}</BottomChromeContext.Provider>
@@ -78,6 +103,9 @@ export function useBottomChrome(): BottomChromeContextValue {
     return {
       isHub: false,
       suppressOverlay: false,
+      articleTtsDockActive: false,
+      registerArticleTtsDock: noop,
+      unregisterArticleTtsDock: noop,
       ttsDockHeightPx: 0,
       setTtsDockHeightPx: noop,
     }

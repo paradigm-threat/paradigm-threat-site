@@ -1,5 +1,4 @@
 import { extractTermsFromText } from '@/lib/replyAssistant/extractTerms'
-import type { SiteClaimEntry } from '@/lib/siteAi/siteClaimsTypes'
 import { SITE_AI_EXAMPLE_QUESTIONS } from '@/lib/siteAi/siteAiExampleQuestions'
 import { getSiteClaimsIndexCached } from '@/lib/siteAi/siteClaimsStore'
 import type { MatchedSiteClaim, SiteClaimEntry } from '@/lib/siteAi/siteClaimsTypes'

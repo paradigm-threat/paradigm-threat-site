@@ -85,7 +85,7 @@ export function ArticleStack ({ entries }: ArticleStackProps) {
   if (entries.length === 0) return null
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-12" data-toc-ignore>
       <div className="flex items-center gap-4">
         <div className="w-2 h-8 bg-emerald-500 rounded-full" />
         <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase">{sectionTitle}</h2>

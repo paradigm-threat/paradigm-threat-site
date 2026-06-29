@@ -1,5 +1,3 @@
-import { readFileSync, existsSync } from 'node:fs'
-import { join } from 'node:path'
 import type { SiteClaimEntry } from '@/lib/siteAi/siteClaimsTypes'
 import { parseSiteClaimsJson } from '@/lib/siteAi/parseSiteClaims'
 import { remoteRelay } from '@/lib/remoteRelayStore'
@@ -7,11 +5,6 @@ import { remoteRelay } from '@/lib/remoteRelayStore'
 let cached: SiteClaimEntry[] | null = null
 let inflight: Promise<SiteClaimEntry[] | null> | null = null
 let overrideLoader: (() => Promise<SiteClaimEntry[] | null> | SiteClaimEntry[] | null) | null = null
-
-const FIXTURE_PATHS = [
-  join(process.cwd(), '../paradigm-threat-files/site-claims.json'),
-  join(process.cwd(), 'data/site-claims.json'),
-]
 
 export function resetSiteClaimsCache (): void {
   cached = null
@@ -26,19 +19,6 @@ export function setSiteClaimsIndexOverride (
   resetSiteClaimsCache()
 }
 
-export function loadSiteClaimsFromFilesystem (): SiteClaimEntry[] | null {
-  for (const path of FIXTURE_PATHS) {
-    if (!existsSync(path)) continue
-    try {
-      const raw = JSON.parse(readFileSync(path, 'utf8')) as unknown
-      return parseSiteClaimsJson(raw)
-    } catch {
-      continue
-    }
-  }
-  return null
-}
-
 function resolveOverride (): SiteClaimEntry[] | null {
   if (!overrideLoader) return null
   const result = overrideLoader()
@@ -48,17 +28,12 @@ function resolveOverride (): SiteClaimEntry[] | null {
   return result
 }
 
-/** Sync read of cached / fixture claims (empty array when not yet loaded). */
+/** Sync read of cached claims (empty array when not yet loaded). */
 export function getSiteClaimsIndexCached (): SiteClaimEntry[] {
   if (cached) return cached
   const fromOverride = resolveOverride()
   if (fromOverride) {
     cached = fromOverride
-    return cached
-  }
-  const fromDisk = loadSiteClaimsFromFilesystem()
-  if (fromDisk) {
-    cached = fromDisk
     return cached
   }
   return []
@@ -78,19 +53,11 @@ export async function prefetchSiteClaims (
   if (inflight) return inflight
 
   inflight = (async () => {
-    if (typeof window === 'undefined') {
-      const fromDisk = loadSiteClaimsFromFilesystem()
-      cached = fromDisk
-      return cached
-    }
+    if (typeof window === 'undefined') return null
 
     await remoteRelay.bootstrap()
     const raw = await remoteRelay.fetchSiteClaimsJson(signal ?? AbortSignal.timeout(60_000))
-    if (raw === null) {
-      const fromDisk = loadSiteClaimsFromFilesystem()
-      cached = fromDisk
-      return cached
-    }
+    if (raw === null) return null
     try {
       cached = parseSiteClaimsJson(raw)
       return cached

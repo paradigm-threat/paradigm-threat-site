@@ -1,8 +1,9 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useLayoutEffect, useState } from 'react'
 import { Play, Pause, Square, ChevronUp, Settings2, X } from 'lucide-react'
 import { SiteAiLauncherButton } from '@/components/SiteAi/SiteAiLauncherButton'
+import { useBottomChrome } from '@/lib/BottomChromeContext'
 import type { TTSState, SubtitleMode, PiperVoice, TTSProvider } from '@/lib/hooks/useTTS'
 
 const RATES = [0.75, 1.0, 1.25, 1.5, 2.0]
@@ -76,8 +77,14 @@ export function ArticleTTSOverlay({
   currentSentenceIndex,
   onRetry,
 }: ArticleTTSOverlayProps) {
+  const { registerArticleTtsDock, unregisterArticleTtsDock } = useBottomChrome()
   const [expanded, setExpanded] = useState(false)
   const [seekValue, setSeekValue] = useState<number | null>(null)
+
+  useLayoutEffect(() => {
+    registerArticleTtsDock()
+    return () => unregisterArticleTtsDock()
+  }, [registerArticleTtsDock, unregisterArticleTtsDock])
   const totalSentences = sentences.length
   const displayIndex = seekValue !== null ? seekValue : currentSentenceIndex
 

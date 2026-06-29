@@ -173,7 +173,7 @@ export default function AutoIndex({
   if (loading) {
     if (showPanelTitle) {
       return (
-        <div className={AUTO_INDEX_SHELL} style={{ maxHeight }}>
+        <div className={AUTO_INDEX_SHELL} style={{ maxHeight }} data-toc-ignore>
           <AutoIndexPanelHeading>{panelTitleText}</AutoIndexPanelHeading>
           <div className="animate-pulse h-32 bg-slate-200/50 dark:bg-slate-800/50 rounded-xl" />
         </div>
@@ -187,7 +187,7 @@ export default function AutoIndex({
   if (error || (!dirs.length && !mdFiles.length && !imgFiles.length)) {
     if (showPanelTitle) {
       return (
-        <div className={AUTO_INDEX_SHELL} style={{ maxHeight }}>
+        <div className={AUTO_INDEX_SHELL} style={{ maxHeight }} data-toc-ignore>
           <AutoIndexPanelHeading>{panelTitleText}</AutoIndexPanelHeading>
           <div className="text-slate-500 dark:text-slate-400">
             {error ? (
@@ -213,7 +213,7 @@ export default function AutoIndex({
   const hrefBase = path ? `/${path}` : ''
 
   return (
-    <div className={AUTO_INDEX_SHELL} style={{ maxHeight }}>
+    <div className={AUTO_INDEX_SHELL} style={{ maxHeight }} data-toc-ignore>
       {showPanelTitle ? <AutoIndexPanelHeading>{panelTitleText}</AutoIndexPanelHeading> : null}
       <div className="space-y-10">
         {showSubdirs && dirs.length > 0 && (

@@ -24,8 +24,17 @@ function withDocumentCache (response: NextResponse): NextResponse {
  * Raster GETs on site origin → Relay mirror (edge hit).
  * Document GETs → Cache-Control for CDN (article/hub HTML shell).
  */
+/** Site chrome assets live in `public/site/` — do not mirror via Relay. */
+function isLocalSiteChromeAsset (pathname: string): boolean {
+  return pathname === '/site' || pathname.startsWith('/site/')
+}
+
 export function middleware (request: NextRequest) {
   const pathname = request.nextUrl.pathname
+
+  if (isLocalSiteChromeAsset(pathname)) {
+    return NextResponse.next()
+  }
 
   if (RASTER_EXT.test(pathname)) {
     const rel = relPathFromCanonicalSiteUrl(pathname)
