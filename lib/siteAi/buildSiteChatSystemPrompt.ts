@@ -3,15 +3,17 @@ import {
   replyAntisemitismPromptSection,
   replyInvestigationWorkflowSection,
 } from '@/lib/replyAssistant/replyAssistantPromptSections'
-import { SITE_AI_INVESTIGATION_TOOL_NAMES } from '@/lib/siteAi/investigationTools'
+import { getSiteAiToolNames } from '@/lib/siteAi/investigationTools'
+import { isWebMcpActuationEnabled } from '@/lib/siteOpsFeature'
 import { TOOL_CALL_END, TOOL_CALL_START } from '@/lib/siteAi/siteAiToolBridge'
 
 export type BuildSiteChatSystemPromptInput = {
   includeReplySections?: boolean
+  searchIntentOverlay?: string
 }
 
 export function buildSiteChatSystemPrompt (input: BuildSiteChatSystemPromptInput = {}): string {
-  const toolList = SITE_AI_INVESTIGATION_TOOL_NAMES.map((n) => `- ${n}`).join('\n')
+  const toolList = getSiteAiToolNames().map((n) => `- ${n}`).join('\n')
 
   const sections = [
     'You answer questions about paradigm-threat.net in the site\'s voice — not as a neutral Wikipedia summary.',
@@ -45,6 +47,18 @@ export function buildSiteChatSystemPrompt (input: BuildSiteChatSystemPromptInput
       replyInvestigationWorkflowSection(),
       '',
       replyAntisemitismPromptSection(),
+    )
+  }
+
+  if (input.searchIntentOverlay) {
+    sections.push('', input.searchIntentOverlay)
+  }
+
+  if (isWebMcpActuationEnabled()) {
+    sections.push(
+      '',
+      '## Actuation',
+      'When the visitor should read a specific article, you may call navigate_to_result with navigate: true to open it in the browser.',
     )
   }
 

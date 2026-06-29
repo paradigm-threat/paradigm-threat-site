@@ -5,47 +5,41 @@ import { Search } from 'lucide-react'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
 import { filterIndexedEntriesByQuery } from '@/lib/searchIndexFilter'
 import {
-  isArticleMdEntry,
   isTimelineSearchEntry,
 } from '@/lib/searchEntryDisplay'
 import { ArticleStack } from '@/components/search/ArticleStack'
 import { FolderGrid } from '@/components/search/FolderGrid'
 import { ImageGallery } from '@/components/search/ImageGallery'
 import { SearchResultLinks } from '@/components/search/SearchResultLinks'
+import { SearchSuggestedSection } from '@/components/search/SearchSuggestedSection'
 import type { SearchContentFilters } from '@/lib/searchIndexFilter'
 
 interface SearchResultsPanelProps {
   debouncedQuery: string
   filesIndex: IndexedPathEntry[]
   contentFilters: SearchContentFilters
+  primaryArticleEntries: IndexedPathEntry[]
+  suggestedArticleEntries: IndexedPathEntry[]
+  searchResults?: IndexedPathEntry[]
 }
 
 export function SearchResultsPanel ({
   debouncedQuery,
   filesIndex,
   contentFilters,
+  primaryArticleEntries,
+  suggestedArticleEntries,
+  searchResults: searchResultsProp,
 }: SearchResultsPanelProps) {
   const searchResults = useMemo(() => {
+    if (searchResultsProp) return searchResultsProp
     return filterIndexedEntriesByQuery(filesIndex, debouncedQuery, contentFilters)
-  }, [filesIndex, debouncedQuery, contentFilters])
+  }, [searchResultsProp, filesIndex, debouncedQuery, contentFilters])
 
   const timelineResults = useMemo(
     () => searchResults.filter((e) => isTimelineSearchEntry(e.path)),
     [searchResults]
   )
-
-  const articleMdResults = useMemo(
-    () => searchResults.filter((e) => isArticleMdEntry(e.path)),
-    [searchResults]
-  )
-
-  const articleEntries = useMemo(() => {
-    const includeNonArticleMd = contentFilters.includeNonArticleMd
-    return articleMdResults.filter((e) => {
-      if (includeNonArticleMd) return true
-      return !e.path.endsWith('page.md') && !e.path.endsWith('index.md')
-    })
-  }, [articleMdResults, contentFilters.includeNonArticleMd])
 
   const folders = useMemo(() => {
     const folderPaths = Array.from(
@@ -87,7 +81,9 @@ export function SearchResultsPanel ({
 
       {searchResults.length > 0 && (
         <>
-          <ArticleStack entries={articleEntries} />
+          <ArticleStack entries={primaryArticleEntries} />
+
+          <SearchSuggestedSection entries={suggestedArticleEntries} />
 
           {timelineResults.length > 0 && (
             <div className="space-y-8">

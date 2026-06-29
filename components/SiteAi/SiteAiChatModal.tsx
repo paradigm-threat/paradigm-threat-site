@@ -15,9 +15,25 @@ import { SITE_AI_EXAMPLE_QUESTIONS } from '@/lib/siteAi/siteAiExampleQuestions'
 import { getPageContextQuestions } from '@/lib/siteAi/siteAiPageQuestions'
 import { SITE_AI_REPLY_STARTERS } from '@/lib/siteAi/siteAiReplyStarters'
 import { isReplyAssistantFeatureEnabled } from '@/lib/siteOpsFeature'
+import { buildSearchFollowUpQuestions } from '@/lib/search/searchEnhancements'
+import type { SiteAiSearchIntent } from '@/lib/search/searchChatIntents'
+import { SiteAiSearchOpenLinks } from '@/components/SiteAi/SiteAiSearchOpenLinks'
 
 export function SiteAiChatModal () {
-  const { open, closeModal, openOptions, clearOpenOptions, messages, appendExchange, clearHistory, pageContext, replyMode, enterReplyMode } = useSiteAi()
+  const {
+    open,
+    closeModal,
+    openOptions,
+    clearOpenOptions,
+    messages,
+    appendExchange,
+    clearHistory,
+    pageContext,
+    replyMode,
+    enterReplyMode,
+    presentation,
+    activeSearchContext,
+  } = useSiteAi()
   const support = useBrowserAiSupport()
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -26,6 +42,11 @@ export function SiteAiChatModal () {
   const [mounted, setMounted] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  const pendingSearchIntentRef = useRef<SiteAiSearchIntent | undefined>(undefined)
+
+  useEffect(() => {
+    if (openOptions?.intent) pendingSearchIntentRef.current = openOptions.intent
+  }, [openOptions?.intent])
 
   const handleStalled = useCallback(() => {
     abortRef.current?.abort()
@@ -99,11 +120,15 @@ export function SiteAiChatModal () {
 
     try {
       const history = messages.map((m) => ({ role: m.role, content: m.content }))
+      const searchIntent = pendingSearchIntentRef.current
+      if (searchIntent) pendingSearchIntentRef.current = undefined
       const answer = await askSiteAi({
         question,
         history,
         pageContext,
         replyMode: effectiveReplyMode,
+        searchIntent,
+        searchContext: activeSearchContext,
         signal: controller.signal,
         onProgress,
       })
@@ -120,7 +145,16 @@ export function SiteAiChatModal () {
       resetProgress()
       abortRef.current = null
     }
-  }, [ready, input, loading, messages, pageContext, replyMode, appendExchange, onProgress, resetProgress])
+  }, [ready, input, loading, messages, pageContext, replyMode, activeSearchContext, appendExchange, onProgress, resetProgress])
+
+  const searchFollowUps = activeSearchContext
+    ? buildSearchFollowUpQuestions(activeSearchContext.query, [])
+    : []
+
+  const handleSearchFollowUp = useCallback((q: string) => {
+    pendingSearchIntentRef.current = 'follow-up'
+    void handleSubmit(q)
+  }, [handleSubmit])
 
   const handleReplyStarter = useCallback((prompt: string, shouldEnterReplyMode: boolean) => {
     if (shouldEnterReplyMode) enterReplyMode()
@@ -146,13 +180,21 @@ export function SiteAiChatModal () {
 
   const modal = (
     <div
-      className="fixed inset-0 z-[210] flex items-end md:items-center justify-center p-2 md:p-6 bg-black/50 backdrop-blur-sm"
+      className={`fixed inset-0 z-[210] flex justify-center bg-black/50 backdrop-blur-sm ${
+        presentation === 'expanded' ? 'p-2 md:p-3 items-center' : 'items-end md:items-center p-2 md:p-6'
+      }`}
       role="dialog"
       aria-modal="true"
       aria-labelledby="site-ai-title"
       onClick={(e) => { if (e.target === e.currentTarget) handleClose() }}
     >
-      <div className="flex flex-col w-full max-w-3xl h-[92vh] md:h-[88vh] rounded-2xl border border-slate-700/60 bg-slate-950 shadow-2xl overflow-hidden">
+      <div
+        className={`flex flex-col w-full rounded-2xl border border-slate-700/60 bg-slate-950 shadow-2xl overflow-hidden ${
+          presentation === 'expanded'
+            ? 'max-w-[min(90rem,96vw)] h-[96dvh]'
+            : 'max-w-3xl h-[92vh] md:h-[88vh]'
+        }`}
+      >
         <header className="flex items-center gap-3 border-b border-slate-800 px-4 py-3 shrink-0">
           <Sparkles className="h-5 w-5 text-indigo-400 shrink-0" />
           <div className="min-w-0 flex-1">
@@ -325,6 +367,29 @@ export function SiteAiChatModal () {
             {error && (
               <p className="px-4 text-sm text-red-400 shrink-0" role="alert">{error}</p>
             )}
+
+            {activeSearchContext && messages.length > 0 && !loading && searchFollowUps.length > 0 && (
+              <div className="px-4 py-2 shrink-0 border-t border-slate-800/80 space-y-2">
+                <div className="text-xs text-slate-500">Follow-up</div>
+                <div className="flex flex-wrap gap-2">
+                  {searchFollowUps.map((q) => (
+                    <button
+                      key={q}
+                      type="button"
+                      onClick={() => handleSearchFollowUp(q)}
+                      className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-300 hover:border-indigo-500/50 transition-colors max-w-full truncate"
+                      title={q}
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeSearchContext?.resultPaths?.length ? (
+              <SiteAiSearchOpenLinks paths={activeSearchContext.resultPaths} />
+            ) : null}
 
             <form
               className="border-t border-slate-800 p-3 flex gap-2 shrink-0"

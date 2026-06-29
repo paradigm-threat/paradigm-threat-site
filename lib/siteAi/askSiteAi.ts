@@ -8,6 +8,12 @@ import {
 import { formatToolProgressDetail, withFetchProgressReporting } from '@/lib/siteAi/agentProgress'
 import { runSiteAiAgent, type SiteAiAgentProgress } from '@/lib/siteAi/runSiteAiAgent'
 import { executeSiteAiTool } from '@/lib/siteAi/siteAiToolBridge'
+import {
+  buildSearchChatIntent,
+  formatSearchContextForPrompt,
+  type SiteAiSearchContext,
+  type SiteAiSearchIntent,
+} from '@/lib/search/searchChatIntents'
 
 export type SiteAiPageContext = {
   path: string
@@ -25,6 +31,8 @@ export type AskSiteAiInput = {
   history?: SiteAiChatTurn[]
   pageContext?: SiteAiPageContext | null
   replyMode?: boolean
+  searchIntent?: SiteAiSearchIntent
+  searchContext?: SiteAiSearchContext | null
   signal?: AbortSignal
   onProgress?: (event: SiteAiAgentProgress) => void
 }
@@ -42,6 +50,7 @@ function buildUserMessage (input: {
   replyMode?: boolean
   replySeedContext?: string
   replySourceText?: string | null
+  searchContextBlock?: string
 }): string {
   const parts = [
     input.replyMode
@@ -89,12 +98,23 @@ function buildUserMessage (input: {
     )
   }
 
+  if (input.searchContextBlock) {
+    parts.push('', input.searchContextBlock)
+  }
+
   parts.push('', '--- Question ---', input.question.trim(), '---')
   return parts.join('\n')
 }
 
 export async function askSiteAi (input: AskSiteAiInput): Promise<string> {
-  const question = input.question.trim()
+  const intentBuilt = input.searchIntent
+    ? buildSearchChatIntent({
+      intent: input.searchIntent,
+      question: input.question,
+      searchContext: input.searchContext,
+    })
+    : null
+  const question = (intentBuilt?.userMessage ?? input.question).trim()
   if (question.length < 3) {
     throw new Error('Enter a question (at least 3 characters)')
   }
@@ -157,12 +177,14 @@ export async function askSiteAi (input: AskSiteAiInput): Promise<string> {
           replyMode: input.replyMode,
           replySeedContext,
           replySourceText,
+          searchContextBlock: formatSearchContextForPrompt(input.searchContext),
         }),
       },
     ]
 
     const systemPrompt = buildSiteChatSystemPrompt({
       includeReplySections: Boolean(input.replyMode),
+      searchIntentOverlay: intentBuilt?.systemPromptOverlay,
     })
 
     const finalInstruction = input.replyMode && hasReplySource
@@ -180,6 +202,7 @@ export async function askSiteAi (input: AskSiteAiInput): Promise<string> {
       onProgress: input.onProgress,
       finalInstruction,
       minFinalLength,
+      maxTurns: intentBuilt?.maxTurns,
     })
 
     return result.finalText

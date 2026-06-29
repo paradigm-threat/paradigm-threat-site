@@ -16,6 +16,8 @@ interface SearchHeaderProps {
     /** @deprecated Use onDebouncedUrl */
     onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
     disabled?: boolean
+    nlMode?: boolean
+    onNlSearchSubmit?: (query: string) => void
 }
 
 export const SearchHeader = memo(function SearchHeader({
@@ -26,6 +28,8 @@ export const SearchHeader = memo(function SearchHeader({
     onDebouncedUrl,
     onChange,
     disabled = false,
+    nlMode = false,
+    onNlSearchSubmit,
 }: SearchHeaderProps) {
     const resolvedInitial = initialQuery ?? query ?? ''
     const [local, setLocal] = useState(resolvedInitial)
@@ -110,11 +114,23 @@ export const SearchHeader = memo(function SearchHeader({
                     enterKeyHint="search"
                     value={local}
                     onChange={onInputChange}
+                    onKeyDown={(e) => {
+                        if (e.key !== 'Enter' || !nlMode || !onNlSearchSubmit) return
+                        e.preventDefault()
+                        onNlSearchSubmit(local.trim())
+                    }}
                     disabled={disabled}
                     readOnly={disabled}
-                    placeholder="Type keywords (e.g. '911 physics', 'mars water')..."
+                    placeholder={nlMode
+                        ? "Ask in natural language (Enter opens AI chat)…"
+                        : "Type keywords (e.g. '911 physics', 'mars water')..."}
                     className="w-full pl-16 pr-6 py-6 bg-slate-100 dark:bg-slate-900/50 border-2 border-slate-200 dark:border-slate-800 rounded-3xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-semibold text-xl shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
                 />
+                {nlMode && (
+                    <span className="absolute -bottom-6 left-0 text-xs text-violet-600 dark:text-violet-400 font-medium">
+                        Natural language mode — Enter opens AI chat
+                    </span>
+                )}
                 {loading && (
                     <div className="absolute right-6 top-1/2 -translate-y-1/2">
                         <Loader2 className="animate-spin text-blue-500" size={24} />

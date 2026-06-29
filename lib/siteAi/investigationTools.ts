@@ -1,3 +1,5 @@
+import { isWebMcpActuationEnabled } from '@/lib/siteOpsFeature'
+
 /** Read-only WebMCP tools the on-device site AI may invoke. */
 export const SITE_AI_INVESTIGATION_TOOL_NAMES = [
   'search_site',
@@ -14,8 +16,21 @@ export const SITE_AI_INVESTIGATION_TOOL_NAMES = [
   'open_timeline_event',
 ] as const
 
-export type SiteAiInvestigationToolName = (typeof SITE_AI_INVESTIGATION_TOOL_NAMES)[number]
+export const SITE_AI_ACTUATION_TOOL_NAMES = [
+  'navigate_to_result',
+] as const
 
-export function isSiteAiInvestigationToolName (name: string): name is SiteAiInvestigationToolName {
-  return (SITE_AI_INVESTIGATION_TOOL_NAMES as readonly string[]).includes(name)
+export type SiteAiInvestigationToolName = (typeof SITE_AI_INVESTIGATION_TOOL_NAMES)[number]
+export type SiteAiActuationToolName = (typeof SITE_AI_ACTUATION_TOOL_NAMES)[number]
+
+export function getSiteAiToolNames (): string[] {
+  const names: string[] = [...SITE_AI_INVESTIGATION_TOOL_NAMES]
+  if (isWebMcpActuationEnabled()) {
+    names.push(...SITE_AI_ACTUATION_TOOL_NAMES)
+  }
+  return names
+}
+
+export function isSiteAiInvestigationToolName (name: string): boolean {
+  return getSiteAiToolNames().includes(name)
 }

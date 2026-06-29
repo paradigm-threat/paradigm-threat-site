@@ -13,12 +13,16 @@ export interface SearchInputIslandProps {
    * Using a ref avoids changing callback identity on every parent re-render.
    */
   onDebouncedQueryRef: MutableRefObject<(q: string) => void>
+  nlMode?: boolean
+  onNlSearchSubmit?: (query: string) => void
 }
 
 export const SearchInputIsland = memo(function SearchInputIsland({
   initialQuery,
   loading,
   onDebouncedQueryRef,
+  nlMode = false,
+  onNlSearchSubmit,
 }: SearchInputIslandProps) {
   // This drives the input's displayed value when navigating back/forward.
   // Typing does NOT update this state, so the island won't re-render per keystroke.
@@ -52,13 +56,17 @@ export const SearchInputIsland = memo(function SearchInputIsland({
       loading={loading}
       onDebouncedSearchQuery={onDebouncedSearchQuery}
       onDebouncedUrl={onDebouncedUrl}
+      nlMode={nlMode}
+      onNlSearchSubmit={onNlSearchSubmit}
     />
   )
 }, (prev, next) => {
   return (
     prev.initialQuery === next.initialQuery &&
     prev.loading === next.loading &&
-    prev.onDebouncedQueryRef === next.onDebouncedQueryRef
+    prev.onDebouncedQueryRef === next.onDebouncedQueryRef &&
+    prev.nlMode === next.nlMode &&
+    prev.onNlSearchSubmit === next.onNlSearchSubmit
   )
 })
 

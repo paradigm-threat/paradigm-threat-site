@@ -17,6 +17,122 @@ export interface RenderMdAstOpts {
   anchorOnClick?: MouseEventHandler<HTMLAnchorElement>
 }
 
+const TABLE_SECTION_TAGS = new Set(['thead', 'tbody', 'tfoot'])
+const TABLE_CELL_TAGS = new Set(['td', 'th'])
+
+function isElement (n: MdNode): n is Extract<MdNode, { type: 'element' }> {
+  return n.type === 'element'
+}
+
+function el (tag: string, children: MdNode[], props: Record<string, unknown> = {}): MdNode {
+  return { type: 'element', tag, props, children }
+}
+
+function normalizeTrChildren (children: MdNode[]): MdNode[] {
+  return children.map(normalizeMdAstNode)
+}
+
+function normalizeRowGroupChildren (children: MdNode[]): MdNode[] {
+  const normalized = children.map(normalizeMdAstNode)
+  const hasDirectCells = normalized.some((c) => isElement(c) && TABLE_CELL_TAGS.has(c.tag))
+  if (!hasDirectCells) {
+    return normalized.map((c) => {
+      if (isElement(c) && c.tag === 'tr') {
+        return { ...c, children: normalizeTrChildren(c.children || []) }
+      }
+      return c
+    })
+  }
+
+  const rows: MdNode[] = []
+  let currentCells: MdNode[] = []
+
+  const flushCells = () => {
+    if (currentCells.length === 0) return
+    rows.push(el('tr', currentCells))
+    currentCells = []
+  }
+
+  for (const child of normalized) {
+    if (isElement(child) && TABLE_CELL_TAGS.has(child.tag)) {
+      currentCells.push(child)
+      continue
+    }
+    if (isElement(child) && child.tag === 'tr') {
+      flushCells()
+      rows.push({ ...child, children: normalizeTrChildren(child.children || []) })
+      continue
+    }
+    flushCells()
+    rows.push(child)
+  }
+  flushCells()
+  return rows
+}
+
+function normalizeTableChildren (children: MdNode[]): MdNode[] {
+  const normalized = children.map(normalizeMdAstNode)
+  const out: MdNode[] = []
+  let pendingRows: MdNode[] = []
+  let pendingCells: MdNode[] = []
+
+  const flushRows = (sectionTag: 'tbody' | 'thead' | 'tfoot' = 'tbody') => {
+    if (pendingCells.length > 0) {
+      pendingRows.push(el('tr', pendingCells))
+      pendingCells = []
+    }
+    if (pendingRows.length > 0) {
+      out.push(el(sectionTag, pendingRows))
+      pendingRows = []
+    }
+  }
+
+  for (const child of normalized) {
+    if (!isElement(child)) {
+      flushRows()
+      out.push(child)
+      continue
+    }
+    if (TABLE_SECTION_TAGS.has(child.tag)) {
+      flushRows()
+      out.push({
+        ...child,
+        children: normalizeRowGroupChildren(child.children || []),
+      })
+      continue
+    }
+    if (child.tag === 'tr') {
+      pendingRows.push({ ...child, children: normalizeTrChildren(child.children || []) })
+      continue
+    }
+    if (TABLE_CELL_TAGS.has(child.tag)) {
+      pendingCells.push(child)
+      continue
+    }
+    flushRows()
+    out.push(child)
+  }
+  flushRows()
+  return out
+}
+
+/** Fix wasm table AST shapes that break HTML hydration (e.g. td directly under thead). */
+export function normalizeMdAstNode (n: MdNode): MdNode {
+  if (n.type === 'text') return n
+
+  let children = (n.children || []).map(normalizeMdAstNode)
+
+  if (n.tag === 'table') {
+    children = normalizeTableChildren(children)
+  } else if (n.tag === 'thead' || n.tag === 'tbody' || n.tag === 'tfoot') {
+    children = normalizeRowGroupChildren(children)
+  } else if (n.tag === 'tr') {
+    children = normalizeTrChildren(children)
+  }
+
+  return { ...n, children }
+}
+
 function resolveOverride (
   overrides: MdOverrides,
   tag: string,
@@ -43,7 +159,7 @@ export function renderMdAst (
   opts?: RenderMdAstOpts,
 ): ReactNode[] {
   const overrides = opts?.overrides ?? {}
-  return nodes.map((n, i) => renderMdAstNode(n, i, opts, overrides))
+  return nodes.map((n, i) => renderMdAstNode(normalizeMdAstNode(n), i, opts, overrides))
 }
 
 export function renderMdAstNode (
@@ -58,7 +174,7 @@ export function renderMdAstNode (
 
   const rawTag = n.tag || 'div'
   const { component, extraProps } = resolveOverride(overrides, rawTag)
-  const reactProps: Record<string, unknown> = { ...propsFromNode(n.props || {}), ...(extraProps ?? {}), key: i }
+  const reactProps: Record<string, unknown> = { ...propsFromNode(n.props || {}), ...(extraProps ?? {}) }
   const kids = (n.children || []).map((c, j) => renderMdAstNode(c, j, opts, overrides))
 
   if (rawTag === 'a' && opts) {
@@ -69,9 +185,9 @@ export function renderMdAstNode (
   }
 
   if (typeof component === 'string') {
-    return createElement(component, reactProps, ...kids)
+    return createElement(component, { ...reactProps, key: i }, ...kids)
   }
 
   const Comp = component
-  return <Comp {...reactProps}>{kids}</Comp>
+  return <Comp key={i} {...reactProps}>{kids}</Comp>
 }

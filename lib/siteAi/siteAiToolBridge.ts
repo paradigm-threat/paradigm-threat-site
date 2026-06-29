@@ -7,6 +7,7 @@ import {
   executeGetProjectPerspective,
   executeGetSiteClaims,
   executeListIndexEntries,
+  executeNavigateToResult,
   executeOpenTimelineEvent,
   executePrepareReplyContext,
   executeReadArticle,
@@ -15,18 +16,17 @@ import {
 } from '@/lib/webmcp/toolHandlers'
 import {
   isSiteAiInvestigationToolName,
-  type SiteAiInvestigationToolName,
 } from '@/lib/siteAi/investigationTools'
+import { isWebMcpActuationEnabled } from '@/lib/siteOpsFeature'
 
 export type SiteAiToolCall = {
-  name: SiteAiInvestigationToolName
+  name: string
   arguments: Record<string, unknown>
 }
 
-const HANDLERS: Record<
-  SiteAiInvestigationToolName,
-  (args: Record<string, unknown>) => Promise<CallToolResult> | CallToolResult
-> = {
+type ToolHandler = (args: Record<string, unknown>) => Promise<CallToolResult> | CallToolResult
+
+const BASE_HANDLERS: Record<string, ToolHandler> = {
   search_site: executeSearchSite,
   suggest_search_from_path: executeSuggestSearchFromPath,
   get_article_context: executeGetArticleContext,
@@ -39,6 +39,13 @@ const HANDLERS: Record<
   read_article: executeReadArticle,
   format_reply_citations: executeFormatReplyCitations,
   open_timeline_event: executeOpenTimelineEvent,
+}
+
+function getHandlers (): Record<string, ToolHandler> {
+  if (isWebMcpActuationEnabled()) {
+    return { ...BASE_HANDLERS, navigate_to_result: executeNavigateToResult }
+  }
+  return BASE_HANDLERS
 }
 
 export function toolResultToText (result: CallToolResult): string {
@@ -61,7 +68,10 @@ export async function executeSiteAiTool (
   if (!isSiteAiInvestigationToolName(name)) {
     return `Error: tool "${name}" is not allowed`
   }
-  const handler = HANDLERS[name]
+  const handler = getHandlers()[name]
+  if (!handler) {
+    return `Error: tool "${name}" is not available`
+  }
   const result = await handler(args ?? {})
   return toolResultToText(result)
 }

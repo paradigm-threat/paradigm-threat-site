@@ -18,9 +18,14 @@ import {
   type SiteAiStoredMessage,
 } from '@/lib/siteAi/siteAiSessionStorage'
 
+import type { SiteAiSearchContext, SiteAiSearchIntent } from '@/lib/search/searchChatIntents'
+
 type SiteAiOpenOptions = {
   question?: string
   autoSubmit?: boolean
+  presentation?: 'default' | 'expanded'
+  intent?: SiteAiSearchIntent
+  searchContext?: SiteAiSearchContext
 }
 
 type SiteAiContextValue = {
@@ -28,6 +33,8 @@ type SiteAiContextValue = {
   openModal: (options?: SiteAiOpenOptions) => void
   closeModal: () => void
   openOptions: SiteAiOpenOptions | null
+  presentation: 'default' | 'expanded'
+  activeSearchContext: SiteAiSearchContext | null
   clearOpenOptions: () => void
   messages: SiteAiStoredMessage[]
   setMessages: (messages: SiteAiStoredMessage[]) => void
@@ -45,6 +52,8 @@ const SiteAiContext = createContext<SiteAiContextValue | null>(null)
 export function SiteAiProvider ({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
   const [openOptions, setOpenOptions] = useState<SiteAiOpenOptions | null>(null)
+  const [presentation, setPresentation] = useState<'default' | 'expanded'>('default')
+  const [activeSearchContext, setActiveSearchContext] = useState<SiteAiSearchContext | null>(null)
   const [messages, setMessagesState] = useState<SiteAiStoredMessage[]>([])
   const [pageContext, setPageContextState] = useState<SiteAiPageContext | null>(null)
   const [replyMode, setReplyModeState] = useState(false)
@@ -94,13 +103,18 @@ export function SiteAiProvider ({ children }: { children: React.ReactNode }) {
     open,
     openModal: (options) => {
       setOpenOptions(options ?? null)
+      setPresentation(options?.presentation ?? 'default')
+      if (options?.searchContext) setActiveSearchContext(options.searchContext)
       setOpen(true)
     },
     closeModal: () => {
       setOpen(false)
       setOpenOptions(null)
+      setPresentation('default')
     },
     openOptions,
+    presentation,
+    activeSearchContext,
     clearOpenOptions,
     messages,
     setMessages,
@@ -111,7 +125,7 @@ export function SiteAiProvider ({ children }: { children: React.ReactNode }) {
     replyMode,
     enterReplyMode,
     setReplyMode,
-  }), [open, openOptions, clearOpenOptions, messages, setMessages, appendExchange, clearHistory, pageContext, replyMode, enterReplyMode, setReplyMode])
+  }), [open, openOptions, presentation, activeSearchContext, clearOpenOptions, messages, setMessages, appendExchange, clearHistory, pageContext, replyMode, enterReplyMode, setReplyMode])
 
   return (
     <SiteAiContext.Provider value={value}>
@@ -127,6 +141,8 @@ export function useSiteAi (): SiteAiContextValue {
   }
   return ctx
 }
+
+export type { SiteAiSearchContext, SiteAiSearchIntent } from '@/lib/search/searchChatIntents'
 
 export function useSiteAiPageContextRegistration (
   ctx: SiteAiPageContext | null
