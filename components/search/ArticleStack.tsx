@@ -1,12 +1,13 @@
 'use client'
 
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import Link from 'next/link'
 import matter from 'gray-matter'
 import { Eye, EyeOff, FileText, Loader2 } from 'lucide-react'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
 import { RelayMarkdown } from '@/components/RelayMarkdown'
 import { searchEntryHref, searchEntryTitle } from '@/lib/searchEntryDisplay'
+import { isBlogSearchPath } from '@/lib/searchIndexFilter'
 import { getRemoteFile } from '@/server/remoteFiles'
 
 type PreviewCacheEntry = {
@@ -22,6 +23,11 @@ interface ArticleStackProps {
 
 function pathTitle (entry: IndexedPathEntry): string {
   return searchEntryTitle(entry)
+}
+
+function readerContentSectionTitle (entries: IndexedPathEntry[]): string {
+  const hasBlog = entries.some((e) => isBlogSearchPath(e.path))
+  return hasBlog ? 'Articles, Investigations & Blog' : 'Articles & Investigations'
 }
 
 export function ArticleStack ({ entries }: ArticleStackProps) {
@@ -74,13 +80,15 @@ export function ArticleStack ({ entries }: ArticleStackProps) {
     })
   }, [ensurePreviewLoaded])
 
+  const sectionTitle = useMemo(() => readerContentSectionTitle(entries), [entries])
+
   if (entries.length === 0) return null
 
   return (
     <div className="space-y-12">
       <div className="flex items-center gap-4">
         <div className="w-2 h-8 bg-emerald-500 rounded-full" />
-        <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Articles</h2>
+        <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase">{sectionTitle}</h2>
         <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-sm font-bold text-slate-500">
           {entries.length}
         </span>
