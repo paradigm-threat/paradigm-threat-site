@@ -17,6 +17,14 @@ import type { Metadata } from 'next'
 /** ISR for the client-loaded article shell — cuts uncached Vercel edge document hits. */
 export const revalidate = 86_400
 
+/** Allow runtime slug generation; pair with empty generateStaticParams for on-demand ISR. */
+export const dynamicParams = true
+
+/** No article paths at build — each slug is generated on first request then cached 24h. */
+export async function generateStaticParams (): Promise<{ slug?: string[] }[]> {
+  return []
+}
+
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://paradigmthreat.net'
 
 /** Keep OG/meta description readable in link previews (first para can be very long). */
