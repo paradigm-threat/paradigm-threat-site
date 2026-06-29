@@ -1,12 +1,28 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { PtLink } from '@/components/PtLink'
-import { getReplyAssistantContextSections } from '@/lib/replyAssistant/replyAssistantContextCatalog'
-
-const SECTIONS = getReplyAssistantContextSections()
+import {
+  getReplyAssistantContextSections,
+  type ReplyAssistantContextSection,
+} from '@/lib/replyAssistant/replyAssistantContextCatalog'
+import { prefetchSiteClaims } from '@/lib/siteAi/siteClaimsStore'
 
 export function ReplyAssistantTunedContext () {
+  const [sections, setSections] = useState<ReplyAssistantContextSection[]>(() =>
+    getReplyAssistantContextSections())
+
+  useEffect(() => {
+    let active = true
+    void prefetchSiteClaims().then(() => {
+      if (!active) return
+      setSections(getReplyAssistantContextSections())
+    })
+    return () => {
+      active = false
+    }
+  }, [])
+
   return (
     <section
       className="mt-10 pt-8 border-t border-slate-200 dark:border-slate-800 space-y-8"
@@ -20,13 +36,13 @@ export function ReplyAssistantTunedContext () {
           Topics this assistant is tuned on
         </h2>
         <p className="text-sm text-slate-600 dark:text-slate-400">
-          Derived from the site claims index and antisemitism reply playbook in code — not hand-edited
-          copy. The agent still searches the full article corpus via WebMCP; these are the curated
-          context cards and attack-specific playbooks it is prompted to prefer.
+          Derived from site-claims.json (paradigm-threat-files) and the antisemitism reply playbook —
+          not hand-edited copy. The agent still searches the full article corpus via WebMCP; these are
+          the curated context cards and attack-specific playbooks it is prompted to prefer.
         </p>
       </div>
 
-      {SECTIONS.map((section) => (
+      {sections.map((section) => (
         <div key={section.id} className="space-y-3">
           <div>
             <h3 className="text-sm font-medium text-slate-800 dark:text-slate-200">

@@ -10,7 +10,7 @@ import { formatCitationBlock, type CitationStyle } from '@/lib/replyAssistant/fo
 import { listIndexEntries } from '@/lib/replyAssistant/listIndexEntries'
 import { prepareReplyContext } from '@/lib/replyAssistant/prepareReplyContext'
 import { getProjectPerspective } from '@/lib/replyAssistant/projectPerspective'
-import { getSiteClaimById, SITE_CLAIMS_INDEX } from '@/lib/siteAi/siteClaimsIndex'
+import { getSiteClaimById, getSiteClaimsIndex } from '@/lib/siteAi/siteClaimsIndex'
 import { matchSiteClaims } from '@/lib/siteAi/matchSiteClaims'
 import { readArticleContentFromMarkdown } from '@/lib/replyAssistant/readArticleContent'
 import {
@@ -266,9 +266,10 @@ export function executeGetProjectPerspective (): CallToolResult {
   })
 }
 
-export function executeGetSiteClaims (args: Record<string, unknown>): CallToolResult {
+export async function executeGetSiteClaims (args: Record<string, unknown>): Promise<CallToolResult> {
   const query = typeof args.query === 'string' ? args.query.trim() : ''
   const id = typeof args.id === 'string' ? args.id.trim() : ''
+  const allClaims = await getSiteClaimsIndex()
 
   if (id) {
     const claim = getSiteClaimById(id)
@@ -277,13 +278,13 @@ export function executeGetSiteClaims (args: Record<string, unknown>): CallToolRe
   }
 
   if (query.length >= 3) {
-    const matched = matchSiteClaims(query, { maxResults: 5 })
+    const matched = matchSiteClaims(query, { maxResults: 5, claims: allClaims })
     return toolJsonResult({ claims: matched, query })
   }
 
   return toolJsonResult({
-    claims: SITE_CLAIMS_INDEX,
-    summary: `${SITE_CLAIMS_INDEX.length} curated site claims — pass query or id to narrow.`,
+    claims: allClaims,
+    summary: `${allClaims.length} curated site claims — pass query or id to narrow.`,
   })
 }
 
@@ -303,6 +304,7 @@ export async function executePrepareReplyContext (args: Record<string, unknown>)
     tone: (args.tone as 'neutral' | 'conversational' | 'brief') ?? 'conversational',
     includeBlog: parseBool(args.includeBlog, false),
     userInstructions: userInstructions || undefined,
+    siteClaims: await getSiteClaimsIndex(),
   })
   return toolJsonResult(result)
 }

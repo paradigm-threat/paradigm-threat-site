@@ -1,13 +1,21 @@
 import assert from 'node:assert/strict'
-import { describe, it } from 'node:test'
+import { after, before, describe, it } from 'node:test'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
 import { DEFAULT_SEARCH_CONTENT_FILTERS } from '@/lib/searchIndexFilter'
+import { installSiteClaimsFixture } from '@/lib/siteAi/siteClaimsTestFixtures'
+import { resetSiteClaimsCache, setSiteClaimsIndexOverride } from '@/lib/siteAi/siteClaimsStore'
 import {
   buildSearchFollowUpQuestions,
   getLowResultsHints,
   getRelatedKeywords,
   partitionArticleHits,
 } from './searchEnhancements.ts'
+
+before(() => installSiteClaimsFixture())
+after(() => {
+  setSiteClaimsIndexOverride(null)
+  resetSiteClaimsCache()
+})
 
 const entries: IndexedPathEntry[] = [
   {

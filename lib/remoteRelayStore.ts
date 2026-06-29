@@ -508,6 +508,33 @@ class RemoteRelayStore {
   }
 
   /**
+   * Load site-claims.json from the active pair, then other pairs on timeout/error.
+   */
+  async fetchSiteClaimsJson(externalAbort: AbortSignal): Promise<unknown | null> {
+    this.ensurePairs()
+    const order = this.pairFailoverOrder()
+    let lastErr: Error | null = null
+    for (const p of order) {
+      const v = Math.floor(Date.now() / 60000)
+      const url = `${p.files.replace(/\/$/, '')}/site-claims.json?v=${v}`
+      const signal = mergeAbort(externalAbort, INDEX_FETCH_TIMEOUT_MS)
+      try {
+        const res = await fetch(url, { signal, cache: 'no-store' })
+        if (!res.ok) continue
+        const data = (await res.json()) as unknown
+        if (p.files !== this.filesOrigin || p.timeline !== this.timelineOrigin) {
+          this.switchToPair(p, 'site_claims_failover')
+        }
+        return data
+      } catch (e) {
+        lastErr = e instanceof Error ? e : new Error(String(e))
+      }
+    }
+    if (lastErr) console.warn('[remoteRelay] fetchSiteClaimsJson:', lastErr.message)
+    return null
+  }
+
+  /**
    * Fetch markdown for a site URL path (tries path.md, path/page.md, etc.); on timeout/error try other pairs.
    */
   async fetchFilesMd(logicalPath: string, versionQuery: string, externalAbort: AbortSignal): Promise<Response> {

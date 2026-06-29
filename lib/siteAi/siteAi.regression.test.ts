@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { afterEach, describe, it } from 'node:test'
+import { after, before, afterEach, describe, it } from 'node:test'
 import type { IndexedPathEntry } from '../components/helpers/indexHelper.ts'
 import { buildSiteChatSystemPrompt } from './buildSiteChatSystemPrompt.ts'
 import { formatQuestionContextForPrompt, prepareQuestionContext } from './prepareQuestionContext.ts'
@@ -12,6 +12,14 @@ import {
 } from './siteAiSessionStorage.ts'
 import { parseToolCall, TOOL_CALL_END, TOOL_CALL_START } from './siteAiToolBridge.ts'
 import { setWebMcpSearchIndexOverride } from '../webmcp/indexStore.ts'
+import { installSiteClaimsFixture } from './siteClaimsTestFixtures.ts'
+import { resetSiteClaimsCache, setSiteClaimsIndexOverride } from './siteClaimsStore.ts'
+
+before(() => installSiteClaimsFixture())
+after(() => {
+  setSiteClaimsIndexOverride(null)
+  resetSiteClaimsCache()
+})
 
 const entries: IndexedPathEntry[] = [
   { path: 'history/common-questions.md', searchText: 'history/common-questions.md common questions mud flood' },

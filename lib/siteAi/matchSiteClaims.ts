@@ -1,6 +1,7 @@
 import { extractTermsFromText } from '@/lib/replyAssistant/extractTerms'
+import type { SiteClaimEntry } from '@/lib/siteAi/siteClaimsTypes'
 import { SITE_AI_EXAMPLE_QUESTIONS } from '@/lib/siteAi/siteAiExampleQuestions'
-import { SITE_CLAIMS_INDEX } from '@/lib/siteAi/siteClaimsIndex'
+import { getSiteClaimsIndexCached } from '@/lib/siteAi/siteClaimsStore'
 import type { MatchedSiteClaim, SiteClaimEntry } from '@/lib/siteAi/siteClaimsTypes'
 
 function normalize (text: string): string {
@@ -38,15 +39,16 @@ function topicMatchScore (question: string, claim: SiteClaimEntry): number {
 
 export function matchSiteClaims (
   question: string,
-  options?: { maxResults?: number }
+  options?: { maxResults?: number; claims?: SiteClaimEntry[] }
 ): MatchedSiteClaim[] {
   const maxResults = options?.maxResults ?? 3
+  const index = options?.claims ?? getSiteClaimsIndexCached()
   const text = question.trim()
-  if (text.length < 3) return []
+  if (text.length < 3 || index.length === 0) return []
 
   const scored: MatchedSiteClaim[] = []
 
-  for (const claim of SITE_CLAIMS_INDEX) {
+  for (const claim of index) {
     const matchedVia: MatchedSiteClaim['matchedVia'] = []
     let matchScore = 0
 

@@ -9,6 +9,7 @@ import {
   formatMatchedClaimsForPrompt,
   matchSiteClaims,
 } from '@/lib/siteAi/matchSiteClaims'
+import { getSiteClaimsIndex } from '@/lib/siteAi/siteClaimsStore'
 import type { SiteAiPageContext } from '@/lib/siteAi/askSiteAi'
 import { isPageFocusedQuestion } from '@/lib/siteAi/siteAiPageQuestions'
 import type { MatchedSiteClaim } from '@/lib/siteAi/siteClaimsTypes'
@@ -113,7 +114,8 @@ export async function prepareQuestionContext (
 ): Promise<PrepareQuestionContextResult> {
   const text = question.trim()
   const warnings: string[] = []
-  const matchedClaims = matchSiteClaims(text, { maxResults: 3 })
+  const allClaims = await getSiteClaimsIndex()
+  const matchedClaims = matchSiteClaims(text, { maxResults: 3, claims: allClaims })
 
   if (text.length < 3) {
     return {

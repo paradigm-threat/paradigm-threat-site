@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { afterEach, describe, it } from 'node:test'
+import { after, before, describe, it } from 'node:test'
 import type { IndexedPathEntry } from '../components/helpers/indexHelper.ts'
 import { findArticlesForText } from './findArticlesForText.ts'
 import { composeReplyShell } from './composeReplyShell.ts'
@@ -9,6 +9,16 @@ import { listIndexEntries } from './listIndexEntries.ts'
 import { readArticleContentFromMarkdown, clampReadArticleMaxChars } from './readArticleContent.ts'
 import { buildReplyAgentPrompt, buildReplySystemPrompt } from './agentPrompt.ts'
 import { parseToolCall, stripToolMarkers, TOOL_CALL_END, TOOL_CALL_START } from '../siteAi/siteAiToolBridge.ts'
+import { installSiteClaimsFixture, loadSiteClaimsFixture } from '../siteAi/siteClaimsTestFixtures.ts'
+import { resetSiteClaimsCache, setSiteClaimsIndexOverride } from '../siteAi/siteClaimsStore.ts'
+
+before(() => installSiteClaimsFixture())
+after(() => {
+  setSiteClaimsIndexOverride(null)
+  resetSiteClaimsCache()
+})
+
+const siteClaimsFixture = loadSiteClaimsFixture()
 
 const entries: IndexedPathEntry[] = [
   { path: 'debunk/mud-flood.md', searchText: 'debunk/mud-flood.md Mud Flood Tartaria evidence' },
@@ -39,6 +49,7 @@ describe('prepareReplyContext', () => {
     const result = prepareReplyContext(entries, {
       sourceText: 'What about the mud flood and tartaria evidence in this thread?',
       includeCitations: false,
+      siteClaims: siteClaimsFixture,
     })
     assert.ok(result.seedArticles.length >= 1)
     assert.ok(result.agentInstructions.includes('read_article'))
@@ -58,9 +69,21 @@ describe('prepareReplyContext', () => {
     const result = prepareReplyContext(entries, {
       sourceText: 'What about the mud flood and tartaria evidence in this thread?',
       userInstructions: 'Emphasize chronology revision, not generic skeptic debunking.',
+      siteClaims: siteClaimsFixture,
     })
     assert.ok(result.agentInstructions.includes('Emphasize chronology revision'))
     assert.equal(result.userInstructions, 'Emphasize chronology revision, not generic skeptic debunking.')
+  })
+
+  it('matches site claims and seeds canonical paths for theory context', () => {
+    const result = prepareReplyContext(entries, {
+      sourceText: 'People keep saying JFK was shot by Oswald in Dealey Plaza — was the assassination real or staged?',
+      siteClaims: siteClaimsFixture,
+    })
+    assert.ok(result.matchedSiteClaims?.some((c) => c.id === 'jfk-fake-assassination'))
+    assert.ok(result.siteClaimsForPrompt?.includes('jfk-fake-assassination'))
+    assert.ok(result.agentInstructions.includes('read_article'))
+    assert.ok(result.seedArticles.some((a) => a.path.includes('events/jfk/agent.md')))
   })
 })
 
@@ -112,6 +135,7 @@ describe('buildReplySystemPrompt', () => {
     })
     assert.ok(prompt.includes('list_index_entries'))
     assert.ok(prompt.includes('history-qa'))
+    assert.ok(prompt.includes('matchedSiteClaims'))
     assert.ok(prompt.includes('Ten Commandments'))
     assert.ok(prompt.includes('substack-tropes'))
     assert.ok(prompt.includes(TOOL_CALL_START))

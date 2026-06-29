@@ -4,7 +4,8 @@ import {
   ANTISEMITISM_PLAYBOOK_HUB,
 } from '@/lib/replyAssistant/antisemitismReplyPlaybook'
 import { feelingLuckyPathToHref } from '@/lib/feelingLucky'
-import { SITE_CLAIMS_INDEX } from '@/lib/siteAi/siteClaimsIndex'
+import { getSiteClaimsIndexCached } from '@/lib/siteAi/siteClaimsStore'
+import type { SiteClaimEntry } from '@/lib/siteAi/siteClaimsTypes'
 
 export type ReplyAssistantContextRow = {
   id: string
@@ -28,7 +29,7 @@ export function articleIndexPathToHref (path: string): string {
   return href
 }
 
-function claimSummary (claim: (typeof SITE_CLAIMS_INDEX)[number]): string {
+function claimSummary (claim: SiteClaimEntry): string {
   if (claim.answerOpener?.trim()) return claim.answerOpener.trim()
   const text = claim.claim.trim()
   return text.length > 160 ? `${text.slice(0, 157)}…` : text
@@ -36,7 +37,8 @@ function claimSummary (claim: (typeof SITE_CLAIMS_INDEX)[number]): string {
 
 /** UI catalog — derived from SITE_CLAIMS_INDEX + ANTISEMITISM_ATTACK_PROFILES (no duplicate copy). */
 export function getReplyAssistantContextSections (): ReplyAssistantContextSection[] {
-  const claimRows: ReplyAssistantContextRow[] = SITE_CLAIMS_INDEX.map((claim) => ({
+  const claims = getSiteClaimsIndexCached()
+  const claimRows: ReplyAssistantContextRow[] = claims.map((claim) => ({
     id: claim.id,
     topic: claim.title,
     summary: claimSummary(claim),

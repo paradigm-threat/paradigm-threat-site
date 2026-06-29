@@ -11,6 +11,19 @@ export function replyInvestigationWorkflowSection (): string {
   ].join('\n')
 }
 
+export function replySiteClaimsPromptSection (): string {
+  return [
+    '## Site claims index (theory context)',
+    'prepare_reply_context may include matchedSiteClaims JSON — curated conclusions this site supports.',
+    '- When a claim card matches the pasted post or user instructions, LEAD with answerOpener or claim text in Paradigm Threat voice.',
+    '- You MUST read_article on at least one canonicalPaths entry before elaborating.',
+    '- Label confidence (project thesis vs documented vs speculative).',
+    '- Note uniqueness when helpful; never use doNotSay phrasing.',
+    '- Do NOT hedge with "the site doesn\'t offer definitive answers" when a claim card states a clear thesis.',
+    '- You may call get_site_claims with a query if seeds are weak but the thread clearly targets a site thesis.',
+  ].join('\n')
+}
+
 export function replyAntisemitismPromptSection (): string {
   return [
     '## Antisemitic attacks (reply strategy)',

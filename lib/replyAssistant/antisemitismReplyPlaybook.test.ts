@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { describe, it } from 'node:test'
+import { after, before, describe, it } from 'node:test'
 import {
   ANTISEMITISM_ATTACK_PROFILES,
   formatAntisemitismPlaybookForPrompt,
@@ -7,6 +7,14 @@ import {
 } from './antisemitismReplyPlaybook.ts'
 import { prepareReplyContext } from './prepareReplyContext.ts'
 import type { IndexedPathEntry } from '../components/helpers/indexHelper.ts'
+import { installSiteClaimsFixture } from '../siteAi/siteClaimsTestFixtures.ts'
+import { getSiteClaimsIndexCached, resetSiteClaimsCache, setSiteClaimsIndexOverride } from '../siteAi/siteClaimsStore.ts'
+
+before(() => installSiteClaimsFixture())
+after(() => {
+  setSiteClaimsIndexOverride(null)
+  resetSiteClaimsCache()
+})
 
 describe('antisemitismReplyPlaybook', () => {
   it('matches monolithing attack', () => {
@@ -38,11 +46,10 @@ describe('replyAssistantContextCatalog', () => {
     const { getReplyAssistantContextSections, articleIndexPathToHref } = await import(
       './replyAssistantContextCatalog.ts'
     )
-    const { SITE_CLAIMS_INDEX } = await import('../siteAi/siteClaimsIndex.ts')
     const sections = getReplyAssistantContextSections()
     const claims = sections.find((s) => s.id === 'site-claims')
     const playbook = sections.find((s) => s.id === 'antisemitism-playbook')
-    assert.equal(claims?.rows.length, SITE_CLAIMS_INDEX.length)
+    assert.equal(claims?.rows.length, getSiteClaimsIndexCached().length)
     assert.equal(playbook?.rows.length, ANTISEMITISM_ATTACK_PROFILES.length + 2)
     assert.ok(articleIndexPathToHref('history/foo/page.md').endsWith('/history/foo'))
   })

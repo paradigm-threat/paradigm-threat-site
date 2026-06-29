@@ -2,7 +2,8 @@
 
 Curated **major conclusions** Paradigm Threat supports, used by Site AI and the reply assistant to lead with the site’s thesis before `read_article` expands from source articles.
 
-**Source of truth (runtime):** `lib/siteAi/siteClaimsIndex.ts`  
+**Source of truth:** `site-claims.json` in **paradigm-threat-files** (published on FILES mirrors alongside `index.json`).  
+**Site runtime:** `lib/siteAi/siteClaimsStore.ts` fetches `/site-claims.json` from the active relay pair.  
 **Matching:** `lib/siteAi/matchSiteClaims.ts`  
 **Tool:** `get_site_claims` (WebMCP + on-device agent)
 
@@ -16,11 +17,13 @@ Curated **major conclusions** Paradigm Threat supports, used by Site AI and the 
 
 ## Adding or editing a claim
 
-1. Edit `SITE_CLAIMS_INDEX` in `siteClaimsIndex.ts`.
-2. Set `canonicalPaths` to real index paths (repo-relative, e.g. `history/mudflood/page.md`).
-3. Add `demoQuestions` when the claim answers a chat chip.
-4. Use `doNotSay` for anti-patterns (e.g. hedging the site avoids).
-5. Run `pnpm run test:unit` — `siteClaims.regression.test.ts` checks demo matching.
+1. Edit `site-claims.json` in **paradigm-threat-files** (root of that repo).
+2. Run `npm run validate-site-claims` in paradigm-threat-files (also runs in `npm run autogen` / pre-commit).
+3. Set `canonicalPaths` to real index paths (repo-relative, e.g. `history/mudflood/page.md`).
+4. Add `demoQuestions` when the claim answers a chat chip.
+5. Use `doNotSay` for anti-patterns (e.g. hedging the site avoids).
+6. Deploy/push files repo so mirrors serve the updated JSON.
+7. Run `pnpm run test:unit` in paradigm-threat-site — `siteClaims.regression.test.ts` checks demo matching.
 
 ## Confidence
 

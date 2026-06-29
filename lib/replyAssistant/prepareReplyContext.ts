@@ -9,6 +9,13 @@ import { findArticlesForText } from '@/lib/replyAssistant/findArticlesForText'
 import type { CitationStyle } from '@/lib/replyAssistant/formatCitations'
 import type { ReplyTone } from '@/lib/replyAssistant/composeReplyShell'
 import { getProjectPerspective } from '@/lib/replyAssistant/projectPerspective'
+import {
+  claimSeedHints,
+  claimsAgentInstructions,
+  formatMatchedClaimsForPrompt,
+  matchSiteClaims,
+} from '@/lib/siteAi/matchSiteClaims'
+import type { MatchedSiteClaim, SiteClaimEntry } from '@/lib/siteAi/siteClaimsTypes'
 
 export type PrepareReplyContextInput = {
   sourceText: string
@@ -19,6 +26,8 @@ export type PrepareReplyContextInput = {
   includeBlog?: boolean
   /** Optional angle / emphasis from the user — influences agent workflow, not index seeding alone. */
   userInstructions?: string
+  /** Optional preloaded site claims (from site-claims.json). */
+  siteClaims?: SiteClaimEntry[]
 }
 
 export type PrepareReplyContextResult = {
@@ -40,6 +49,10 @@ export type PrepareReplyContextResult = {
   projectPerspective: string
   /** Present when pasted text matches a Substack tropes / antisemitism attack profile */
   antisemitismPlaybook?: string
+  /** Matched curated site thesis cards (same index as Site AI get_site_claims) */
+  matchedSiteClaims?: MatchedSiteClaim[]
+  /** JSON claim cards for agent prompt when matchedSiteClaims is non-empty */
+  siteClaimsForPrompt?: string
 }
 
 const AGENT_WORKFLOW = [
@@ -76,6 +89,11 @@ export function prepareReplyContext (
 
   const combinedForMatch = userInstructions ? `${text}\n\n${userInstructions}` : text
   const antisemitismMatches = matchAntisemitismAttacks(combinedForMatch, { maxResults: 2 })
+  const matchedSiteClaims = matchSiteClaims(combinedForMatch, {
+    maxResults: 3,
+    claims: input.siteClaims,
+  })
+  const claimHints = claimSeedHints(matchedSiteClaims)
 
   const found = findArticlesForText(entries, {
     sourceText: combinedForMatch,
@@ -98,9 +116,19 @@ export function prepareReplyContext (
       })
     }
   }
+  for (const path of claimHints.paths) {
+    if (!seedByPath.has(path)) {
+      seedByPath.set(path, {
+        path,
+        title: path.split('/').pop()?.replace(/\.md$/, '') ?? path,
+        score: 7,
+        matchedTerms: ['site-claim'],
+      })
+    }
+  }
   const seedArticles = Array.from(seedByPath.values())
     .sort((a, b) => b.score - a.score)
-    .slice(0, Math.min(10, Math.max(1, input.maxSeedArticles ?? 5) + (antisemitismMatches.length > 0 ? 3 : 0)))
+    .slice(0, Math.min(10, Math.max(1, input.maxSeedArticles ?? 5) + (antisemitismMatches.length > 0 ? 3 : 0) + (matchedSiteClaims.length > 0 ? 2 : 0)))
 
   const antisemitismPlaybook = antisemitismMatches.length > 0
     ? formatAntisemitismPlaybookForPrompt(antisemitismMatches)
@@ -115,6 +143,12 @@ export function prepareReplyContext (
     : ''
 
   const antisemitismNote = antisemitismReplyAgentInstructions(antisemitismMatches)
+  const siteClaimsNote = matchedSiteClaims.length > 0
+    ? claimsAgentInstructions(matchedSiteClaims)
+    : ''
+  const siteClaimsForPrompt = matchedSiteClaims.length > 0
+    ? formatMatchedClaimsForPrompt(matchedSiteClaims)
+    : undefined
 
   return {
     sourceText: text,
@@ -130,9 +164,12 @@ export function prepareReplyContext (
       citationNote,
       `Tone: ${tone}.`,
       instructionNote,
+      siteClaimsNote,
       antisemitismNote,
     ].filter(Boolean).join(' '),
     projectPerspective: getProjectPerspective(),
     antisemitismPlaybook,
+    matchedSiteClaims: matchedSiteClaims.length > 0 ? matchedSiteClaims : undefined,
+    siteClaimsForPrompt,
   }
 }

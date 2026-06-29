@@ -2,6 +2,7 @@ import { getProjectPerspective } from '@/lib/replyAssistant/projectPerspective'
 import {
   replyAntisemitismPromptSection,
   replyInvestigationWorkflowSection,
+  replySiteClaimsPromptSection,
 } from '@/lib/replyAssistant/replyAssistantPromptSections'
 import { REPLY_INVESTIGATION_TOOL_NAMES } from '@/lib/replyAssistant/replyInvestigationTools'
 import { TOOL_CALL_END, TOOL_CALL_START } from '@/lib/siteAi/siteAiToolBridge'
@@ -26,6 +27,8 @@ export function buildReplySystemPrompt (input: BuildReplySystemPromptInput): str
     getProjectPerspective(),
     '',
     replyInvestigationWorkflowSection(),
+    '',
+    replySiteClaimsPromptSection(),
     '',
     replyAntisemitismPromptSection(),
     '',

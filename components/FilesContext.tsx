@@ -13,6 +13,7 @@ import React, {
 import { remoteRelay } from '@/lib/remoteRelayStore'
 import { sendClientTelemetry } from '@/lib/clientTelemetrySend'
 import { getFilesBaseUrlList } from '@/lib/urlListEnv'
+import { prefetchSiteClaims } from '@/lib/siteAi/siteClaimsStore'
 
 interface FilesContextType {
   fileList: any
@@ -52,6 +53,7 @@ export function FilesProvider({ children }: { children: ReactNode }) {
         if (!isMounted) return
         const data = await remoteRelay.fetchIndexJson(abortController.signal)
         if (!isMounted) return
+        void prefetchSiteClaims(abortController.signal)
         if (data == null) {
           setFileList(null)
           setError(
