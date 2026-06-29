@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import Link from 'next/link'
+import { PtLink } from '@/components/PtLink'
 import { ExternalLink } from 'lucide-react'
 import { searchEntryHref } from '@/lib/searchEntryDisplay'
 import { isWebMcpActuationEnabled } from '@/lib/siteOpsFeature'
@@ -27,14 +27,14 @@ export function SiteAiSearchOpenLinks ({ paths }: SiteAiSearchOpenLinksProps) {
       <div className="flex flex-wrap gap-2">
         {paths.slice(0, 8).map((path) => (
           <div key={path} className="flex items-center gap-1">
-            <Link
+            <PtLink
               href={searchEntryHref(path)}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 hover:border-indigo-500 transition-colors max-w-[14rem] truncate"
               title={path}
             >
               <ExternalLink size={12} />
               {path.split('/').pop()?.replace(/\.md$/i, '') ?? path}
-            </Link>
+            </PtLink>
             {actuation && (
               <button
                 type="button"

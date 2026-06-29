@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useMemo } from 'react'
-import Link from 'next/link'
+import { PtLink } from '@/components/PtLink'
 import { ChevronRight } from 'lucide-react'
 
 function pathnameFromShareUrl(url: string): string {
@@ -88,13 +88,13 @@ export function FilePathBreadcrumbs({ url, title, className = '' }: FilePathBrea
                 {item.label}
               </span>
             ) : (
-              <Link
+              <PtLink
                 href={item.href}
                 className="truncate text-slate-600 underline-offset-2 hover:text-slate-900 hover:underline dark:text-slate-400 dark:hover:text-slate-100"
                 title={item.label}
               >
                 {item.label}
-              </Link>
+              </PtLink>
             )}
           </li>
         ))}

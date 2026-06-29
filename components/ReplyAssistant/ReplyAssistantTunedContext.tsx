@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import Link from 'next/link'
+import { PtLink } from '@/components/PtLink'
 import { getReplyAssistantContextSections } from '@/lib/replyAssistant/replyAssistantContextCatalog'
 
 const SECTIONS = getReplyAssistantContextSections()
@@ -61,12 +61,12 @@ export function ReplyAssistantTunedContext () {
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       {row.href ? (
-                        <Link
+                        <PtLink
                           href={row.href}
                           className="text-blue-600 dark:text-blue-400 hover:underline text-xs"
                         >
                           Article
-                        </Link>
+                        </PtLink>
                       ) : (
                         <span className="text-slate-400 text-xs">—</span>
                       )}

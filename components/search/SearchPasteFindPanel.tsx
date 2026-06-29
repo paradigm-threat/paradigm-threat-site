@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useCallback, useState } from 'react'
-import Link from 'next/link'
+import { PtLink } from '@/components/PtLink'
 import { FileText, Loader2 } from 'lucide-react'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
 import { findArticlesForText } from '@/lib/replyAssistant/findArticlesForText'
@@ -71,7 +71,7 @@ export function SearchPasteFindPanel ({ filesIndex, contentFilters }: SearchPast
             <ul className="space-y-3">
               {results.results.map((r) => (
                 <li key={r.path}>
-                  <Link
+                  <PtLink
                     href={searchEntryHref(r.path)}
                     className="flex items-start gap-3 p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-blue-500 transition-colors group"
                   >
@@ -87,7 +87,7 @@ export function SearchPasteFindPanel ({ filesIndex, contentFilters }: SearchPast
                         </div>
                       )}
                     </div>
-                  </Link>
+                  </PtLink>
                 </li>
               ))}
             </ul>

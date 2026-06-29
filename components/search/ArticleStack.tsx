@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useCallback, useMemo, useState } from 'react'
-import Link from 'next/link'
+import { PtLink } from '@/components/PtLink'
 import matter from 'gray-matter'
 import { Eye, EyeOff, FileText, Loader2 } from 'lucide-react'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
@@ -111,11 +111,11 @@ export function ArticleStack ({ entries }: ArticleStackProps) {
                   <FileText size={24} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <Link href={href} className="group-hover:text-blue-500 transition-colors">
+                  <PtLink href={href} className="group-hover:text-blue-500 transition-colors">
                     <h3 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
                       {title}
                     </h3>
-                  </Link>
+                  </PtLink>
                   <div className="text-sm text-slate-400 font-mono mt-1 truncate">{path}</div>
                 </div>
                 <button

@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import Link from 'next/link'
+import { PtLink } from '@/components/PtLink'
 import { Clock, FileText, Image as ImageIcon } from 'lucide-react'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
 import {
@@ -35,7 +35,7 @@ export function SearchResultLinks ({ entries, maxItems, className }: SearchResul
         const timeline = isTimelineSearchEntry(entry.path)
         const title = searchEntryTitle(entry)
         return (
-          <Link
+          <PtLink
             key={entry.path}
             href={searchEntryHref(entry.path)}
             className="flex items-center gap-4 p-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-md transition-all group"
@@ -55,7 +55,7 @@ export function SearchResultLinks ({ entries, maxItems, className }: SearchResul
                 {timeline ? `Timeline · ${entry.path.replace(/^timeline\//, '')}` : entry.path}
               </div>
             </div>
-          </Link>
+          </PtLink>
         )
       })}
     </div>

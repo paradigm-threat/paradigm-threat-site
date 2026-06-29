@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import Link from 'next/link'
+import { PtLink } from '@/components/PtLink'
 import { Folder } from 'lucide-react'
 
 interface FolderGridProps {
@@ -22,7 +22,7 @@ export function FolderGrid({ folders }: FolderGridProps) {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {folders.map(folder => (
-                    <Link
+                    <PtLink
                         key={folder}
                         href={`/${folder}`}
                         className="group relative p-5 bg-slate-50 dark:bg-slate-900/50 hover:bg-blue-600 dark:hover:bg-blue-600 rounded-2xl transition-all duration-300 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-blue-500/20"
@@ -39,7 +39,7 @@ export function FolderGrid({ folders }: FolderGridProps) {
                             </div>
                             <Folder className="text-slate-300 dark:text-slate-700 group-hover:text-white/40 transition-colors" size={32} />
                         </div>
-                    </Link>
+                    </PtLink>
                 ))}
             </div>
         </div>

@@ -5,7 +5,7 @@ import { useParams, usePathname } from 'next/navigation'
 import { RelayMarkdown } from '@/components/RelayMarkdown'
 import { PopImage, useFiles, ArticleNav } from '@/components'
 import { ArticleRemote404Notice } from '@/components/ArticleRemote404Notice'
-import Link from 'next/link'
+import { PtLink } from '@/components/PtLink'
 import { prepareArticleMarkdown, extractFirstHeading, resolveArticleDisplayTitle } from '@/lib/articleBody'
 import { ArticleTTSProvider } from '@/components/ArticleTTS/ArticleTTSProvider'
 import { ArticleTTSOverlay } from '@/components/ArticleTTS/ArticleTTSOverlay'
@@ -600,9 +600,9 @@ export const CatchAllClient = memo(function CatchAllClient() {
             <div className="text-center py-20">
               <p className="text-slate-500 mb-4">No content found for this path</p>
               {error && <p className="text-xs text-red-500 font-mono">{error}</p>}
-              <Link href="/" className="text-blue-500 hover:underline">
+              <PtLink href="/" className="text-blue-500 hover:underline">
                 Back to Home
-              </Link>
+              </PtLink>
             </div>
           )
         ) : (
@@ -622,7 +622,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
                     const title = node?._title
 
                     return (
-                      <Link
+                      <PtLink
                         key={dir}
                         href={`/${path ? `${path}/${dir}` : dir}`}
                         className="group p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-500 dark:hover:border-blue-500 transition-all duration-300 shadow-sm hover:shadow-xl hover:-translate-y-1"
@@ -647,7 +647,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
                             {dir.replace(/_/g, ' ')}
                           </span>
                         </div>
-                      </Link>
+                      </PtLink>
                     )
                   })}
                 </div>
@@ -674,7 +674,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
                         : file.replace(/_/g, ' ').replace(/\.(txt|cs)$/i, ''))
                       : (mdContents[file]?.title || file.replace(/_/g, ' ').replace(/\.md$/, ''))
                     return (
-                      <Link
+                      <PtLink
                         key={file}
                         href={`/${path ? `${path}/${file}` : file}`}
                         className="group p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-emerald-500 dark:hover:border-emerald-500 transition-all shadow-sm hover:shadow-md"
@@ -697,7 +697,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
                         </div>
-                      </Link>
+                      </PtLink>
                     )
                   })}
                 </div>

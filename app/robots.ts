@@ -4,7 +4,11 @@ import { CANONICAL_SITE_ORIGIN } from '@/lib/canonicalPublicSite'
 export default function robots (): MetadataRoute.Robots {
   const site = CANONICAL_SITE_ORIGIN.replace(/\/$/, '')
   return {
-    rules: { userAgent: '*', allow: '/' },
+    rules: {
+      userAgent: '*',
+      allow: '/',
+      disallow: ['/api/', '/docs/', '/chat'],
+    },
     sitemap: `${site}/sitemap.xml`,
   }
 }

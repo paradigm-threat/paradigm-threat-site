@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
+import { PtLink } from '@/components/PtLink'
 import { usePathname } from 'next/navigation'
 import { useArticleNav } from '@/components/ArticleNav/ArticleNav'
 import { scrollToHeadingById } from '@/lib/tocScroll'
@@ -188,22 +188,22 @@ export default function DynamicIndex ({
             {(prev || next) && (
               <span className="flex shrink-0 items-center gap-1">
                 {prev && (
-                  <Link
+                  <PtLink
                     href={`/${prev.path}`}
                     title={prev.title}
                     className="whitespace-nowrap rounded bg-slate-200/80 px-2 py-1 text-[9px] text-slate-600 hover:bg-blue-500/20 hover:text-blue-600 dark:bg-slate-700/80 dark:text-slate-400 dark:hover:bg-blue-500/20 dark:hover:text-blue-400"
                   >
                     ← Prev
-                  </Link>
+                  </PtLink>
                 )}
                 {next && (
-                  <Link
+                  <PtLink
                     href={`/${next.path}`}
                     title={next.title}
                     className="whitespace-nowrap rounded bg-slate-200/80 px-2 py-1 text-[9px] text-slate-600 hover:bg-blue-500/20 hover:text-blue-600 dark:bg-slate-700/80 dark:text-slate-400 dark:hover:bg-blue-500/20 dark:hover:text-blue-400"
                   >
                     Next →
-                  </Link>
+                  </PtLink>
                 )}
               </span>
             )}

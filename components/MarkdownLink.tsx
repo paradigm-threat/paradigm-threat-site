@@ -1,5 +1,5 @@
 import React from 'react';
-import Link from 'next/link';
+import { PtLink } from '@/components/PtLink';
 
 export const MarkdownLink = ({ href, children, ...props }: any) => {
     const isExternal = href?.startsWith('http');
@@ -11,8 +11,8 @@ export const MarkdownLink = ({ href, children, ...props }: any) => {
         );
     }
     return (
-        <Link href={href || ''} {...props}>
+        <PtLink href={href || ''} {...props}>
             {children}
-        </Link>
+        </PtLink>
     );
 };

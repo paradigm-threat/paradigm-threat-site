@@ -2,6 +2,10 @@
 
 const path = require('path')
 
+/** Keep in sync with lib/edgeDocumentCache.ts */
+const EDGE_DOCUMENT_S_MAXAGE = 86400
+const EDGE_DOCUMENT_STALE_WHILE_REVALIDATE = 604800
+
 const withPWA = require('@ducanh2912/next-pwa').default({
   dest: 'public',
   disable: process.env.NODE_ENV === 'development',
@@ -172,7 +176,19 @@ const nextConfig = {
     ]
   },
   async headers() {
+    const documentCacheControl = `public, s-maxage=${EDGE_DOCUMENT_S_MAXAGE}, stale-while-revalidate=${EDGE_DOCUMENT_STALE_WHILE_REVALIDATE}`
     return [
+      {
+        // Article/hub document routes — exclude interactive app surfaces and APIs.
+        source:
+          '/((?!api/|_next/|chat(?:/|$)|search(?:/|$)|timeline(?:/|$)|reply(?:/|$)|export(?:/|$)|site(?:/|$)|robots\\.txt|sitemap\\.xml|favicon\\.ico).*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: documentCacheControl,
+          },
+        ],
+      },
       {
         source: '/(.*)',
         headers: [

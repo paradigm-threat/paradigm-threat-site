@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react'
+import React from 'react'
 import { redirect } from 'next/navigation'
 import { extractShareMetadata } from '@/lib/share'
 import { fetchArticle, fetchTextLeaf } from '@/lib/articleServer'
@@ -10,10 +10,12 @@ import { ArticleMarkdownRegion } from '@/components/ArticleMarkdownRegion'
 import { ArticleJsonLd } from '@/components/ArticleJsonLd'
 import { ArticleClientShell } from '@/components/ArticleClientShell'
 import { TextLeafClientShell } from '@/components/TextLeafClientShell'
-import { CatchAllClient } from './CatchAllClient'
-import { SuspenseLoader } from '@client'
+import { ClientCatchAllShell } from './ClientCatchAllShell'
 import { isServerRelayFetchDisabled } from '@/lib/siteOpsFeature'
 import type { Metadata } from 'next'
+
+/** ISR for the client-loaded article shell — cuts uncached Vercel edge document hits. */
+export const revalidate = 86_400
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://paradigmthreat.net'
 
@@ -142,20 +144,6 @@ export async function generateMetadata ({ params }: PageProps): Promise<Metadata
   return { title: 'Paradigm Threat' }
 }
 
-function ClientCatchAll () {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center min-h-screen">
-          <SuspenseLoader />
-        </div>
-      }
-    >
-      <CatchAllClient />
-    </Suspense>
-  )
-}
-
 export default async function CatchAllPage ({ params }: PageProps) {
   const resolved = await params
   const path = getPathFromParams(resolved)
@@ -166,7 +154,7 @@ export default async function CatchAllPage ({ params }: PageProps) {
   }
 
   if (isServerRelayFetchDisabled()) {
-    return <ClientCatchAll />
+    return <ClientCatchAllShell />
   }
 
   const article = await fetchArticle(path)
@@ -214,5 +202,5 @@ export default async function CatchAllPage ({ params }: PageProps) {
     )
   }
 
-  return <ClientCatchAll />
+  return <ClientCatchAllShell />
 }

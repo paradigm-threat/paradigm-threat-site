@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useMemo, memo } from 'react'
-import Link from 'next/link'
+import { PtLink } from '@/components/PtLink'
 import { usePathname } from 'next/navigation'
 import { useFiles } from '@/components'
 
@@ -66,16 +66,16 @@ const ArticleNav = memo(function ArticleNav() {
     return (
         <nav className="flex flex-wrap items-center justify-between gap-2 py-2 text-base text-slate-600 dark:text-slate-400">
             {prev ? (
-                <Link href={`/${prev.path}`} className="hover:text-blue-600 dark:hover:text-blue-400 truncate max-w-[50%]" title={prev.title}>
+                <PtLink href={`/${prev.path}`} className="hover:text-blue-600 dark:hover:text-blue-400 truncate max-w-[50%]" title={prev.title}>
                     ← {prev.title}
-                </Link>
+                </PtLink>
             ) : (
                 <span />
             )}
             {next ? (
-                <Link href={`/${next.path}`} className="hover:text-blue-600 dark:hover:text-blue-400 truncate max-w-[50%] ml-auto text-right" title={next.title}>
+                <PtLink href={`/${next.path}`} className="hover:text-blue-600 dark:hover:text-blue-400 truncate max-w-[50%] ml-auto text-right" title={next.title}>
                     {next.title} →
-                </Link>
+                </PtLink>
             ) : (
                 <span />
             )}

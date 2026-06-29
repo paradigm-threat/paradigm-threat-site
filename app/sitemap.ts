@@ -7,6 +7,9 @@ import {
   mirrorFetchNext,
 } from '@/lib/serverMirrorRevalidate'
 
+/** Keep in sync with lib/edgeDocumentCache.ts */
+export const revalidate = 86_400
+
 const SITE = CANONICAL_SITE_ORIGIN.replace(/\/$/, '')
 
 type IndexNode = Record<string, unknown>

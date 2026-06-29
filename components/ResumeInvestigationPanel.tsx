@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import Link from 'next/link'
+import { PtLink } from '@/components/PtLink'
 import { usePathname } from 'next/navigation'
 import { X } from 'lucide-react'
 import { useHubResumeChrome } from '@/lib/hooks/useHubResumeChrome'
@@ -36,12 +36,12 @@ function ResumeRowWithDismiss({
     <div
       className={`flex min-w-0 items-stretch overflow-hidden rounded-lg border border-slate-300 dark:border-slate-600 ${shell}`}
     >
-      <Link
+      <PtLink
         href={href}
         className={`flex min-w-0 flex-1 items-center justify-center px-3 py-2 text-sm font-medium transition-colors ${linkTone} text-center`}
       >
         <span className="min-w-0 truncate">{children}</span>
-      </Link>
+      </PtLink>
       <button
         type="button"
         onClick={onDismiss}
@@ -94,14 +94,14 @@ export function ResumeInvestigationPanel({ className = '' }: ResumeInvestigation
       )}
       {hasPlayback && resume.tts && (
         hasPage ? (
-          <Link href={resume.playbackHref} className={btnSecondaryFull}>
+          <PtLink href={resume.playbackHref} className={btnSecondaryFull}>
             <span className="truncate">
               Resume playback
               {resume.tts.title && resume.tts.path !== resume.last?.path ? (
                 <span className="font-normal opacity-90"> — {resume.tts.title}</span>
               ) : null}
             </span>
-          </Link>
+          </PtLink>
         ) : (
           <ResumeRowWithDismiss
             href={resume.playbackHref}

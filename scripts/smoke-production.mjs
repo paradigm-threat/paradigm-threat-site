@@ -144,6 +144,13 @@ async function main () {
       `${articleUrl} — articles must stay on ${BASE} (client shell), got redirect ${articleProbe.headers.get('location')}`,
     )
   }
+  const articleCacheControl = articleProbe.headers.get('cache-control') || ''
+  if (!/s-maxage=\d+/i.test(articleCacheControl)) {
+    fail(
+      `${articleUrl} — expected Cache-Control with s-maxage (edge document cache), got "${articleCacheControl || '(none)'}"`,
+    )
+  }
+  console.log('smoke-production: article Cache-Control OK —', articleCacheControl.slice(0, 80))
   const articleHtml = await fetch(articleUrl, { redirect: 'follow' }).then((r) => {
     if (!r.ok) fail(`${articleUrl} — expected HTTP 200, got ${r.status}`)
     return r.text()

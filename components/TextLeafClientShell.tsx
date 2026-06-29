@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
+import { PtLink } from '@/components/PtLink'
 import { usePathname } from 'next/navigation'
 import { ArticleNav, ShareLinks, ShareLinksFloating } from '@/components'
 import { ArticleTTSProvider } from '@/components/ArticleTTS/ArticleTTSProvider'
@@ -117,12 +117,12 @@ export function TextLeafClientShell ({ articlePath, title, body }: TextLeafClien
               <p className="not-prose mb-6 text-sm text-slate-600 dark:text-slate-400">
                 <span className="break-all font-mono text-xs">{articlePath}</span>
                 {' · '}
-                <Link
+                <PtLink
                   href={rawUrl}
                   className="text-violet-600 underline-offset-2 hover:underline dark:text-violet-400"
                 >
                   Open raw (text/plain)
-                </Link>
+                </PtLink>
               </p>
               <div className="txt-plain-content not-prose space-y-4 text-slate-900 dark:text-slate-100">
                 {paragraphs.map((para, i) => (

@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import Link from 'next/link'
+import { PtLink } from '@/components/PtLink'
 import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
 
 const CENSORSHIP_IMAGES = [
@@ -120,9 +120,9 @@ export function ArticleRemote404Notice({ onRetry }: ArticleRemote404NoticeProps)
       </div>
 
       <div className="text-center pt-2">
-        <Link href="/" className="text-blue-600 dark:text-blue-400 hover:underline text-sm">
+        <PtLink href="/" className="text-blue-600 dark:text-blue-400 hover:underline text-sm">
           Back to home
-        </Link>
+        </PtLink>
       </div>
     </div>
   )

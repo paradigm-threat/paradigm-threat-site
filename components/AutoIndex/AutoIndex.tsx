@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import Link from 'next/link'
+import { PtLink } from '@/components/PtLink'
 import { useFiles } from '@/components/FilesContext'
 import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
 import PopImage from '@/components/Image/PopImage'
@@ -230,7 +230,7 @@ export default function AutoIndex({
                 const count = subNode?._count ?? 0
                 const title = subNode?._title
                 return (
-                  <Link
+                  <PtLink
                     key={dir}
                     href={`${hrefBase}/${dir}`}
                     className="group p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-500 dark:hover:border-blue-500 transition-all duration-300 shadow-sm hover:shadow-xl hover:-translate-y-1"
@@ -265,7 +265,7 @@ export default function AutoIndex({
                         {dir.replace(/_/g, ' ')}
                       </span>
                     </div>
-                  </Link>
+                  </PtLink>
                 )
               })}
             </div>
@@ -284,7 +284,7 @@ export default function AutoIndex({
 
                 if (indexFormat === 'blog') {
                   return (
-                    <Link
+                    <PtLink
                       key={file}
                       href={`${hrefBase}/${file}`}
                       className="group flex gap-4 sm:gap-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-6 hover:border-violet-500 dark:hover:border-violet-500 transition-all shadow-sm hover:shadow-md items-stretch"
@@ -329,12 +329,12 @@ export default function AutoIndex({
                           />
                         </svg>
                       </div>
-                    </Link>
+                    </PtLink>
                   )
                 }
 
                 return (
-                  <Link
+                  <PtLink
                     key={file}
                     href={`${hrefBase}/${file}`}
                     className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:border-emerald-500 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-emerald-500"
@@ -367,7 +367,7 @@ export default function AutoIndex({
                         />
                       </svg>
                     </div>
-                  </Link>
+                  </PtLink>
                 )
               })}
             </div>
