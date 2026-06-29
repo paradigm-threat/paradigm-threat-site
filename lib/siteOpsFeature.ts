@@ -50,6 +50,11 @@ export function isSiteAiEnabled (): boolean {
   return isWebMcpEnabled()
 }
 
+/** Public investigation idea submissions (Postgres). Default on unless explicitly disabled. */
+export function isInvestigationSubmitEnabled (): boolean {
+  return process.env.NEXT_PUBLIC_INVESTIGATION_SUBMIT !== '0'
+}
+
 /**
  * Reserved for a future Relay-hosted HTML + SEO phase. Must stay off while articles
  * use the Next app shell — redirecting to mirror md2ast HTML breaks client components.

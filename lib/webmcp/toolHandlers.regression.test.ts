@@ -100,4 +100,13 @@ describe('webmcp tool handlers', () => {
     assert.ok(parsed.perspective.includes('æther'))
     assert.ok(parsed.perspective.includes('Tartaria'))
   })
+
+  it('submit_investigation_idea rejects short description', async () => {
+    const { executeSubmitInvestigationIdea } = await import('./toolHandlers.ts')
+    const result = await executeSubmitInvestigationIdea({
+      topic: 'Valid topic title',
+      description: 'too short',
+    })
+    assert.equal(result.isError, true)
+  })
 })

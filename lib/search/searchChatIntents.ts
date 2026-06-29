@@ -6,6 +6,7 @@ export type SiteAiSearchIntent =
   | 'deep-dive'
   | 'follow-up'
   | 'ask'
+  | 'submit-idea'
 
 export type SiteAiSearchContext = {
   query: string
@@ -93,6 +94,22 @@ export function buildSearchChatIntent (input: SearchChatIntentInput): SearchChat
           'Continue the investigation thread. Use site tools as needed.',
         ].join('\n'),
         maxTurns: 8,
+      }
+
+    case 'submit-idea':
+      return {
+        userMessage: input.question?.trim() || [
+          `I searched for "${query}" and did not find what I need.`,
+          '',
+          'Help me submit an investigation idea: gather topic, description, and reference URLs.',
+          'Search the site first, then offer to submit if coverage is missing.',
+        ].join('\n'),
+        systemPromptOverlay: [
+          '## Search session: submit investigation idea',
+          'The visitor searched and wants to propose new research.',
+          'Use search_site / find_articles_for_text first. If gaps remain, coach submission and call submit_investigation_idea only after explicit confirmation.',
+        ].join('\n'),
+        maxTurns: 10,
       }
 
     case 'ask':

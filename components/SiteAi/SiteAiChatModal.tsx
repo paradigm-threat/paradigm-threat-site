@@ -14,7 +14,8 @@ import { askSiteAi } from '@/lib/siteAi/askSiteAi'
 import { SITE_AI_EXAMPLE_QUESTIONS } from '@/lib/siteAi/siteAiExampleQuestions'
 import { getPageContextQuestions } from '@/lib/siteAi/siteAiPageQuestions'
 import { SITE_AI_REPLY_STARTERS } from '@/lib/siteAi/siteAiReplyStarters'
-import { isReplyAssistantFeatureEnabled } from '@/lib/siteOpsFeature'
+import { SITE_AI_SUBMISSION_STARTERS } from '@/lib/siteAi/siteAiSubmissionStarters'
+import { isInvestigationSubmitEnabled, isReplyAssistantFeatureEnabled } from '@/lib/siteOpsFeature'
 import { buildSearchFollowUpQuestions } from '@/lib/search/searchEnhancements'
 import type { SiteAiSearchIntent } from '@/lib/search/searchChatIntents'
 import { SiteAiSearchOpenLinks } from '@/components/SiteAi/SiteAiSearchOpenLinks'
@@ -31,6 +32,8 @@ export function SiteAiChatModal () {
     pageContext,
     replyMode,
     enterReplyMode,
+    submissionMode,
+    enterSubmissionMode,
     presentation,
     activeSearchContext,
   } = useSiteAi()
@@ -100,7 +103,7 @@ export function SiteAiChatModal () {
 
   const handleSubmit = useCallback(async (
     questionOverride?: string,
-    options?: { forceReplyMode?: boolean },
+    options?: { forceReplyMode?: boolean; forceSubmissionMode?: boolean },
   ) => {
     if (!ready) return
     const question = (questionOverride ?? input).trim()
@@ -117,6 +120,7 @@ export function SiteAiChatModal () {
     setInput('')
 
     const effectiveReplyMode = options?.forceReplyMode ?? replyMode
+    const effectiveSubmissionMode = options?.forceSubmissionMode ?? submissionMode
 
     try {
       const history = messages.map((m) => ({ role: m.role, content: m.content }))
@@ -127,6 +131,7 @@ export function SiteAiChatModal () {
         history,
         pageContext,
         replyMode: effectiveReplyMode,
+        submissionMode: effectiveSubmissionMode,
         searchIntent,
         searchContext: activeSearchContext,
         signal: controller.signal,
@@ -145,7 +150,9 @@ export function SiteAiChatModal () {
       resetProgress()
       abortRef.current = null
     }
-  }, [ready, input, loading, messages, pageContext, replyMode, activeSearchContext, appendExchange, onProgress, resetProgress])
+  }, [ready, input, loading, messages, pageContext, replyMode, submissionMode, activeSearchContext, appendExchange, onProgress, resetProgress])
+
+  const showSubmissionAssist = isInvestigationSubmitEnabled()
 
   const searchFollowUps = activeSearchContext
     ? buildSearchFollowUpQuestions(activeSearchContext.query, [])
@@ -160,6 +167,11 @@ export function SiteAiChatModal () {
     if (shouldEnterReplyMode) enterReplyMode()
     void handleSubmit(prompt, { forceReplyMode: shouldEnterReplyMode || replyMode })
   }, [enterReplyMode, handleSubmit, replyMode])
+
+  const handleSubmissionStarter = useCallback((prompt: string, shouldEnterSubmissionMode: boolean) => {
+    if (shouldEnterSubmissionMode) enterSubmissionMode()
+    void handleSubmit(prompt, { forceSubmissionMode: shouldEnterSubmissionMode || submissionMode })
+  }, [enterSubmissionMode, handleSubmit, submissionMode])
 
   useEffect(() => {
     if (!open || !openOptions?.question) return
@@ -292,6 +304,31 @@ export function SiteAiChatModal () {
                       </button>
                     ))}
                   </div>
+                  {showSubmissionAssist && (
+                    <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                      <p className="text-xs text-slate-500 text-center">Propose new research</p>
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {SITE_AI_SUBMISSION_STARTERS.map((starter) => (
+                          <button
+                            key={starter.id}
+                            type="button"
+                            onClick={() => handleSubmissionStarter(starter.prompt, starter.enterSubmissionMode)}
+                            disabled={!ready}
+                            className="rounded-full border border-emerald-600/40 bg-emerald-950/30 px-3 py-1.5 text-left text-xs text-emerald-100/90 hover:border-emerald-500/60 hover:bg-emerald-900/40 disabled:opacity-50 transition-colors"
+                          >
+                            {starter.label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-slate-600 text-center">
+                        Or use the{' '}
+                        <Link href="/submit" className="text-indigo-400 hover:underline">
+                          submission form
+                        </Link>
+                        .
+                      </p>
+                    </div>
+                  )}
                   {showReplyAssist && (
                     <div className="space-y-2 pt-2 border-t border-slate-800/80">
                       <p className="text-xs text-slate-500 text-center">Reply in a thread</p>

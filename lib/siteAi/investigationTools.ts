@@ -1,4 +1,4 @@
-import { isWebMcpActuationEnabled } from '@/lib/siteOpsFeature'
+import { isInvestigationSubmitEnabled, isWebMcpActuationEnabled } from '@/lib/siteOpsFeature'
 
 /** Read-only WebMCP tools the on-device site AI may invoke. */
 export const SITE_AI_INVESTIGATION_TOOL_NAMES = [
@@ -16,6 +16,10 @@ export const SITE_AI_INVESTIGATION_TOOL_NAMES = [
   'open_timeline_event',
 ] as const
 
+export const SITE_AI_SUBMISSION_TOOL_NAMES = [
+  'submit_investigation_idea',
+] as const
+
 export const SITE_AI_ACTUATION_TOOL_NAMES = [
   'navigate_to_result',
 ] as const
@@ -25,6 +29,9 @@ export type SiteAiActuationToolName = (typeof SITE_AI_ACTUATION_TOOL_NAMES)[numb
 
 export function getSiteAiToolNames (): string[] {
   const names: string[] = [...SITE_AI_INVESTIGATION_TOOL_NAMES]
+  if (isInvestigationSubmitEnabled()) {
+    names.push(...SITE_AI_SUBMISSION_TOOL_NAMES)
+  }
   if (isWebMcpActuationEnabled()) {
     names.push(...SITE_AI_ACTUATION_TOOL_NAMES)
   }

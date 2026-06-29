@@ -3,12 +3,14 @@ import {
   replyAntisemitismPromptSection,
   replyInvestigationWorkflowSection,
 } from '@/lib/replyAssistant/replyAssistantPromptSections'
+import { investigationSubmissionPromptSection } from '@/lib/siteAi/investigationSubmissionPromptSection'
 import { getSiteAiToolNames } from '@/lib/siteAi/investigationTools'
 import { isWebMcpActuationEnabled } from '@/lib/siteOpsFeature'
 import { TOOL_CALL_END, TOOL_CALL_START } from '@/lib/siteAi/siteAiToolBridge'
 
 export type BuildSiteChatSystemPromptInput = {
   includeReplySections?: boolean
+  includeSubmissionSections?: boolean
   searchIntentOverlay?: string
 }
 
@@ -48,6 +50,10 @@ export function buildSiteChatSystemPrompt (input: BuildSiteChatSystemPromptInput
       '',
       replyAntisemitismPromptSection(),
     )
+  }
+
+  if (input.includeSubmissionSections) {
+    sections.push('', investigationSubmissionPromptSection())
   }
 
   if (input.searchIntentOverlay) {

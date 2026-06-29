@@ -26,6 +26,9 @@ export function FooterSiteNav () {
       <Link href="/search" className={linkClass}>
         Search
       </Link>
+      <Link href="/submit" className={linkClass}>
+        Submit
+      </Link>
       <ReplyNavLink />
       <Link href="/" className={linkClass}>
         Home

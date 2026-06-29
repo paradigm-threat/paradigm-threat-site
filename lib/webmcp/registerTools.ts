@@ -19,8 +19,9 @@ import {
   executeSearchSite,
   executeSetSearchFilters,
   executeSuggestSearchFromPath,
+  executeSubmitInvestigationIdea,
 } from '@/lib/webmcp/toolHandlers'
-import { isWebMcpActuationEnabled } from '@/lib/siteOpsFeature'
+import { isInvestigationSubmitEnabled, isWebMcpActuationEnabled } from '@/lib/siteOpsFeature'
 
 type AnyTool = ToolDescriptor<Record<string, unknown>, unknown, string>
 
@@ -203,6 +204,27 @@ const TOOLS: AnyTool[] = [
   }, (args) => executeFormatReplyCitations(args)),
 ]
 
+const SUBMISSION_TOOLS: AnyTool[] = [
+  wrap('submit_investigation_idea', 'Submit a visitor-proposed topic for site investigation (text + http(s) URLs only; no images). Requires explicit user confirmation in chat before calling.', {
+    type: 'object',
+    properties: {
+      topic: { type: 'string', minLength: 3, maxLength: 200 },
+      description: { type: 'string', minLength: 20, maxLength: 5000 },
+      urls: {
+        type: 'array',
+        items: { type: 'string' },
+        maxItems: 10,
+        description: 'Optional http(s) reference links',
+      },
+      email: { type: 'string', description: 'Optional contact email; omit when anonymous' },
+      is_anonymous: { type: 'boolean', default: true },
+      search_query: { type: 'string', description: 'Optional search query context' },
+      source: { type: 'string', enum: ['site_ai', 'webmcp'], default: 'webmcp' },
+    },
+    required: ['topic', 'description'],
+  }, executeSubmitInvestigationIdea, false),
+]
+
 const ACTUATION_TOOLS: AnyTool[] = [
   wrap('set_search_filters', 'Apply search content filters; optionally navigate to a search query.', {
     type: 'object',
@@ -232,6 +254,11 @@ export function registerAllWebMcpTools (): void {
   for (const tool of TOOLS) {
     ctx.registerTool(tool as ToolDescriptor & { inputSchema: InputSchema })
   }
+  if (isInvestigationSubmitEnabled()) {
+    for (const tool of SUBMISSION_TOOLS) {
+      ctx.registerTool(tool as ToolDescriptor & { inputSchema: InputSchema })
+    }
+  }
   if (isWebMcpActuationEnabled()) {
     for (const tool of ACTUATION_TOOLS) {
       ctx.registerTool(tool as ToolDescriptor & { inputSchema: InputSchema })
@@ -246,5 +273,6 @@ export function resetWebMcpRegistrationForTests (): void {
 
 export const WEBMCP_TOOL_NAMES = [
   ...TOOLS.map((t) => t.name),
+  ...(isInvestigationSubmitEnabled() ? SUBMISSION_TOOLS.map((t) => t.name) : []),
   ...(isWebMcpActuationEnabled() ? ACTUATION_TOOLS.map((t) => t.name) : []),
 ]

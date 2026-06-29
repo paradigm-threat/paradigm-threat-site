@@ -13,6 +13,7 @@ import {
   executeReadArticle,
   executeSearchSite,
   executeSuggestSearchFromPath,
+  executeSubmitInvestigationIdea,
 } from '@/lib/webmcp/toolHandlers'
 import {
   isSiteAiInvestigationToolName,
@@ -39,6 +40,7 @@ const BASE_HANDLERS: Record<string, ToolHandler> = {
   read_article: executeReadArticle,
   format_reply_citations: executeFormatReplyCitations,
   open_timeline_event: executeOpenTimelineEvent,
+  submit_investigation_idea: executeSubmitInvestigationIdea,
 }
 
 function getHandlers (): Record<string, ToolHandler> {

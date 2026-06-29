@@ -51,3 +51,4 @@ public/
 !public/apple-touch-icon.png
 
 .idea
+.env*

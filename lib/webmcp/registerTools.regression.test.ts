@@ -30,5 +30,6 @@ describe('registerTools WEBMCP_TOOL_NAMES', () => {
       assert.ok(WEBMCP_TOOL_NAMES.includes(name), `missing tool: ${name}`)
     }
     assert.equal(WEBMCP_TOOL_NAMES.includes('draft_reply_to_text'), false)
+    assert.ok(WEBMCP_TOOL_NAMES.includes('submit_investigation_idea'))
   })
 })

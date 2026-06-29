@@ -12,6 +12,7 @@ import {
   SearchInputIsland,
   SearchKeywordChips,
   SearchPasteFindPanel,
+  SearchSubmitInvestigationCta,
 } from '@/components/search'
 import { SearchResultsPanel } from '@/components/search/SearchResultsPanel'
 import { useSiteAi, useSiteAiPageContextRegistration } from '@/components/SiteAi/SiteAiProvider'
@@ -210,13 +211,19 @@ function SearchContent() {
               searchResults={searchResults}
             />
             {debouncedQuery.trim().length >= 2 && (
-              <SearchAiLaunchBar
-                query={debouncedQuery}
-                searchContext={searchContext}
-                relatedKeywords={relatedKeywords}
-                hasResults={searchResults.length > 0}
-                lowResultsHints={lowResultsHints}
-              />
+              <>
+                <SearchAiLaunchBar
+                  query={debouncedQuery}
+                  searchContext={searchContext}
+                  relatedKeywords={relatedKeywords}
+                  hasResults={searchResults.length > 0}
+                  lowResultsHints={lowResultsHints}
+                />
+                <SearchSubmitInvestigationCta
+                  query={debouncedQuery}
+                  searchContext={searchContext}
+                />
+              </>
             )}
           </div>
         )}

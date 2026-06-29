@@ -34,7 +34,9 @@ import {
   setSearchFiltersState,
 } from '@/lib/webmcp/searchFiltersState'
 import { toolErrorResult, toolJsonResult } from '@/lib/webmcp/toolResult'
-import { isWebMcpActuationEnabled } from '@/lib/siteOpsFeature'
+import { postInvestigationSubmission } from '@/lib/investigationSubmission/clientSubmit'
+import { parseInvestigationSubmissionBody } from '@/lib/investigationSubmission/validateSubmission'
+import { isInvestigationSubmitEnabled, isWebMcpActuationEnabled } from '@/lib/siteOpsFeature'
 
 async function loadIndex (): Promise<IndexedPathEntry[] | null> {
   const entries = await getWebMcpSearchIndex()
@@ -381,6 +383,43 @@ export async function executeCopyToClipboard (args: Record<string, unknown>): Pr
     return toolJsonResult({ copied: true, charCount: text.length })
   } catch (e) {
     return toolErrorResult(e instanceof Error ? e.message : 'Clipboard write failed')
+  }
+}
+
+export async function executeSubmitInvestigationIdea (
+  args: Record<string, unknown>,
+): Promise<CallToolResult> {
+  if (!isInvestigationSubmitEnabled()) {
+    return toolErrorResult('Investigation submissions are temporarily unavailable')
+  }
+  if (typeof window === 'undefined') {
+    return toolErrorResult('submit_investigation_idea must run in the browser')
+  }
+
+  const sourceRaw = String(args.source ?? 'webmcp').trim()
+  const source = sourceRaw === 'site_ai' ? 'site_ai' : 'webmcp'
+
+  const parsed = parseInvestigationSubmissionBody({
+    topic: args.topic,
+    description: args.description,
+    urls: args.urls,
+    email: args.email,
+    is_anonymous: args.is_anonymous,
+    search_query: args.search_query,
+    source,
+  })
+  if (!parsed.ok) return toolErrorResult(parsed.error)
+
+  try {
+    const submission = await postInvestigationSubmission(parsed.data)
+    return toolJsonResult({
+      ok: true,
+      id: submission.id,
+      topic: submission.topic,
+      message: 'Submission saved. It will appear on /submit.',
+    })
+  } catch (e) {
+    return toolErrorResult(e instanceof Error ? e.message : 'Submit failed')
   }
 }
 

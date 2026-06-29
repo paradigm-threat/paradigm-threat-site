@@ -26,6 +26,7 @@ type SiteAiOpenOptions = {
   presentation?: 'default' | 'expanded'
   intent?: SiteAiSearchIntent
   searchContext?: SiteAiSearchContext
+  startSubmissionMode?: boolean
 }
 
 type SiteAiContextValue = {
@@ -45,6 +46,9 @@ type SiteAiContextValue = {
   replyMode: boolean
   enterReplyMode: () => void
   setReplyMode: (value: boolean) => void
+  submissionMode: boolean
+  enterSubmissionMode: () => void
+  setSubmissionMode: (value: boolean) => void
 }
 
 const SiteAiContext = createContext<SiteAiContextValue | null>(null)
@@ -57,6 +61,7 @@ export function SiteAiProvider ({ children }: { children: React.ReactNode }) {
   const [messages, setMessagesState] = useState<SiteAiStoredMessage[]>([])
   const [pageContext, setPageContextState] = useState<SiteAiPageContext | null>(null)
   const [replyMode, setReplyModeState] = useState(false)
+  const [submissionMode, setSubmissionModeState] = useState(false)
   const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
@@ -85,6 +90,7 @@ export function SiteAiProvider ({ children }: { children: React.ReactNode }) {
     clearSiteAiSession()
     setMessagesState([])
     setReplyModeState(false)
+    setSubmissionModeState(false)
   }, [])
 
   const enterReplyMode = useCallback(() => {
@@ -93,6 +99,14 @@ export function SiteAiProvider ({ children }: { children: React.ReactNode }) {
 
   const setReplyMode = useCallback((value: boolean) => {
     setReplyModeState(value)
+  }, [])
+
+  const enterSubmissionMode = useCallback(() => {
+    setSubmissionModeState(true)
+  }, [])
+
+  const setSubmissionMode = useCallback((value: boolean) => {
+    setSubmissionModeState(value)
   }, [])
 
   const clearOpenOptions = useCallback(() => {
@@ -105,6 +119,7 @@ export function SiteAiProvider ({ children }: { children: React.ReactNode }) {
       setOpenOptions(options ?? null)
       setPresentation(options?.presentation ?? 'default')
       if (options?.searchContext) setActiveSearchContext(options.searchContext)
+      if (options?.startSubmissionMode) setSubmissionModeState(true)
       setOpen(true)
     },
     closeModal: () => {
@@ -125,7 +140,10 @@ export function SiteAiProvider ({ children }: { children: React.ReactNode }) {
     replyMode,
     enterReplyMode,
     setReplyMode,
-  }), [open, openOptions, presentation, activeSearchContext, clearOpenOptions, messages, setMessages, appendExchange, clearHistory, pageContext, replyMode, enterReplyMode, setReplyMode])
+    submissionMode,
+    enterSubmissionMode,
+    setSubmissionMode,
+  }), [open, openOptions, presentation, activeSearchContext, clearOpenOptions, messages, setMessages, appendExchange, clearHistory, pageContext, replyMode, enterReplyMode, setReplyMode, submissionMode, enterSubmissionMode, setSubmissionMode])
 
   return (
     <SiteAiContext.Provider value={value}>
