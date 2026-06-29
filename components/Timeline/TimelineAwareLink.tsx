@@ -1,17 +1,12 @@
 'use client'
 
-import React from 'react'
+import React, { Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { MarkdownLink } from '@/components/MarkdownLink'
 import { useTimelineLink } from '@/components/Timeline/TimelineLinkContext'
 
-/**
- * For timeline event links: uses in-app callback so selection and URL update without
- * full page refresh, preserving fullscreen and view mode. Otherwise same as MarkdownLink
- * and preserves current search params for /timeline/* so navigation keeps fullscreen.
- */
-export function TimelineAwareLink({
+function TimelineAwareLinkInner ({
   href,
   children,
   ...props
@@ -35,7 +30,6 @@ export function TimelineAwareLink({
       ? `${pathOnly}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
       : href
 
-  // In-app navigation: update selection + URL without full page load
   if (eventId && onTimelineNavigate && typeof preservedHref === 'string') {
     return (
       <Link
@@ -55,5 +49,22 @@ export function TimelineAwareLink({
     <MarkdownLink href={preservedHref} {...props}>
       {children}
     </MarkdownLink>
+  )
+}
+
+/**
+ * For timeline event links: uses in-app callback so selection and URL update without
+ * full page refresh, preserving fullscreen and view mode. Otherwise same as MarkdownLink
+ * and preserves current search params for /timeline/* so navigation keeps fullscreen.
+ */
+export function TimelineAwareLink (props: {
+  href?: string
+  children?: React.ReactNode
+  [key: string]: unknown
+}) {
+  return (
+    <Suspense fallback={<MarkdownLink href={props.href} {...props} />}>
+      <TimelineAwareLinkInner {...props} />
+    </Suspense>
   )
 }

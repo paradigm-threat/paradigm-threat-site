@@ -10,7 +10,7 @@ import { RelayFooterAttribution } from "@/components/RelayFooterAttribution";
 import { FooterSiteNav } from "@/components/FooterSiteNav";
 import PwaRedirect from "@/components/PwaRedirect";
 import { Analytics } from '@vercel/analytics/react';
-import { SpeedInsights } from "@vercel/speed-insights/next"
+import { SpeedInsights } from "@vercel/speed-insights/react"
 import { WebMcpProvider } from "@/components/webmcp/WebMcpProvider"
 import { BrowserAiSupportProvider } from "@/components/SiteAi/BrowserAiSupportProvider"
 

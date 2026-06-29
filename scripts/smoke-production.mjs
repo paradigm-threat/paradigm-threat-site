@@ -151,6 +151,9 @@ async function main () {
     )
   }
   console.log('smoke-production: article Cache-Control OK —', articleCacheControl.slice(0, 80))
+  const articleProbe2 = await fetch(articleUrl, { redirect: 'manual' })
+  const vercelCache = articleProbe2.headers.get('x-vercel-cache') || '(none)'
+  console.log('smoke-production: article x-vercel-cache (2nd request) —', vercelCache)
   const articleHtml = await fetch(articleUrl, { redirect: 'follow' }).then((r) => {
     if (!r.ok) fail(`${articleUrl} — expected HTTP 200, got ${r.status}`)
     return r.text()

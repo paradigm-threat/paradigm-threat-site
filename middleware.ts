@@ -2,40 +2,50 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { buildOptimizedAssetUrl } from '@/lib/relayOptimizedAssetUrl'
 import { relPathFromCanonicalSiteUrl } from '@/lib/canonicalSiteAssetUrl'
+import { edgeDocumentCacheControlHeader } from '@/lib/edgeDocumentCache'
+import { shouldCacheDocumentPath } from '@/lib/middlewareDocumentCache'
 
 const RASTER_EXT = /\.(apng|png|jpe?g|gif|webp|avif|bmp|ico|svg)$/i
 
+/** Paths that stay dynamic (no CDN document cache). */
+function shouldCacheDocument (pathname: string): boolean {
+  return shouldCacheDocumentPath(pathname)
+}
+
+function withDocumentCache (response: NextResponse): NextResponse {
+  response.headers.set('Cache-Control', edgeDocumentCacheControlHeader())
+  return response
+}
+
 /**
- * Direct GETs to repo raster paths on the site origin (e.g. /history/.../foo.png)
- * redirect to the primary Relay mirror — no local image proxy on Vercel.
- *
- * Article HTML stays on paradigmthreat.net (Next app shell). Do not 307 pages to
- * Relay md2ast HTML — that bypasses the client and shows raw tags like `<ChangeLog />`.
+ * Raster GETs on site origin → Relay mirror (edge hit).
+ * Document GETs → Cache-Control for CDN (article/hub HTML shell).
  */
 export function middleware (request: NextRequest) {
   const pathname = request.nextUrl.pathname
-  if (!RASTER_EXT.test(pathname)) {
-    return NextResponse.next()
+
+  if (RASTER_EXT.test(pathname)) {
+    const rel = relPathFromCanonicalSiteUrl(pathname)
+    if (rel) {
+      const wParam =
+        request.nextUrl.searchParams.get('w') ??
+        request.nextUrl.searchParams.get('width')
+      const wParsed = wParam ? parseInt(wParam, 10) : undefined
+      const width = Number.isFinite(wParsed) && wParsed! > 0 ? wParsed : undefined
+      const dest = buildOptimizedAssetUrl(`/${rel}`, width)
+      return NextResponse.redirect(dest, 307)
+    }
   }
 
-  const rel = relPathFromCanonicalSiteUrl(pathname)
-  if (!rel) {
-    return NextResponse.next()
+  if (request.method === 'GET' && shouldCacheDocument(pathname)) {
+    return withDocumentCache(NextResponse.next())
   }
 
-  const wParam =
-    request.nextUrl.searchParams.get('w') ??
-    request.nextUrl.searchParams.get('width')
-  const wParsed = wParam ? parseInt(wParam, 10) : undefined
-  const width = Number.isFinite(wParsed) && wParsed! > 0 ? wParsed : undefined
-
-  const dest = buildOptimizedAssetUrl(`/${rel}`, width)
-  return NextResponse.redirect(dest, 307)
+  return NextResponse.next()
 }
 
 export const config = {
   matcher: [
-    // Legacy `/files/timeline/media/...` and `/files/history/...` rasters (pre-Relay mirror URLs).
-    '/((?!_next|api|timeline|chat|search|export|site|robots\\.txt|sitemap\\.xml|favicon\\.ico).*)\\.(png|jpg|jpeg|gif|webp|avif|bmp|ico|svg|apng)',
+    '/((?!_next/static|_next/image).*)',
   ],
 }
