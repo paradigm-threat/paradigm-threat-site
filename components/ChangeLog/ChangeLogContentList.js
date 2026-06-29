@@ -26,9 +26,9 @@ async function extractTitleFromMarkdown (text) {
 }
 
 const EMPTY_COPY = {
-  articles: 'No recent articles in changelog yet.',
-  investigations: 'No recent investigations in changelog yet.',
-  blog: 'No blog posts found.',
+  articles: 'No articles updated in the last 30 days.',
+  investigations: 'No investigations updated in the last 30 days.',
+  blog: 'No blog posts updated in the last 30 days.',
 }
 
 export default function ChangeLogContentList ({

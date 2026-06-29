@@ -4,7 +4,10 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Maximize2, Minimize2 } from 'lucide-react'
 import { useImageGallery } from '@/components/Image/ImageGalleryContext'
 import { buildContentItemsFromChangelog } from '@/lib/changelog/buildContentItemsFromChangelog'
-import { buildBlogItemsFromIndex, mergeBlogTabItems } from '@/lib/changelog/buildBlogItemsFromIndex'
+import {
+  buildContentItemsFromIndex,
+  mergeChangelogImagesIntoItems,
+} from '@/lib/changelog/buildContentItemsFromIndex'
 import { getPrimaryFilesBaseUrl, getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
 import ChangeLogTabs from './ChangeLogTabs'
 import ChangeLogContentList from './ChangeLogContentList'
@@ -92,7 +95,7 @@ function readStoredTab () {
 export default function ChangeLog ({ target = '_self' }) {
   const [feedLog, setFeedLog] = useState([])
   const [filesChangelog, setFilesChangelog] = useState([])
-  const [blogIndexNode, setBlogIndexNode] = useState(null)
+  const [indexData, setIndexData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [fullscreen, setFullscreen] = useState(false)
   const [activeTab, setActiveTab] = useState('articles')
@@ -112,13 +115,10 @@ export default function ChangeLog ({ target = '_self' }) {
   }, [])
 
   const contentByTab = useMemo(() => {
+    const fromIndex = buildContentItemsFromIndex(indexData)
     const fromChangelog = buildContentItemsFromChangelog(filesChangelog)
-    const blogFromIndex = buildBlogItemsFromIndex(blogIndexNode)
-    return {
-      ...fromChangelog,
-      blog: mergeBlogTabItems(blogFromIndex, fromChangelog.blog),
-    }
-  }, [filesChangelog, blogIndexNode])
+    return mergeChangelogImagesIntoItems(fromIndex, fromChangelog)
+  }, [filesChangelog, indexData])
 
   const toggleFullscreen = useCallback(() => {
     setFullscreen((v) => !v)
@@ -178,7 +178,7 @@ export default function ChangeLog ({ target = '_self' }) {
 
         setFeedLog(feedMerged)
         setFilesChangelog(filesEntries)
-        setBlogIndexNode(indexData?.blog ?? null)
+        setIndexData(indexData)
       } catch (e) {
         console.error('Failed to fetch changelog.json', e)
       } finally {

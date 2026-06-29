@@ -1,18 +1,13 @@
 'use client'
 
-import React, { useEffect, useMemo, useState } from 'react'
-import matter from 'gray-matter'
-import { Loader2, Search } from 'lucide-react'
+import React, { useMemo } from 'react'
+import { Search } from 'lucide-react'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
 import { filterIndexedEntriesByQuery } from '@/lib/searchIndexFilter'
 import {
   isArticleMdEntry,
   isTimelineSearchEntry,
-  searchEntryHref,
-  searchEntryTitle,
 } from '@/lib/searchEntryDisplay'
-import { getRemoteFile } from '@/server/remoteFiles'
-import { fetchArticleMarkdown } from '@/lib/webmcp/fetchArticle'
 import { ArticleStack } from '@/components/search/ArticleStack'
 import { FolderGrid } from '@/components/search/FolderGrid'
 import { ImageGallery } from '@/components/search/ImageGallery'
@@ -44,75 +39,13 @@ export function SearchResultsPanel ({
     [searchResults]
   )
 
-  const [renderedMds, setRenderedMds] = useState<any[]>([])
-  const [contentLoading, setContentLoading] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
+  const articleEntries = useMemo(() => {
     const includeNonArticleMd = contentFilters.includeNonArticleMd
-
-    const fileMds = articleMdResults
-      .filter((e) => {
-        if (includeNonArticleMd) return true
-        return !e.path.endsWith('page.md') && !e.path.endsWith('index.md')
-      })
-      .slice(0, 5)
-
-    const timelineMds = timelineResults.slice(0, 5)
-
-    if (fileMds.length === 0 && timelineMds.length === 0) {
-      queueMicrotask(() => {
-        if (cancelled) return
-        setRenderedMds([])
-        setContentLoading(false)
-      })
-      return () => {
-        cancelled = true
-      }
-    }
-
-    queueMicrotask(() => {
-      if (!cancelled) setContentLoading(true)
+    return articleMdResults.filter((e) => {
+      if (includeNonArticleMd) return true
+      return !e.path.endsWith('page.md') && !e.path.endsWith('index.md')
     })
-
-    Promise.all([
-      ...fileMds.map(async (e) => {
-        const content = await getRemoteFile(e.path)
-        if (!content) return null
-        const { content: mdxSource, data: frontMatter } = matter(content)
-        const basePath = e.path.includes('/') ? e.path.split('/').slice(0, -1).join('/') : ''
-        return {
-          path: e.path,
-          href: searchEntryHref(e.path),
-          mdxSource,
-          frontMatter,
-          basePath,
-          title: typeof frontMatter?.title === 'string' ? frontMatter.title : searchEntryTitle(e),
-        }
-      }),
-      ...timelineMds.map(async (e) => {
-        const content = await fetchArticleMarkdown(e.path)
-        if (!content) return null
-        const { content: mdxSource, data: frontMatter } = matter(content)
-        return {
-          path: e.path,
-          href: searchEntryHref(e.path),
-          mdxSource,
-          frontMatter,
-          basePath: 'timeline',
-          title: typeof frontMatter?.title === 'string' ? frontMatter.title : searchEntryTitle(e),
-        }
-      }),
-    ]).then((results) => {
-      if (cancelled) return
-      setRenderedMds(results.filter(Boolean))
-      setContentLoading(false)
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [articleMdResults, timelineResults, contentFilters.includeNonArticleMd])
+  }, [articleMdResults, contentFilters.includeNonArticleMd])
 
   const folders = useMemo(() => {
     const folderPaths = Array.from(
@@ -140,8 +73,6 @@ export function SearchResultsPanel ({
     cleanQuery.length >= 2 &&
     searchResults.length === 0
 
-  const totalContentHits = articleMdResults.length + timelineResults.length
-
   if (cleanQuery.length < 2) return null
 
   return (
@@ -156,7 +87,7 @@ export function SearchResultsPanel ({
 
       {searchResults.length > 0 && (
         <>
-          <FolderGrid folders={folders} />
+          <ArticleStack entries={articleEntries} />
 
           {timelineResults.length > 0 && (
             <div className="space-y-8">
@@ -171,20 +102,10 @@ export function SearchResultsPanel ({
             </div>
           )}
 
-          <ArticleStack
-            renderedMds={renderedMds}
-            contentLoading={contentLoading}
-            totalArticles={totalContentHits}
-          />
+          {folders.length > 0 && <FolderGrid folders={folders} />}
 
-          <ImageGallery images={images} />
+          {images.length > 0 && <ImageGallery images={images} />}
         </>
-      )}
-
-      {contentLoading && renderedMds.length === 0 && (
-        <div className="flex items-center justify-center py-16 text-slate-400 dark:text-slate-600">
-          <Loader2 className="animate-spin" size={20} />
-        </div>
       )}
     </div>
   )
