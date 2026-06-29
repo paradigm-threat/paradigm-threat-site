@@ -1,6 +1,7 @@
 'use client'
 
-// Do not wire the search input to parent state or Next router; use SearchInputIsland.
+// CANONICAL thin shell — SearchInputIsland + SearchResultsPanel (see .cursor/rules/search-page-revert-artifact.mdc).
+// A broken monolithic version of this file sometimes reappears as uncommitted dirt — run scripts/check-search-page-canonical.sh before commit.
 
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2 } from 'lucide-react'

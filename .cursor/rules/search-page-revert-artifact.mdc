@@ -1,0 +1,55 @@
+---
+description: Recurring search page.tsx working-tree artifact — verify before commit (cause unknown)
+globs: app/(main)/search/**/*,components/search/**/*
+alwaysApply: false
+---
+
+# Search page: recurring local revert artifact
+
+**Double-check before every commit.** An old, broken monolithic `page.tsx` keeps reappearing as **uncommitted local changes**. `main` has had the correct thin shell since `c9bc1bd` (2026-06-24) — no repeat commits reverting it — so this is **working-tree dirt**, not a tracked regression.
+
+**Likely causes (unconfirmed):** stale editor tab/buffer, `git stash pop` from old branches, sync/checkout tooling, or an agent rewrite. **No repo script** (`postinstall`, `deploy.sh`, husky, relay sync) currently touches this file — but check your wider toolchain if it keeps happening.
+
+`scripts/check-search-page-canonical.sh` runs on pre-commit and fails if the artifact is present.
+
+## Canonical (current) architecture — keep this
+
+`app/(main)/search/[[...topic]]/page.tsx` is a **thin shell** only:
+
+- `SearchInputIsland` — input + URL sync; **do not** wire the search box to parent `useState` + `router.replace` on every keystroke
+- `SearchContentFiltersBar` + `SearchResultsPanel` — results, filters, MD preview fetch
+- `getCachedMergedSearchIndex` / `isSearchIndexCached` from `@/lib/searchIndexCache`
+- `readSearchQueryFromLocation` from `@/lib/useSearchUrlState`
+
+Fixed in `5035e3f`, `48d4323`, `c9bc1bd` (mobile keyboard dismiss / refresh-on-keystroke regression).
+
+## Artifact (broken) — never commit
+
+If `page.tsx` contains any of these, it is the **wrong** copy — **discard and restore from `HEAD`**:
+
+- `DEBOUNCE_MS`, `isDebounsingRef`, `handleSearchChange` with inline debounce
+- `getMergedSearchIndex` or `getRemoteFile` imported in `page.tsx`
+- `SearchHeader`, `FolderGrid`, `ArticleStack`, `ImageGallery` wired directly in `page.tsx`
+- `matter` / `gray-matter` in `page.tsx`
+- `useRouter` + `router.replace` driving the search input from parent state
+
+## Pre-commit checklist
+
+```bash
+git diff -- 'app/(main)/search/'
+bash scripts/check-search-page-canonical.sh
+```
+
+- If unsure: `git checkout HEAD -- 'app/(main)/search/[[...topic]]/page.tsx'`
+- After search edits: type in the search box on mobile — input must **not** lose focus or refresh on each character.
+
+## When editing search
+
+- Change behavior in `components/search/` (`SearchInputIsland`, `SearchResultsPanel`, etc.), not by inlining back into `page.tsx`.
+- Do **not** “simplify” or “restore” the old monolithic file — that re-breaks production search.
+
+## If it keeps happening
+
+1. `git diff -- 'app/(main)/search/'` right after you notice it (note what you were running).
+2. Check for duplicate checkouts, worktrees, or IDE “local history” restore on that path.
+3. `git stash list` — old stashes on `master` may contain the monolith; avoid blind `stash pop`.
