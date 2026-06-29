@@ -25,6 +25,9 @@ export interface ShareCopyModalProps {
   ogImageUrl?: string
   copyFormatPlatform: SharePlatformId
   onCopyFormatPlatformChange: (platform: SharePlatformId) => void
+  hasSubstackUrl: boolean
+  useSubstackUrlForShare: boolean
+  onUseSubstackUrlForShareChange: (value: boolean) => void
 }
 
 function getFocusableList (root: HTMLElement): HTMLElement[] {
@@ -63,6 +66,9 @@ export function ShareCopyModal ({
   ogImageUrl,
   copyFormatPlatform,
   onCopyFormatPlatformChange,
+  hasSubstackUrl,
+  useSubstackUrlForShare,
+  onUseSubstackUrlForShareChange,
 }: ShareCopyModalProps) {
   const [copied, setCopied] = React.useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -222,6 +228,18 @@ export function ShareCopyModal ({
 
           <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-1.5">
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Open in app or site</p>
+            {hasSubstackUrl ? (
+              <label className="flex items-start gap-2 cursor-pointer text-xs text-slate-600 dark:text-slate-400 mb-1">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={useSubstackUrlForShare}
+                  onChange={(e) => onUseSubstackUrlForShareChange(e.target.checked)}
+                  className="mt-0.5 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500/50"
+                />
+                <span>Use Substack URL for share links (Reddit, Facebook, etc.)</span>
+              </label>
+            ) : null}
             <div className="flex flex-wrap gap-2 select-none [&_*]:select-none">
               {platformActions.map((a) => (
                 <React.Fragment key={a.platformId}>

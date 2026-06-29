@@ -75,6 +75,33 @@ export interface ComposeShareInput {
   substackUrl?: string
 }
 
+/** URL passed to outbound share intents (`url=` params and in-app open links). */
+export function resolveOutboundShareUrl (
+  canonicalUrl: string,
+  substackUrl: string | undefined,
+  preferSubstack: boolean
+): string {
+  const substack = (substackUrl || '').trim()
+  if (preferSubstack && substack) return substack
+  return canonicalUrl.trim()
+}
+
+/**
+ * Compose input for outbound share intents only — copy/paste modal keeps the full {@link ComposeShareInput}.
+ * When preferring Substack, promote it to canonical and drop the duplicate mirror line.
+ */
+export function composeInputForOutboundShare (
+  input: ComposeShareInput,
+  preferSubstack: boolean
+): ComposeShareInput {
+  const substack = (input.substackUrl || '').trim()
+  const canonical = input.canonicalUrl.trim()
+  if (preferSubstack && substack && substack !== canonical) {
+    return { ...input, canonicalUrl: substack, substackUrl: undefined }
+  }
+  return input
+}
+
 /** X counts every http(s) URL as 23 chars (t.co) — informational only. */
 export function effectiveLengthX (text: string): number {
   const re = /https?:\/\/[^\s]+/g

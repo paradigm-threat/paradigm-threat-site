@@ -24,6 +24,9 @@ export function ShareLinks(props: ShareLinksProps) {
     ogImageUrl,
     copyFormatPlatform,
     setCopyFormatPlatform,
+    hasSubstackUrl,
+    useSubstackUrlForShare,
+    setUseSubstackUrlForShare,
   } = useShareLinksModel(props)
 
   return (
@@ -53,6 +56,9 @@ export function ShareLinks(props: ShareLinksProps) {
           ogImageUrl={ogImageUrl}
           copyFormatPlatform={copyFormatPlatform}
           onCopyFormatPlatformChange={setCopyFormatPlatform}
+          hasSubstackUrl={hasSubstackUrl}
+          useSubstackUrlForShare={useSubstackUrlForShare}
+          onUseSubstackUrlForShareChange={setUseSubstackUrlForShare}
         />
       ) : null}
     </div>
@@ -76,6 +82,9 @@ export function ShareLinksFloating(props: ShareLinksProps) {
     ogImageUrl,
     copyFormatPlatform,
     setCopyFormatPlatform,
+    hasSubstackUrl,
+    useSubstackUrlForShare,
+    setUseSubstackUrlForShare,
   } = useShareLinksModel(props)
 
   return (
@@ -107,6 +116,9 @@ export function ShareLinksFloating(props: ShareLinksProps) {
           ogImageUrl={ogImageUrl}
           copyFormatPlatform={copyFormatPlatform}
           onCopyFormatPlatformChange={setCopyFormatPlatform}
+          hasSubstackUrl={hasSubstackUrl}
+          useSubstackUrlForShare={useSubstackUrlForShare}
+          onUseSubstackUrlForShareChange={setUseSubstackUrlForShare}
         />
       ) : null}
     </>

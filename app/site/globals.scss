@@ -100,6 +100,16 @@ pre * {
   word-break: break-word;
 }
 
+/* EB Garamond (default): article bodies use prose-lg; franklin/mono stay at default prose size */
+html:not([data-font]) .prose:has(.mdx-content),
+html:not([data-font]) article.prose.mdx-content {
+  @apply prose-lg;
+}
+
+html:not([data-font]) .txt-para {
+  @apply text-lg;
+}
+
 /* Scope list styles to MDX body only — avoid hitting toolbar/UI `ol`/`ul` outside `.mdx-content` */
 .prose .mdx-content ul,
 .prose.mdx-content ul {

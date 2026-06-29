@@ -4,8 +4,10 @@ import assert from 'node:assert/strict'
 import { extractShareMetadata } from './extractShareMetadata.ts'
 import {
   composeShareText,
+  composeInputForOutboundShare,
   fitComposeShareToCharLimit,
   READ_FULL_ARTICLE_LINE,
+  resolveOutboundShareUrl,
   truncateShareTextForOutbound,
 } from './composeShareText.ts'
 import {
@@ -20,6 +22,41 @@ import {
 } from './platformLimits.ts'
 
 const SUBSTACK_URL = 'https://paradigmthreat2.substack.com/p/pursue-release-01-what-am-i-asking'
+const CANONICAL_URL = 'https://paradigmthreat.net/sample'
+
+test('resolveOutboundShareUrl prefers Substack when enabled and available', () => {
+  assert.equal(
+    resolveOutboundShareUrl(CANONICAL_URL, SUBSTACK_URL, true),
+    SUBSTACK_URL
+  )
+  assert.equal(
+    resolveOutboundShareUrl(CANONICAL_URL, SUBSTACK_URL, false),
+    CANONICAL_URL
+  )
+  assert.equal(resolveOutboundShareUrl(CANONICAL_URL, undefined, true), CANONICAL_URL)
+})
+
+test('composeInputForOutboundShare promotes Substack for outbound intents only', () => {
+  const input = {
+    title: 'Sample',
+    canonicalUrl: CANONICAL_URL,
+    snippetPlain: 'Snip.',
+    hashtagsLine: '#Tag',
+    articleBodyPlain: '',
+    substackUrl: SUBSTACK_URL,
+  }
+  const outbound = composeInputForOutboundShare(input, true)
+  assert.equal(outbound.canonicalUrl, SUBSTACK_URL)
+  assert.equal(outbound.substackUrl, undefined)
+
+  const copy = composeShareText('reddit', input)
+  assert.ok(copy.includes(CANONICAL_URL))
+  assert.ok(copy.includes(SUBSTACK_URL))
+
+  const outboundText = truncateShareTextForOutbound('bluesky', outbound)
+  assert.ok(outboundText.includes(SUBSTACK_URL))
+  assert.equal(outboundText.split(SUBSTACK_URL).length - 1, 1)
+})
 
 const SAMPLE_BODY = `# Sample Article
 

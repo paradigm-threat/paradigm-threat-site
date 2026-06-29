@@ -2,11 +2,13 @@
 
 import { useMemo, useState, useCallback } from 'react'
 import {
+  composeInputForOutboundShare,
   composeShareText,
   effectiveLengthX,
   extractShareMetadata,
   fitComposeShareToCharLimit,
   platformUsesTruncatedOutboundIntent,
+  resolveOutboundShareUrl,
   shareTextCharCount,
   truncateShareTextForOutbound,
   type SharePlatformId,
@@ -158,8 +160,12 @@ export function useShareLinksModel({
     [shareTitle, absUrl, shareExtract]
   )
 
+  const substackUrl = (shareExtract.substackUrl || '').trim()
+  const hasSubstackUrl = substackUrl.length > 0
+
   const [modalOpen, setModalOpen] = useState(false)
   const [copyFormatPlatform, setCopyFormatPlatform] = useState<SharePlatformId>('instagram')
+  const [useSubstackUrlForShare, setUseSubstackUrlForShare] = useState(true)
 
   /**
    * Modal copy: full compose order (incl. Substack under canonical URL). X omits snippet to stay minimal.
@@ -195,12 +201,27 @@ export function useShareLinksModel({
 
   const xComposerWeight = useMemo(() => effectiveLengthX(activeCopyText), [activeCopyText])
 
+  const outboundShareUrl = useMemo(
+    () =>
+      resolveOutboundShareUrl(absUrl, substackUrl, hasSubstackUrl && useSubstackUrlForShare),
+    [absUrl, substackUrl, hasSubstackUrl, useSubstackUrlForShare]
+  )
+
+  const outboundComposeInput = useMemo(
+    () =>
+      composeInputForOutboundShare(
+        composeInput,
+        hasSubstackUrl && useSubstackUrlForShare
+      ),
+    [composeInput, hasSubstackUrl, useSubstackUrlForShare]
+  )
+
   const platformOutbounds = useMemo(() => {
     return SHARE_PLATFORMS.map(({ id, label }) => {
       const intent = platformUsesTruncatedOutboundIntent(id)
-        ? truncateShareTextForOutbound(id, composeInput)
+        ? truncateShareTextForOutbound(id, outboundComposeInput)
         : activeCopyText
-      const ob = buildOutboundHref(id, absUrl, shareTitle, intent)
+      const ob = buildOutboundHref(id, outboundShareUrl, shareTitle, intent)
       const outboundOpenUsesShortDraft =
         platformUsesTruncatedOutboundIntent(id) && intent !== activeCopyText
       const intentCharCount = outboundOpenUsesShortDraft
@@ -216,7 +237,7 @@ export function useShareLinksModel({
         intentCharCount,
       }
     })
-  }, [activeCopyText, composeInput, absUrl, shareTitle])
+  }, [activeCopyText, outboundComposeInput, outboundShareUrl, shareTitle])
 
   const openModal = useCallback((_platform: SharePlatformId, _label: string) => {
     setModalOpen(true)
@@ -235,5 +256,9 @@ export function useShareLinksModel({
     ogImageUrl,
     copyFormatPlatform,
     setCopyFormatPlatform,
+    hasSubstackUrl,
+    useSubstackUrlForShare,
+    setUseSubstackUrlForShare,
+    outboundShareUrl,
   }
 }
