@@ -13,7 +13,7 @@ How to add [Chrome WebMCP](https://developer.chrome.com/docs/ai/webmcp) (Web Mod
 | Feature flags | `NEXT_PUBLIC_WEBMCP_ENABLED`, `NEXT_PUBLIC_WEBMCP_ACTUATION`, `NEXT_PUBLIC_WEBMCP_POLYFILL` (dev) |
 | `/reply` UI | In-page draft via Prompt API + WebMCP tools (native or polyfill) |
 | Site AI chat | Global FAB + TTS dock button; localStorage session; Q&A-first search |
-| Investigation submissions | `/submit` form + `submit_investigation_idea` tool → Postgres via `/api/investigation-submissions` |
+| Investigation submissions | `/submit` form + `submit_investigation_idea` tool → Postgres via `/api/investigation-submissions`. **No admin UI** — triage and `DELETE` rows in Neon/Cursor when investigations are written; see [`docs/INVESTIGATION_SUBMISSIONS.md`](INVESTIGATION_SUBMISSIONS.md) |
 | Reply assistant | Browser AI drafts reply; tools search/read site corpus |
 | Project perspective seed | `get_project_perspective`, `lib/replyAssistant/projectPerspective.ts` |
 | Polyfill | Strict `@mcp-b/webmcp-polyfill` when native missing; does not enable `/reply` |
