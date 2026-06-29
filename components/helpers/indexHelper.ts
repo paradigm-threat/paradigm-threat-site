@@ -1,6 +1,6 @@
 /**
  * Flatten nested index.json into searchable entries.
- * Each file may include `_title` and `_keywords` (from generate-index.py) for searchText.
+ * Each file may include `_title`, `_keywords`, and `_searchSnippet` (from generate-index.py) for searchText.
  */
 
 export type IndexedPathEntry = {
@@ -19,6 +19,8 @@ function buildFileSearchText(path: string, value: Record<string, unknown>): stri
       if (typeof k === 'string' && k.trim()) parts.push(k.trim())
     }
   }
+  const snippet = value._searchSnippet
+  if (typeof snippet === 'string' && snippet.trim()) parts.push(snippet.trim())
   return parts.join(' ')
 }
 

@@ -32,6 +32,16 @@ export function isExcludedBySearchContentFilters(
   return false
 }
 
+/** Whether a query token matches indexed text (incl. 911 ↔ 9/11 aliases). */
+export function searchTermMatchesHaystack(term: string, haystack: string): boolean {
+  const t = term.toLowerCase()
+  const h = haystack.toLowerCase()
+  if (h.includes(t)) return true
+  if (t === '911' || t === '9-11') return h.includes('9/11')
+  if (t === '9/11') return h.includes('911') || h.includes('9/11')
+  return false
+}
+
 /** Same AND semantics as `/search`: every whitespace-separated term must appear in searchText (lowercased). */
 export function filterIndexedEntriesByQuery(
   entries: IndexedPathEntry[],
@@ -47,8 +57,8 @@ export function filterIndexedEntriesByQuery(
     if (!entry || typeof entry.path !== 'string') return false
     if (entry.path.includes('.auto.md')) return false
     if (isExcludedBySearchContentFilters(entry.path, contentFilters)) return false
-    const haystack = entry.searchText.toLowerCase()
-    return searchTerms.every((term) => haystack.includes(term))
+    const haystack = entry.searchText
+    return searchTerms.every((term) => searchTermMatchesHaystack(term, haystack))
   })
 }
 
@@ -71,10 +81,10 @@ export function rankIndexedEntriesByPathTokenOverlap(
     if (!entry || typeof entry.path !== 'string') continue
     if (entry.path.includes('.auto.md')) continue
     if (isExcludedBySearchContentFilters(entry.path, contentFilters)) continue
-    const haystack = entry.searchText.toLowerCase()
+    const haystack = entry.searchText
     let score = 0
     for (const term of terms) {
-      if (haystack.includes(term)) score++
+      if (searchTermMatchesHaystack(term, haystack)) score++
     }
     if (score > 0) scored.push({ entry, score })
   }
