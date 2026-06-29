@@ -7,3 +7,8 @@ export const EDGE_DOCUMENT_STALE_WHILE_REVALIDATE = 604_800
 export function edgeDocumentCacheControlHeader (): string {
   return `public, s-maxage=${EDGE_DOCUMENT_S_MAXAGE}, stale-while-revalidate=${EDGE_DOCUMENT_STALE_WHILE_REVALIDATE}`
 }
+
+/** Vercel CDN-only cache (survives dynamic Function Cache-Control: private). */
+export function vercelCdnCacheControlHeader (): string {
+  return `public, s-maxage=${EDGE_DOCUMENT_S_MAXAGE}, stale-while-revalidate=${EDGE_DOCUMENT_STALE_WHILE_REVALIDATE}`
+}

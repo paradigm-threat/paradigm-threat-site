@@ -145,15 +145,27 @@ async function main () {
     )
   }
   const articleCacheControl = articleProbe.headers.get('cache-control') || ''
-  if (!/s-maxage=\d+/i.test(articleCacheControl)) {
+  const cdnCacheControl =
+    articleProbe.headers.get('cdn-cache-control') ||
+    articleProbe.headers.get('CDN-Cache-Control') ||
+    ''
+  const hasEdgeCache =
+    /s-maxage=\d+/i.test(articleCacheControl) || /s-maxage=\d+/i.test(cdnCacheControl)
+  if (!hasEdgeCache) {
     fail(
-      `${articleUrl} — expected Cache-Control with s-maxage (edge document cache), got "${articleCacheControl || '(none)'}"`,
+      `${articleUrl} — expected Cache-Control or CDN-Cache-Control with s-maxage, got cache-control="${articleCacheControl || '(none)'}" cdn="${cdnCacheControl || '(none)'}"`,
     )
   }
-  console.log('smoke-production: article Cache-Control OK —', articleCacheControl.slice(0, 80))
+  console.log(
+    'smoke-production: article cache headers OK —',
+    (cdnCacheControl || articleCacheControl).slice(0, 80),
+  )
   const articleProbe2 = await fetch(articleUrl, { redirect: 'manual' })
   const vercelCache = articleProbe2.headers.get('x-vercel-cache') || '(none)'
   console.log('smoke-production: article x-vercel-cache (2nd request) —', vercelCache)
+  if (vercelCache !== 'HIT' && vercelCache !== 'STALE') {
+    console.log('smoke-production: note — CDN may need warm-up; check Observability if MISS persists')
+  }
   const articleHtml = await fetch(articleUrl, { redirect: 'follow' }).then((r) => {
     if (!r.ok) fail(`${articleUrl} — expected HTTP 200, got ${r.status}`)
     return r.text()

@@ -4,6 +4,14 @@
       "source": "/((?!api/|_next/|chat(?:/|$)|search(?:/|$)|timeline(?:/|$)|reply(?:/|$)|export(?:/|$)|site(?:/|$)|robots\\.txt|sitemap\\.xml|favicon\\.ico).*)",
       "headers": [
         {
+          "key": "Vercel-CDN-Cache-Control",
+          "value": "public, s-maxage=86400, stale-while-revalidate=604800"
+        },
+        {
+          "key": "CDN-Cache-Control",
+          "value": "public, s-maxage=86400, stale-while-revalidate=604800"
+        },
+        {
           "key": "Cache-Control",
           "value": "public, s-maxage=86400, stale-while-revalidate=604800"
         }

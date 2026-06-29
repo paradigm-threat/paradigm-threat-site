@@ -24,4 +24,8 @@ Do **not** enable full sitemap index walk (`NEXT_PUBLIC_SERVER_RELAY_FETCH=1`) w
 
 ## ISR note
 
-On-demand ISR via `generateStaticParams` + client root layout caused `DYNAMIC_SERVER_USAGE` (500). Current approach: **middleware + vercel.json** `Cache-Control` on document routes. Revisit ISR if the app shell moves to a server root layout.
+On-demand ISR via `generateStaticParams` + client root layout caused `DYNAMIC_SERVER_USAGE` (500). Current approach: **middleware + vercel.json** `Vercel-CDN-Cache-Control` / `CDN-Cache-Control` on document routes (Vercel caches at CDN even when the Function returns `Cache-Control: private`). Revisit ISR if the app shell moves to a server root layout.
+
+## Markdown image audit (files repo)
+
+Run `scripts/check-site-origin-md-raster.sh` in **paradigm-threat-files** — site-origin raster URLs in markdown still cost one middleware edge hit each (307 to Relay). Bulk rewrite to Relay mirrors is optional follow-up.

@@ -184,6 +184,14 @@ const nextConfig = {
           '/((?!api/|_next/|chat(?:/|$)|search(?:/|$)|timeline(?:/|$)|reply(?:/|$)|export(?:/|$)|site(?:/|$)|robots\\.txt|sitemap\\.xml|favicon\\.ico).*)',
         headers: [
           {
+            key: 'Vercel-CDN-Cache-Control',
+            value: documentCacheControl,
+          },
+          {
+            key: 'CDN-Cache-Control',
+            value: documentCacheControl,
+          },
+          {
             key: 'Cache-Control',
             value: documentCacheControl,
           },

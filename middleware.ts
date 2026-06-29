@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { buildOptimizedAssetUrl } from '@/lib/relayOptimizedAssetUrl'
 import { relPathFromCanonicalSiteUrl } from '@/lib/canonicalSiteAssetUrl'
-import { edgeDocumentCacheControlHeader } from '@/lib/edgeDocumentCache'
+import { edgeDocumentCacheControlHeader, vercelCdnCacheControlHeader } from '@/lib/edgeDocumentCache'
 import { shouldCacheDocumentPath } from '@/lib/middlewareDocumentCache'
 
 const RASTER_EXT = /\.(apng|png|jpe?g|gif|webp|avif|bmp|ico|svg)$/i
@@ -13,7 +13,10 @@ function shouldCacheDocument (pathname: string): boolean {
 }
 
 function withDocumentCache (response: NextResponse): NextResponse {
+  const cdn = vercelCdnCacheControlHeader()
   response.headers.set('Cache-Control', edgeDocumentCacheControlHeader())
+  response.headers.set('CDN-Cache-Control', cdn)
+  response.headers.set('Vercel-CDN-Cache-Control', cdn)
   return response
 }
 
