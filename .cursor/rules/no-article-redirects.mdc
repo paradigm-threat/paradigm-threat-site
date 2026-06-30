@@ -1,0 +1,25 @@
+---
+description: Do not add next.config redirects for renamed individual articles — fix links in files repo instead
+globs: next.config.js
+alwaysApply: false
+---
+
+# No per-article redirects in paradigm-threat-site
+
+When a markdown article is **renamed or retitled** in **paradigm-threat-files**, **do not** add slug redirects in `next.config.js` `redirects()`.
+
+## Do instead
+
+- Update **in-repo links** (markdown, `page.md`, investigations, blog) to the new path.
+- Run **`npm run autogen`** in paradigm-threat-files after path changes.
+- Accept that **old bookmarks and changelog history** may 404 — that is intentional.
+
+## Allowed redirects (exceptions only)
+
+- **Host-level** routing (e.g. `thirdstory.site` → timeline).
+- **Grandfathered** entries already in `redirects()` before this rule (e.g. death-on-mars → analysis) — do not extend the pattern.
+
+## Never add
+
+- `source: '/path/to/old-article'` → `destination: '/path/to/new-article'` for individual article renames.
+- Stub markdown files whose only purpose is forwarding to a renamed sibling.

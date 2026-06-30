@@ -173,16 +173,6 @@ const nextConfig = {
         destination: '/cosmos/mars/death-on-mars-analysis',
         permanent: true,
       },
-      {
-        source: '/science/computing/exact-change-wallet-invention',
-        destination: '/science/computing/exact-change-wallet-invention-and-aftermath',
-        permanent: true,
-      },
-      {
-        source: '/science/computing/exact-change-wallet-invention.md',
-        destination: '/science/computing/exact-change-wallet-invention-and-aftermath',
-        permanent: true,
-      },
     ]
   },
   async headers() {
