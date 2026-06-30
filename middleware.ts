@@ -29,10 +29,26 @@ function isLocalSiteChromeAsset (pathname: string): boolean {
   return pathname === '/site' || pathname.startsWith('/site/')
 }
 
+/** PWA icons, favicon, and self-hosted fonts — serve from Vercel, not Relay. */
+const LOCAL_STATIC_EXACT = new Set([
+  '/favicon.ico',
+  '/apple-touch-icon.png',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/manifest.json',
+])
+
+function isLocalStaticAsset (pathname: string): boolean {
+  if (isLocalSiteChromeAsset(pathname)) return true
+  if (LOCAL_STATIC_EXACT.has(pathname)) return true
+  if (pathname.startsWith('/fonts/')) return true
+  return false
+}
+
 export function middleware (request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
-  if (isLocalSiteChromeAsset(pathname)) {
+  if (isLocalStaticAsset(pathname)) {
     return NextResponse.next()
   }
 

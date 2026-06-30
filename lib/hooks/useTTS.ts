@@ -4,6 +4,10 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { splitSentences, preprocessSpeechText } from '@/components/Timeline/ttsHelpers'
 import { resolveDefaultPiperVoiceId } from '@/lib/tts/piperVoiceDefaults'
 import {
+    aggregateClientPiperVoices,
+    isClientPiperConfigured,
+} from '@/lib/tts/piperClient'
+import {
     startSpeechKeepalive,
     stopSpeechKeepalive,
     startAudioWatchdog,
@@ -326,12 +330,12 @@ export function useTTS() {
         }
     }, [])
 
-    // Load Piper voices from server config
+    // Load Piper voices from relay hosts (client-side); skip when Piper is not configured.
     useEffect(() => {
         if (typeof window === 'undefined') return
+        if (!isClientPiperConfigured()) return
         let mounted = true
-        fetch('/api/tts/piper/voices')
-            .then(res => res.ok ? res.json() : null)
+        void aggregateClientPiperVoices()
             .then(data => {
                 if (!mounted || !data) return
                 const voices = Array.isArray(data.voices)

@@ -169,18 +169,15 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
                             href="/"
                             className="hover:opacity-80 transition-opacity flex-shrink-0 min-w-0"
                         >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                                src={HEADER_WORDMARK_SRC}
-                                alt="Paradigm Threat"
-                                className="h-10 w-auto md:h-14 max-[350px]:hidden"
-                            />
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                                src={HEADER_MARK_SRC}
-                                alt="Paradigm Threat"
-                                className="hidden h-10 w-10 shrink-0 object-contain max-[350px]:block"
-                            />
+                            {/* Single <img> via <picture> — avoids preloading both wordmark and mark on every page. */}
+                            <picture>
+                                <source media="(max-width: 350px)" srcSet={HEADER_MARK_SRC} />
+                                <img
+                                    src={HEADER_WORDMARK_SRC}
+                                    alt="Paradigm Threat"
+                                    className="h-10 w-auto md:h-14 max-[350px]:h-10 max-[350px]:w-10 max-[350px]:object-contain"
+                                />
+                            </picture>
                         </Link>
 
                         {/* Desktop Navigation */}
