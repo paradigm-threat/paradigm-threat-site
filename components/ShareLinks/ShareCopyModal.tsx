@@ -2,7 +2,11 @@
 
 import React, { useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { Loader2, Sparkles } from 'lucide-react'
 import type { SharePlatformId } from '@/lib/share'
+import type { ShareRewriteTone } from '@/lib/share/buildShareRewritePrompt'
+import type { ShareRewriteProgress } from '@/lib/share/draftShareTextWithBrowserAi'
+import { ShareRewriteProgressBar } from '@/components/ShareLinks/ShareRewriteProgressBar'
 
 export interface ShareCopyPlatformAction {
   platformId: SharePlatformId
@@ -28,6 +32,16 @@ export interface ShareCopyModalProps {
   hasSubstackUrl: boolean
   useSubstackUrlForShare: boolean
   onUseSubstackUrlForShareChange: (value: boolean) => void
+  canRewriteWithAi?: boolean
+  shareTone?: ShareRewriteTone
+  onShareToneChange?: (tone: ShareRewriteTone) => void
+  shareRewriting?: boolean
+  shareRewriteProgress?: ShareRewriteProgress | null
+  shareRewriteError?: string | null
+  onRewriteShareCopy?: () => void
+  onResetShareCopy?: () => void
+  onCancelShareRewrite?: () => void
+  usingAiCopy?: boolean
 }
 
 function getFocusableList (root: HTMLElement): HTMLElement[] {
@@ -69,6 +83,16 @@ export function ShareCopyModal ({
   hasSubstackUrl,
   useSubstackUrlForShare,
   onUseSubstackUrlForShareChange,
+  canRewriteWithAi = false,
+  shareTone = 'conversational',
+  onShareToneChange,
+  shareRewriting = false,
+  shareRewriteProgress = null,
+  shareRewriteError = null,
+  onRewriteShareCopy,
+  onResetShareCopy,
+  onCancelShareRewrite,
+  usingAiCopy = false,
 }: ShareCopyModalProps) {
   const [copied, setCopied] = React.useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -155,7 +179,7 @@ export function ShareCopyModal ({
         </div>
 
         <div className="overflow-y-auto px-4 py-3 space-y-3">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={handleCopy}
@@ -163,7 +187,77 @@ export function ShareCopyModal ({
             >
               {copied ? 'Copied!' : 'Copy to clipboard'}
             </button>
+            {canRewriteWithAi ? (
+              <>
+                <button
+                  type="button"
+                  disabled={shareRewriting}
+                  onClick={() => onRewriteShareCopy?.()}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-violet-400/60 bg-violet-600 text-white px-3 py-2 text-sm font-medium hover:bg-violet-500 disabled:opacity-50"
+                >
+                  {shareRewriting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Sparkles className="h-4 w-4" aria-hidden />
+                  )}
+                  {shareRewriting ? 'Rewriting…' : usingAiCopy ? 'Rewrite again' : 'Rewrite with AI'}
+                </button>
+                {shareRewriting ? (
+                  <button
+                    type="button"
+                    onClick={() => onCancelShareRewrite?.()}
+                    className="text-sm text-slate-600 dark:text-slate-400 hover:underline"
+                  >
+                    Cancel
+                  </button>
+                ) : null}
+                {usingAiCopy && !shareRewriting ? (
+                  <button
+                    type="button"
+                    onClick={() => onResetShareCopy?.()}
+                    className="text-sm text-slate-600 dark:text-slate-400 hover:underline"
+                  >
+                    Reset to template
+                  </button>
+                ) : null}
+              </>
+            ) : null}
           </div>
+
+          {canRewriteWithAi ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <label
+                htmlFor="share-copy-tone"
+                className="text-xs font-medium text-slate-500 dark:text-slate-400"
+              >
+                Tone
+              </label>
+              <select
+                id="share-copy-tone"
+                value={shareTone}
+                onChange={(e) => onShareToneChange?.(e.target.value as ShareRewriteTone)}
+                disabled={shareRewriting}
+                className="rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm px-2 py-1 disabled:opacity-50"
+              >
+                <option value="conversational">Conversational</option>
+                <option value="neutral">Neutral</option>
+                <option value="brief">Brief</option>
+              </select>
+              {usingAiCopy ? (
+                <span className="text-[11px] text-violet-600 dark:text-violet-400">AI rewrite active</span>
+              ) : null}
+            </div>
+          ) : null}
+
+          {shareRewriting && shareRewriteProgress ? (
+            <ShareRewriteProgressBar progress={shareRewriteProgress} />
+          ) : null}
+
+          {shareRewriteError ? (
+            <p className="text-xs text-red-600 dark:text-red-400" role="alert">
+              {shareRewriteError}
+            </p>
+          ) : null}
 
           <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Text to copy</label>
           <textarea

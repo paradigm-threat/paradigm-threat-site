@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useCallback } from 'react'
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
 import {
   composeInputForOutboundShare,
   composeShareText,
@@ -16,6 +16,12 @@ import {
 import { REDDIT_TITLE_MAX, platformModalCopyLimit } from '@/lib/share/platformLimits'
 import type { ShareLinksProps } from '@/components/ShareLinks/types'
 import { extractFirstHeading, prepareArticleMarkdown } from '@/lib/articleBody'
+import {
+  draftShareTextWithBrowserAi,
+  type ShareRewriteTone,
+  type ShareRewriteProgress,
+} from '@/lib/share/draftShareTextWithBrowserAi'
+import { useReplyDraftingAvailable } from '@/lib/replyAssistant/useReplyDraftingAvailable'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://paradigmthreat.net'
 
@@ -166,6 +172,27 @@ export function useShareLinksModel({
   const [modalOpen, setModalOpen] = useState(false)
   const [copyFormatPlatform, setCopyFormatPlatform] = useState<SharePlatformId>('instagram')
   const [useSubstackUrlForShare, setUseSubstackUrlForShare] = useState(true)
+  const [aiCopyText, setAiCopyText] = useState<string | null>(null)
+  const [shareTone, setShareTone] = useState<ShareRewriteTone>('conversational')
+  const [shareRewriting, setShareRewriting] = useState(false)
+  const [shareRewriteError, setShareRewriteError] = useState<string | null>(null)
+  const [shareRewriteProgress, setShareRewriteProgress] = useState<ShareRewriteProgress | null>(null)
+  const shareRewriteAbortRef = useRef<AbortController | null>(null)
+
+  const aiAvailable = useReplyDraftingAvailable() === 'available'
+  const canRewriteWithAi = aiAvailable && Boolean(mdSource?.trim())
+
+  useEffect(() => {
+    setAiCopyText(null)
+    setShareRewriteError(null)
+  }, [copyFormatPlatform])
+
+  const articlePlainForAi = useMemo(() => {
+    const useParagraphBody = copyFormatPlatform === 'facebook'
+    return useParagraphBody
+      ? composeInput.articleBodyParagraphsPlain || composeInput.articleBodyPlain
+      : composeInput.articleBodyPlain
+  }, [copyFormatPlatform, composeInput])
 
   /**
    * Modal copy: full compose order (incl. Substack under canonical URL). X omits snippet to stay minimal.
@@ -197,9 +224,11 @@ export function useShareLinksModel({
     })
   }, [copyFormatPlatform, composeInput])
 
-  const charCount = useMemo(() => shareTextCharCount(activeCopyText), [activeCopyText])
+  const displayCopyText = aiCopyText ?? activeCopyText
 
-  const xComposerWeight = useMemo(() => effectiveLengthX(activeCopyText), [activeCopyText])
+  const charCount = useMemo(() => shareTextCharCount(displayCopyText), [displayCopyText])
+
+  const xComposerWeight = useMemo(() => effectiveLengthX(displayCopyText), [displayCopyText])
 
   const outboundShareUrl = useMemo(
     () =>
@@ -220,10 +249,10 @@ export function useShareLinksModel({
     return SHARE_PLATFORMS.map(({ id, label }) => {
       const intent = platformUsesTruncatedOutboundIntent(id)
         ? truncateShareTextForOutbound(id, outboundComposeInput)
-        : activeCopyText
+        : displayCopyText
       const ob = buildOutboundHref(id, outboundShareUrl, shareTitle, intent)
       const outboundOpenUsesShortDraft =
-        platformUsesTruncatedOutboundIntent(id) && intent !== activeCopyText
+        platformUsesTruncatedOutboundIntent(id) && intent !== displayCopyText
       const intentCharCount = outboundOpenUsesShortDraft
         ? shareTextCharCount(intent)
         : undefined
@@ -237,19 +266,86 @@ export function useShareLinksModel({
         intentCharCount,
       }
     })
-  }, [activeCopyText, outboundComposeInput, outboundShareUrl, shareTitle])
+  }, [displayCopyText, outboundComposeInput, outboundShareUrl, shareTitle])
 
   const openModal = useCallback((_platform: SharePlatformId, _label: string) => {
     setModalOpen(true)
   }, [])
 
-  const closeModal = useCallback(() => setModalOpen(false), [])
+  const closeModal = useCallback(() => {
+    shareRewriteAbortRef.current?.abort()
+    shareRewriteAbortRef.current = null
+    setShareRewriting(false)
+    setModalOpen(false)
+  }, [])
+
+  const resetShareCopy = useCallback(() => {
+    shareRewriteAbortRef.current?.abort()
+    shareRewriteAbortRef.current = null
+    setShareRewriting(false)
+    setShareRewriteProgress(null)
+    setAiCopyText(null)
+    setShareRewriteError(null)
+  }, [])
+
+  const rewriteShareCopy = useCallback(async () => {
+    if (!canRewriteWithAi || !mdSource?.trim()) return
+    shareRewriteAbortRef.current?.abort()
+    const controller = new AbortController()
+    shareRewriteAbortRef.current = controller
+
+    setShareRewriting(true)
+    setShareRewriteError(null)
+    setShareRewriteProgress({ message: 'Starting rewrite…', percent: null })
+
+    try {
+      const result = await draftShareTextWithBrowserAi({
+        platform: copyFormatPlatform,
+        title: shareTitle,
+        canonicalUrl: absUrl,
+        substackUrl: composeInput.substackUrl,
+        hashtagsLine: composeInput.hashtagsLine,
+        articlePlain: articlePlainForAi,
+        templateCopy: activeCopyText,
+        tone: shareTone,
+        signal: controller.signal,
+        onProgress: setShareRewriteProgress,
+      })
+      setAiCopyText(result.text)
+    } catch (e) {
+      if (controller.signal.aborted) return
+      setShareRewriteError(e instanceof Error ? e.message : 'Rewrite failed')
+    } finally {
+      setShareRewriting(false)
+      setShareRewriteProgress(null)
+      shareRewriteAbortRef.current = null
+    }
+  }, [
+    canRewriteWithAi,
+    mdSource,
+    copyFormatPlatform,
+    shareTitle,
+    absUrl,
+    composeInput.substackUrl,
+    composeInput.hashtagsLine,
+    articlePlainForAi,
+    activeCopyText,
+    shareTone,
+  ])
+
+  const cancelShareRewrite = useCallback(() => {
+    shareRewriteAbortRef.current?.abort()
+    shareRewriteAbortRef.current = null
+    setShareRewriting(false)
+    setShareRewriteProgress(null)
+  }, [])
 
   return {
     modalOpen,
     openModal,
     closeModal,
-    activeCopyText,
+    activeCopyText: displayCopyText,
+    templateCopyText: activeCopyText,
     charCount,
     xComposerWeight,
     platformOutbounds,
@@ -260,5 +356,15 @@ export function useShareLinksModel({
     useSubstackUrlForShare,
     setUseSubstackUrlForShare,
     outboundShareUrl,
+    canRewriteWithAi,
+    shareTone,
+    setShareTone,
+    shareRewriting,
+    shareRewriteError,
+    shareRewriteProgress,
+    rewriteShareCopy,
+    resetShareCopy,
+    cancelShareRewrite,
+    usingAiCopy: aiCopyText != null,
   }
 }

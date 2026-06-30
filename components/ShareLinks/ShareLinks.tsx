@@ -27,6 +27,16 @@ export function ShareLinks(props: ShareLinksProps) {
     hasSubstackUrl,
     useSubstackUrlForShare,
     setUseSubstackUrlForShare,
+    canRewriteWithAi,
+    shareTone,
+    setShareTone,
+    shareRewriting,
+    shareRewriteProgress,
+    shareRewriteError,
+    rewriteShareCopy,
+    resetShareCopy,
+    cancelShareRewrite,
+    usingAiCopy,
   } = useShareLinksModel(props)
 
   return (
@@ -59,6 +69,16 @@ export function ShareLinks(props: ShareLinksProps) {
           hasSubstackUrl={hasSubstackUrl}
           useSubstackUrlForShare={useSubstackUrlForShare}
           onUseSubstackUrlForShareChange={setUseSubstackUrlForShare}
+          canRewriteWithAi={canRewriteWithAi}
+          shareTone={shareTone}
+          onShareToneChange={setShareTone}
+          shareRewriting={shareRewriting}
+          shareRewriteProgress={shareRewriteProgress}
+          shareRewriteError={shareRewriteError}
+          onRewriteShareCopy={() => { void rewriteShareCopy() }}
+          onResetShareCopy={resetShareCopy}
+          onCancelShareRewrite={cancelShareRewrite}
+          usingAiCopy={usingAiCopy}
         />
       ) : null}
     </div>
@@ -85,6 +105,16 @@ export function ShareLinksFloating(props: ShareLinksProps) {
     hasSubstackUrl,
     useSubstackUrlForShare,
     setUseSubstackUrlForShare,
+    canRewriteWithAi,
+    shareTone,
+    setShareTone,
+    shareRewriting,
+    shareRewriteProgress,
+    shareRewriteError,
+    rewriteShareCopy,
+    resetShareCopy,
+    cancelShareRewrite,
+    usingAiCopy,
   } = useShareLinksModel(props)
 
   return (
@@ -119,6 +149,16 @@ export function ShareLinksFloating(props: ShareLinksProps) {
           hasSubstackUrl={hasSubstackUrl}
           useSubstackUrlForShare={useSubstackUrlForShare}
           onUseSubstackUrlForShareChange={setUseSubstackUrlForShare}
+          canRewriteWithAi={canRewriteWithAi}
+          shareTone={shareTone}
+          onShareToneChange={setShareTone}
+          shareRewriting={shareRewriting}
+          shareRewriteProgress={shareRewriteProgress}
+          shareRewriteError={shareRewriteError}
+          onRewriteShareCopy={() => { void rewriteShareCopy() }}
+          onResetShareCopy={resetShareCopy}
+          onCancelShareRewrite={cancelShareRewrite}
+          usingAiCopy={usingAiCopy}
         />
       ) : null}
     </>
