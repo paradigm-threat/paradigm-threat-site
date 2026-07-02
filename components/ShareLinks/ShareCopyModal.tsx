@@ -42,6 +42,12 @@ export interface ShareCopyModalProps {
   onResetShareCopy?: () => void
   onCancelShareRewrite?: () => void
   usingAiCopy?: boolean
+  relayMdDownload?: {
+    url: string
+    filename: string
+    relPath: string
+    serverLabel: string
+  } | null
 }
 
 function getFocusableList (root: HTMLElement): HTMLElement[] {
@@ -93,6 +99,7 @@ export function ShareCopyModal ({
   onResetShareCopy,
   onCancelShareRewrite,
   usingAiCopy = false,
+  relayMdDownload = null,
 }: ShareCopyModalProps) {
   const [copied, setCopied] = React.useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -293,6 +300,27 @@ export function ShareCopyModal ({
               <option value="nextdoor">Nextdoor</option>
             </select>
           </div>
+
+          {relayMdDownload ? (
+            <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+              <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">Article source</p>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <a
+                  href={relayMdDownload.url}
+                  download={relayMdDownload.filename}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  Download markdown
+                </a>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono truncate max-w-full">
+                  {relayMdDownload.relPath}
+                  {relayMdDownload.serverLabel ? ` · ${relayMdDownload.serverLabel}` : ''}
+                </span>
+              </div>
+            </div>
+          ) : null}
 
           {ogImageUrl ? (
             <div className="pt-2 border-t border-slate-200 dark:border-slate-700">

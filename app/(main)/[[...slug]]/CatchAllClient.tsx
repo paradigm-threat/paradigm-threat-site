@@ -54,6 +54,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
   } | null>(null)
   const [basePath, setBasePath] = useState('')
   const [articleTitle, setArticleTitle] = useState('')
+  const [articleMdRelPath, setArticleMdRelPath] = useState<string | undefined>(undefined)
   const [unusedImages, setUnusedImages] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [filesIndex, setFilesIndex] = useState<any>(null)
@@ -129,24 +130,25 @@ export const CatchAllClient = memo(function CatchAllClient() {
         setError(null)
         setDirectImageLeaf(null)
         setDirectTextLeaf(null)
+        setArticleMdRelPath(undefined)
 
         let articleLoaded = false
         let articleFetchStatus: number | null = null
         const skipMdArticleProbe = isNonArticlePath(requestPath)
         try {
           if (!skipMdArticleProbe) {
-          const articleRes = await remoteRelay.fetchFilesMd(requestPath, vParam, abortController.signal)
-          articleFetchStatus = articleRes.status
+          const articleHit = await remoteRelay.fetchFilesMdResolved(requestPath, vParam, abortController.signal)
+          articleFetchStatus = 200
           if (loadingPathRef.current !== requestPath || !isMounted) return
 
-          if (articleRes.ok) {
-            const text = await articleRes.text()
+          if (articleHit.body) {
+            const text = articleHit.body
             const mdxSource = prepareArticleMarkdown(text)
             const lastSeg = requestPath.split('/').pop() || ''
             const calcBasePath = /\.mdx?$/i.test(lastSeg)
               ? requestPath.split('/').slice(0, -1).join('/')
               : requestPath
-            const inferredTargetPath = /\.mdx?$/i.test(lastSeg) ? requestPath : `${requestPath}.md`
+            const inferredTargetPath = articleHit.relPath
             const articleTitleResolved = resolveArticleDisplayTitle(inferredTargetPath, mdxSource)
             const apiOg = resolveOgImageUrl(mdxSource, calcBasePath)
 
@@ -157,6 +159,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
               setDirectTextLeaf(null)
               setBasePath(calcBasePath || '')
               setContent(mdxSource)
+              setArticleMdRelPath(inferredTargetPath)
               setArticleMeta({ ogImageUrl: apiOg })
               setArticleTitle(articleTitleResolved)
               setDirectFiles([])
@@ -487,6 +490,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
                       title={articleTitle}
                       mdSource={content || ''}
                       ogImageUrl={ogImageUrlForShare}
+                      mdRelayPath={articleMdRelPath}
                     />
                   </div>
                 ) : null}
@@ -501,6 +505,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
                     title={articleTitle}
                     mdSource={content || ''}
                     ogImageUrl={ogImageUrlForShare}
+                    mdRelayPath={articleMdRelPath}
                   />
                 ) : null}
               </article>

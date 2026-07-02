@@ -16,6 +16,8 @@ export interface ArticleClientShellProps {
   articleContent: string
   basePath: string
   articlePath?: string
+  /** Repo-relative path on paradigm-threat-files mirror (e.g. science/foo/page.md). */
+  articleMdPath?: string
   /** @deprecated superseded by mdSource + shareExtract */
   articleDescription?: string
   ogImageUrl?: string
@@ -28,6 +30,7 @@ export function ArticleClientShell ({
   articleContent,
   basePath,
   articlePath,
+  articleMdPath,
   articleDescription,
   ogImageUrl,
   shareExtract,
@@ -135,6 +138,7 @@ export function ArticleClientShell ({
                     mdSource={articleContent}
                     shareExtract={shareExtract}
                     ogImageUrl={ogImageUrl}
+                    mdRelayPath={articleMdPath}
                   />
                 </div>
               ) : null}
@@ -147,6 +151,7 @@ export function ArticleClientShell ({
                   mdSource={articleContent}
                   shareExtract={shareExtract}
                   ogImageUrl={ogImageUrl}
+                  mdRelayPath={articleMdPath}
                 />
               )}
             </article>

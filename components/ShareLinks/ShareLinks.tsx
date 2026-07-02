@@ -37,6 +37,7 @@ export function ShareLinks(props: ShareLinksProps) {
     resetShareCopy,
     cancelShareRewrite,
     usingAiCopy,
+    relayMdDownload,
   } = useShareLinksModel(props)
 
   return (
@@ -79,6 +80,7 @@ export function ShareLinks(props: ShareLinksProps) {
           onResetShareCopy={resetShareCopy}
           onCancelShareRewrite={cancelShareRewrite}
           usingAiCopy={usingAiCopy}
+          relayMdDownload={relayMdDownload}
         />
       ) : null}
     </div>
@@ -115,6 +117,7 @@ export function ShareLinksFloating(props: ShareLinksProps) {
     resetShareCopy,
     cancelShareRewrite,
     usingAiCopy,
+    relayMdDownload,
   } = useShareLinksModel(props)
 
   return (
@@ -159,6 +162,7 @@ export function ShareLinksFloating(props: ShareLinksProps) {
           onResetShareCopy={resetShareCopy}
           onCancelShareRewrite={cancelShareRewrite}
           usingAiCopy={usingAiCopy}
+          relayMdDownload={relayMdDownload}
         />
       ) : null}
     </>

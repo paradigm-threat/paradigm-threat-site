@@ -10,4 +10,6 @@ export interface ShareLinksProps {
   /** Precomputed when SSR already ran extractShareMetadata */
   shareExtract?: ShareExtractResult
   ogImageUrl?: string
+  /** Repo-relative markdown path on paradigm-threat-files (e.g. events/jfk/page.md). */
+  mdRelayPath?: string
 }

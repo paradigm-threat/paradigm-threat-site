@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
+import { useMemo, useState, useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
 import {
   composeInputForOutboundShare,
   composeShareText,
@@ -22,6 +22,13 @@ import {
   type ShareRewriteProgress,
 } from '@/lib/share/draftShareTextWithBrowserAi'
 import { useReplyDraftingAvailable } from '@/lib/replyAssistant/useReplyDraftingAvailable'
+import { remoteRelay } from '@/lib/remoteRelayStore'
+import {
+  buildRelayMdDownloadUrl,
+  relayMdDownloadFilename,
+  resolveArticleMdRelPathForDownload,
+  shouldOfferRelayMdDownload,
+} from '@/lib/share/buildRelayMdDownloadUrl'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://paradigmthreat.net'
 
@@ -128,8 +135,27 @@ export function useShareLinksModel({
   mdSource,
   shareExtract: shareExtractProp,
   ogImageUrl,
+  mdRelayPath,
 }: ShareLinksProps) {
   const absUrl = buildAbsoluteUrl(url)
+
+  const relaySnap = useSyncExternalStore(
+    (cb) => remoteRelay.subscribe(cb),
+    () => remoteRelay.getSnapshot(),
+    () => remoteRelay.getSnapshot(),
+  )
+
+  const relayMdDownload = useMemo(() => {
+    if (!shouldOfferRelayMdDownload(url, mdRelayPath, mdSource)) return null
+    const relPath = resolveArticleMdRelPathForDownload(url, mdRelayPath)
+    if (!relPath || !relaySnap.filesBaseUrl) return null
+    return {
+      url: buildRelayMdDownloadUrl(relaySnap.filesBaseUrl, relPath),
+      filename: relayMdDownloadFilename(relPath),
+      relPath,
+      serverLabel: relaySnap.serverLabel,
+    }
+  }, [url, mdRelayPath, mdSource, relaySnap.filesBaseUrl, relaySnap.serverLabel])
 
   const shareExtract = useMemo(() => {
     if (shareExtractProp) return shareExtractProp
@@ -366,5 +392,6 @@ export function useShareLinksModel({
     resetShareCopy,
     cancelShareRewrite,
     usingAiCopy: aiCopyText != null,
+    relayMdDownload,
   }
 }

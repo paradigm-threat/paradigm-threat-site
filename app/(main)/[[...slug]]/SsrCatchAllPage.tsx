@@ -49,6 +49,7 @@ export async function SsrCatchAllPage ({ params }: SsrCatchAllPageProps) {
         articleContent={article.mdxSource}
         basePath={article.basePath}
         articlePath={path}
+        articleMdPath={article.targetPath}
         articleDescription={description}
         ogImageUrl={article.ogImageUrl}
         shareExtract={shareExtract}

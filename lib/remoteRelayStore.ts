@@ -537,7 +537,39 @@ class RemoteRelayStore {
   /**
    * Fetch markdown for a site URL path (tries path.md, path/page.md, etc.); on timeout/error try other pairs.
    */
-  async fetchFilesMd(logicalPath: string, versionQuery: string, externalAbort: AbortSignal): Promise<Response> {
+  async fetchFilesMdResolved (
+    logicalPath: string,
+    versionQuery: string,
+    externalAbort: AbortSignal,
+  ): Promise<{ body: string; relPath: string }> {
+    const hit = await this.tryFetchFilesMd(logicalPath, versionQuery, externalAbort)
+    if (hit) return hit
+
+    this.ensurePairs()
+    const order = this.pairFailoverOrder()
+    const err = new Error('All relay pairs failed for files MD')
+    const summary = order.map((p) => relayHostLabel(p.files)).join(', ')
+    sendClientTelemetry({
+      kind: 'mirror_md_failed',
+      mirrorPhase: 'files_md',
+      message: err.message.slice(0, 500),
+      mirrorResourcePath: logicalPath.replace(/^\//, '').slice(0, 200),
+      attemptedHostCount: order.length,
+      attemptedHostsSummary: summary.slice(0, 200),
+    })
+    throw err
+  }
+
+  async fetchFilesMd (logicalPath: string, versionQuery: string, externalAbort: AbortSignal): Promise<Response> {
+    const { body, relPath: _relPath } = await this.fetchFilesMdResolved(logicalPath, versionQuery, externalAbort)
+    return new Response(body, { status: 200, statusText: 'OK' })
+  }
+
+  private async tryFetchFilesMd (
+    logicalPath: string,
+    versionQuery: string,
+    externalAbort: AbortSignal,
+  ): Promise<{ body: string; relPath: string } | null> {
     this.ensurePairs()
     const order = this.pairFailoverOrder()
     const candidates = buildArticleMdCandidatePaths(logicalPath)
@@ -555,27 +587,14 @@ class RemoteRelayStore {
           if (p.files !== this.filesOrigin || p.timeline !== this.timelineOrigin) {
             this.switchToPair(p, 'md_failover')
           }
-          return new Response(body, {
-            status: res.status,
-            statusText: res.statusText,
-            headers: res.headers,
-          })
+          return { body, relPath }
         } catch (e) {
           lastErr = e instanceof Error ? e : new Error(String(e))
         }
       }
     }
-    const err = lastErr ?? new Error('All relay pairs failed for files MD')
-    const summary = order.map((p) => relayHostLabel(p.files)).join(', ')
-    sendClientTelemetry({
-      kind: 'mirror_md_failed',
-      mirrorPhase: 'files_md',
-      message: err.message.slice(0, 500),
-      mirrorResourcePath: logicalPath.replace(/^\//, '').slice(0, 200),
-      attemptedHostCount: order.length,
-      attemptedHostsSummary: summary.slice(0, 200),
-    })
-    throw err
+    if (lastErr) throw lastErr
+    return null
   }
 
   /**
