@@ -14,6 +14,8 @@ export interface GalleryImage {
 export interface ImageGalleryContextType {
     images: GalleryImage[]
     registerImage: (img: GalleryImage) => void
+    /** Ref-only metadata sync (no re-render); used each PopImage render. */
+    syncGalleryImageMeta: (img: GalleryImage) => void
     unregisterImage: (src: string) => void
     currentIndex: number
     setCurrentIndex: (index: number) => void
@@ -22,6 +24,8 @@ export interface ImageGalleryContextType {
     /** Replace registered images (e.g. ChangeLog thumbnails). */
     openGallery?: (items: GalleryImage[], startIndex?: number) => void
     clearGalleryOverride?: () => void
+    /** Latest gallery row (includes children patched without re-render). */
+    getGalleryImage: (src: string) => GalleryImage | undefined
 }
 
 const ImageGalleryContext = createContext<ImageGalleryContextType | undefined>(undefined)
@@ -39,17 +43,23 @@ export function ImageGalleryProvider({ children }: { children: React.ReactNode }
     const imagesRef = useRef<GalleryImage[]>([])
 
     const registerImage = useCallback((img: GalleryImage) => {
-        if (!imagesRef.current.find(i => i.src === img.src)) {
-            imagesRef.current = [...imagesRef.current, img]
-            setImages([...imagesRef.current])
-        }
-        return () => {
-            imagesRef.current = imagesRef.current.filter(i => i.src !== img.src)
-            setImages([...imagesRef.current])
-        }
+        if (!img.src) return
+        if (imagesRef.current.some(i => i.src === img.src)) return
+        imagesRef.current = [...imagesRef.current, img]
+        setImages([...imagesRef.current])
+    }, [])
+
+    /** Ref-only: keep captions/highRes in sync without unregister/register setState loops. */
+    const syncGalleryImageMeta = useCallback((img: GalleryImage) => {
+        if (!img.src) return
+        const idx = imagesRef.current.findIndex(i => i.src === img.src)
+        if (idx === -1) return
+        imagesRef.current[idx] = { ...imagesRef.current[idx]!, ...img, src: img.src }
     }, [])
 
     const unregisterImage = useCallback((src: string) => {
+        if (!src) return
+        if (!imagesRef.current.some(i => i.src === src)) return
         imagesRef.current = imagesRef.current.filter(i => i.src !== src)
         setImages([...imagesRef.current])
     }, [])
@@ -66,9 +76,14 @@ export function ImageGalleryProvider({ children }: { children: React.ReactNode }
         setIsOpen(true)
     }, [])
 
+    const getGalleryImage = useCallback((src: string) => {
+        return imagesRef.current.find(i => i.src === src)
+    }, [])
+
     const contextValue = useMemo(() => ({
         images: displayImages,
         registerImage,
+        syncGalleryImageMeta,
         unregisterImage,
         currentIndex,
         setCurrentIndex,
@@ -76,7 +91,8 @@ export function ImageGalleryProvider({ children }: { children: React.ReactNode }
         setIsOpen,
         openGallery,
         clearGalleryOverride,
-    }), [displayImages, registerImage, unregisterImage, currentIndex, isOpen, openGallery, clearGalleryOverride]);
+        getGalleryImage,
+    }), [displayImages, registerImage, syncGalleryImageMeta, unregisterImage, currentIndex, isOpen, openGallery, clearGalleryOverride, getGalleryImage]);
 
     return (
         <ImageGalleryContext.Provider value={contextValue}>
@@ -189,11 +205,15 @@ function GalleryImageItem({
 }
 
 export function ImageGalleryOverlay() {
-    const { images, currentIndex, setCurrentIndex, isOpen, setIsOpen, clearGalleryOverride } = useImageGallery()
+    const { images, currentIndex, setCurrentIndex, isOpen, setIsOpen, clearGalleryOverride, getGalleryImage } = useImageGallery()
     const [direction, setDirection] = useState(0)
     const [remoteCaption, setRemoteCaption] = useState<string | null>(null)
 
     const currentImage = images[currentIndex] || null
+    const liveImage = currentImage?.src ? (getGalleryImage(currentImage.src) ?? currentImage) : null
+    const liveSrc = liveImage?.src
+    const liveAlt = liveImage?.alt
+    const liveChildren = liveImage?.children
 
     useEffect(() => {
         // Preload next and previous images
@@ -211,14 +231,13 @@ export function ImageGalleryOverlay() {
     }, [currentIndex, isOpen, currentImage?.src, images])
 
     useEffect(() => {
-        if (!isOpen || !currentImage) return
+        if (!isOpen || !liveSrc) return
 
-        const currentSrc = currentImage.src;
-        if (typeof currentSrc === 'string' && !currentImage.children && !currentImage.alt && currentSrc && !currentSrc.startsWith('http')) {
+        if (typeof liveSrc === 'string' && !liveChildren && !liveAlt && liveSrc && !liveSrc.startsWith('http')) {
             const FILES_BASE_URL = getPrimaryFilesBaseUrl();
 
             // Fix double slashes and ensure no leading slash for index check
-            const cleanSrc = currentSrc.replace(/\/+/g, '/').replace(/^\/+/, '');
+            const cleanSrc = liveSrc.replace(/\/+/g, '/').replace(/^\/+/, '');
             const mdPath = `${cleanSrc}.md`;
 
             checkFileExists(mdPath).then(exists => {
@@ -234,7 +253,7 @@ export function ImageGalleryOverlay() {
         } else {
             queueMicrotask(() => setRemoteCaption(null));
         }
-    }, [isOpen, currentImage])
+    }, [isOpen, liveSrc, liveAlt, liveChildren])
 
     const goNext = useCallback((e?: React.MouseEvent | KeyboardEvent) => {
         e?.stopPropagation()
@@ -273,14 +292,14 @@ export function ImageGalleryOverlay() {
 
     // Update hash for deep linking when open
     useEffect(() => {
-        if (isOpen && currentImage) {
+        if (isOpen && currentImage?.src) {
             const srcStr = typeof currentImage.src === 'string' ? currentImage.src : '';
             const newHash = `#img=${encodeURIComponent(srcStr)}`;
             if (window.location.hash !== newHash) {
                 window.history.replaceState(null, '', newHash);
             }
         }
-    }, [isOpen, currentIndex, currentImage]);
+    }, [isOpen, currentIndex, currentImage?.src]);
 
     useEffect(() => {
         if (!isOpen) return
@@ -296,13 +315,13 @@ export function ImageGalleryOverlay() {
     const prevImage = images.length > 1 ? images[(currentIndex - 1 + images.length) % images.length] : null;
     const nextImage = images.length > 1 ? images[(currentIndex + 1) % images.length] : null;
     const fallbackCaption =
-        typeof currentImage.src === 'string'
-            ? currentImage.src.split('/').pop()?.split('.')[0]?.replace(/_/g, ' ')
+        typeof liveImage?.src === 'string'
+            ? liveImage.src.split('/').pop()?.split('.')[0]?.replace(/_/g, ' ')
             : '';
     const displayCaption =
-        currentImage.children != null && currentImage.children !== ''
-            ? currentImage.children
-            : remoteCaption || currentImage.alt || fallbackCaption;
+        liveImage?.children != null && liveImage.children !== ''
+            ? liveImage.children
+            : remoteCaption || liveImage?.alt || fallbackCaption;
     const hasCaption = Boolean(displayCaption)
 
     /** Body portal: #site-main-scroll uses z-0, which traps fixed overlays below the sticky header (z-100). */

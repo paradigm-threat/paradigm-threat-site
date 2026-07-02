@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, memo, useSyncExternalStore } from 'react'
+import React, { useEffect, useLayoutEffect, memo, useSyncExternalStore } from 'react'
 import { Maximize2 } from 'lucide-react'
 import ErrorBoundary from '../ErrorBoundary/ErrorBoundary'
 import OptimizedImage from './OptimizedImage'
@@ -22,7 +22,7 @@ function safeImgId(src: unknown): string {
 }
 
 const PopImage = memo(function PopImage({ ...props }: PopImageProps) {
-    const { registerImage, images, currentIndex, setCurrentIndex, setIsOpen } = useImageGallery()
+    const { registerImage, syncGalleryImageMeta, unregisterImage, images, currentIndex, setCurrentIndex, setIsOpen } = useImageGallery()
     const filesRoot = useSyncExternalStore(
         (cb) => remoteRelay.subscribe(cb),
         () => remoteRelay.getSnapshot().filesBaseUrl,
@@ -30,10 +30,19 @@ const PopImage = memo(function PopImage({ ...props }: PopImageProps) {
     )
     const srcProps = processImageProps(props, props.basePath, filesRoot)
     const { children, alt, src, highResSrc } = srcProps
+    const srcStr = typeof src === 'string' ? src : ''
+
+    useLayoutEffect(() => {
+        if (!srcStr) return
+        syncGalleryImageMeta({ src: srcStr, alt, children, highResSrc })
+    }, [srcStr, alt, children, highResSrc, syncGalleryImageMeta])
 
     useEffect(() => {
-        return registerImage({ src: typeof src === 'string' ? src : '', alt, children, highResSrc });
-    }, [src, alt, children, highResSrc, registerImage]);
+        if (!srcStr) return
+        registerImage({ src: srcStr, alt, children, highResSrc })
+        return () => unregisterImage(srcStr)
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- register once per src; layout effect syncs caption metadata
+    }, [srcStr, registerImage, unregisterImage])
 
     function toggleFullscreen() {
         const selfIndex = images.findIndex(img => img.src === src);
@@ -66,7 +75,8 @@ const PopImage = memo(function PopImage({ ...props }: PopImageProps) {
                 }
             }
         }
-    }, [src, images, setCurrentIndex, setIsOpen]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when gallery membership count changes
+    }, [src, images.length, setCurrentIndex, setIsOpen])
 
     const userClasses = srcProps.className || ''
     const hasFloat = userClasses.includes('float-')

@@ -78,44 +78,29 @@ export function TimelineGalleryProvider({
         queueMicrotask(() => setImagesState([...globalImages]))
     }, [globalImages])
 
-    /**
-     * registerImage: When PopImage mounts, it calls this.
-     * - If the src matches a pre-populated image, update its metadata (alt, children, highResSrc)
-     *   and return a NO-OP cleanup (image stays in the gallery permanently).
-     * - If it doesn't match (safety fallback), add it normally with real cleanup.
-     */
-    const registerImage = useCallback(
-        (img: GalleryImage) => {
-            const existingIdx = imagesRef.current.findIndex((i) => i.src === img.src)
-            if (existingIdx !== -1) {
-                // Update metadata from the rendered PopImage (captions, highResSrc, etc.)
-                const existing = imagesRef.current[existingIdx]
-                const updated = {
-                    ...existing,
-                    alt: img.alt || existing.alt,
-                    children: img.children ?? existing.children,
-                    highResSrc: img.highResSrc || existing.highResSrc,
-                }
-                imagesRef.current = [
-                    ...imagesRef.current.slice(0, existingIdx),
-                    updated,
-                    ...imagesRef.current.slice(existingIdx + 1),
-                ]
-                setImagesState([...imagesRef.current])
-                // Return no-op cleanup — image is permanent
-                return () => { }
-            }
+    const registerImage = useCallback((img: GalleryImage) => {
+        if (!img.src) return
+        if (imagesRef.current.some((i) => i.src === img.src)) return
+        imagesRef.current = [...imagesRef.current, img]
+        setImagesState([...imagesRef.current])
+    }, [])
 
-            // Unknown image — add it (safety fallback)
-            imagesRef.current = [...imagesRef.current, img]
-            setImagesState([...imagesRef.current])
-            return () => {
-                imagesRef.current = imagesRef.current.filter((i) => i.src !== img.src)
-                setImagesState([...imagesRef.current])
-            }
-        },
-        []
-    )
+    const syncGalleryImageMeta = useCallback((img: GalleryImage) => {
+        if (!img.src) return
+        const existingIdx = imagesRef.current.findIndex((i) => i.src === img.src)
+        if (existingIdx === -1) return
+        const existing = imagesRef.current[existingIdx]!
+        imagesRef.current[existingIdx] = {
+            ...existing,
+            alt: img.alt || existing.alt,
+            children: img.children ?? existing.children,
+            highResSrc: img.highResSrc || existing.highResSrc,
+        }
+    }, [])
+
+    const getGalleryImage = useCallback((src: string) => {
+        return imagesRef.current.find((i) => i.src === src)
+    }, [])
 
     const unregisterImage = useCallback((_src: string) => {
         // No-op for timeline: images are permanent
@@ -158,26 +143,29 @@ export function TimelineGalleryProvider({
 
     const contextValue = useMemo<ImageGalleryContextType>(
         () => ({
-            images: imagesState,
+            images: overrideImages ?? imagesState,
             registerImage,
+            syncGalleryImageMeta,
             unregisterImage,
             currentIndex,
             setCurrentIndex,
             isOpen,
             setIsOpen,
-            overrideImages,
             openGallery,
             clearGalleryOverride,
+            getGalleryImage,
         }),
         [
+            overrideImages,
             imagesState,
             registerImage,
+            syncGalleryImageMeta,
             unregisterImage,
             currentIndex,
             isOpen,
-            overrideImages,
             openGallery,
             clearGalleryOverride,
+            getGalleryImage,
         ]
     )
 

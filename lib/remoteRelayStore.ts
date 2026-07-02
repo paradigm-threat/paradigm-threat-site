@@ -176,6 +176,15 @@ function t0(): number {
   return typeof performance !== 'undefined' ? performance.now() : Date.now()
 }
 
+export type RemoteRelaySnapshot = {
+  filesBaseUrl: string
+  timelineBaseUrl: string
+  relayBootstrapDone: boolean
+  filesHostLabel: string
+  timelineHostLabel: string
+  serverLabel: string
+}
+
 class RemoteRelayStore {
   private pairs: RelayOriginPair[] = []
   private filesOrigin = ''
@@ -186,6 +195,8 @@ class RemoteRelayStore {
   private probeByIndex: RelayPairProbe[] = []
   private listeners = new Set<() => void>()
   private notifyListeners = new Set<(e: RelayNotifyEvent) => void>()
+  /** Stable reference for useSyncExternalStore until emit() invalidates. */
+  private snapshotCache: RemoteRelaySnapshot | null = null
 
   subscribe(cb: () => void): () => void {
     this.listeners.add(cb)
@@ -198,6 +209,7 @@ class RemoteRelayStore {
   }
 
   private emit(): void {
+    this.snapshotCache = null
     this.listeners.forEach((cb) => cb())
   }
 
@@ -268,11 +280,12 @@ class RemoteRelayStore {
     })
   }
 
-  getSnapshot() {
+  getSnapshot(): RemoteRelaySnapshot {
+    if (this.snapshotCache) return this.snapshotCache
     this.ensurePairs()
     const fb = this.filesOrigin || this.pairs[0]?.files || ''
     const tb = this.timelineOrigin || this.pairs[0]?.timeline || ''
-    return {
+    this.snapshotCache = {
       filesBaseUrl: fb,
       timelineBaseUrl: tb,
       relayBootstrapDone: this.bootstrapDone,
@@ -280,6 +293,7 @@ class RemoteRelayStore {
       timelineHostLabel: relayHostLabel(tb),
       serverLabel: relayServerHost(fb, tb),
     }
+    return this.snapshotCache
   }
 
   /** Selector rows from last bootstrap probe (no extra network on open/select). */
