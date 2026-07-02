@@ -39,6 +39,9 @@ dev_server.log
 # vercel
 .vercel
 
+# SPA build moves catch-all aside when NEXT_PUBLIC_SPA_DOCUMENT_ROUTES=1
+/scripts/.spa-slug-backup/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

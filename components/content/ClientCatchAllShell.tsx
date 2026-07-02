@@ -1,7 +1,7 @@
 'use client'
 
 import React, { Suspense } from 'react'
-import { CatchAllClient } from './CatchAllClient'
+import { CatchAllClient } from '@/components/content/CatchAllClient'
 import { SuspenseLoader } from '@client'
 
 /** Client-only article shell — no server Relay fetch when relay SSR is disabled. */

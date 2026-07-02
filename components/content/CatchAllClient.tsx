@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, memo, useRef, useSyncExternalStore } from 'react'
-import { useParams, usePathname } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { RelayMarkdown } from '@/components/RelayMarkdown'
 import { PopImage, useFiles, ArticleNav } from '@/components'
 import { ArticleRemote404Notice } from '@/components/ArticleRemote404Notice'
@@ -20,7 +20,8 @@ import { isNonArticlePath } from '@/lib/isNonArticlePath'
 import { remoteRelay } from '@/lib/remoteRelayStore'
 import { mirrorRasterOgUrl } from '@/lib/canonicalPublicSite'
 import { applyClientPageMeta } from '@/lib/clientPageMeta'
-import { isServerRelayFetchDisabled } from '@/lib/siteOpsFeature'
+import { pathSegmentsFromPathname } from '@/lib/pathFromPathname'
+import { isServerRelayFetchDisabled, isSpaDocumentRoutesEnabled } from '@/lib/siteOpsFeature'
 
 const DIRECT_IMAGE_EXT = /\.(jpg|jpeg|png|gif|svg|webp|avif|ico)$/i
 const DIRECT_PLAINTEXT_LEAF_EXT = /\.(txt|cs)$/i
@@ -39,7 +40,6 @@ type DirectTextLeaf = {
 }
 
 export const CatchAllClient = memo(function CatchAllClient() {
-  const params = useParams()
   const pathname = usePathname()
   const { suppressOverlay } = useMobileHubTtsChrome()
   const { fileList, loading: indexLoading, error: filesIndexError } = useFiles()
@@ -72,12 +72,9 @@ export const CatchAllClient = memo(function CatchAllClient() {
   const [directImageLeaf, setDirectImageLeaf] = useState<DirectImageLeaf | null>(null)
   const [directTextLeaf, setDirectTextLeaf] = useState<DirectTextLeaf | null>(null)
 
-  const slugArray = useMemo(() => {
-    if (!params.slug) return []
-    return Array.isArray(params.slug) ? params.slug : [params.slug]
-  }, [params.slug])
+  const pathSegments = useMemo(() => pathSegmentsFromPathname(pathname), [pathname])
 
-  const path = useMemo(() => slugArray.join('/'), [slugArray])
+  const path = useMemo(() => pathSegments.join('/'), [pathSegments])
   const persistVisitForArticle = useMemo(
     () =>
       content && pathname && shouldPersistVisit(pathname)
@@ -93,7 +90,9 @@ export const CatchAllClient = memo(function CatchAllClient() {
   }, [content, basePath, articleMeta])
 
   useEffect(() => {
-    if (!isServerRelayFetchDisabled() || !content || !articleTitle) return
+    if (!content || !articleTitle) return
+    // Catch-all + server relay: generateMetadata owns head tags. SPA mode: client only.
+    if (!isSpaDocumentRoutesEnabled() && !isServerRelayFetchDisabled()) return
     applyClientPageMeta({
       title: `${articleTitle} | Paradigm Threat`,
       description: `Read ${articleTitle} on Paradigm Threat.`,
@@ -200,7 +199,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
         } else {
           let current = tree
           if (current && typeof current === 'object') {
-            for (const s of slugArray) {
+            for (const s of pathSegments) {
               if (current && typeof current === 'object' && current[s]) current = current[s]
               else { current = null; break }
             }
@@ -210,7 +209,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
 
           const pathMissingFromIndex = current === null
 
-          const lastSeg = slugArray.length ? slugArray[slugArray.length - 1] : ''
+          const lastSeg = pathSegments.length ? pathSegments[pathSegments.length - 1] : ''
           const looksLikeRasterImage = DIRECT_IMAGE_EXT.test(lastSeg)
           const isImageFileLeaf =
             current &&
@@ -219,7 +218,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
             looksLikeRasterImage
 
           if (isImageFileLeaf) {
-            const parentParts = slugArray.slice(0, -1)
+            const parentParts = pathSegments.slice(0, -1)
             const calcBasePath = parentParts.join('/')
             const meta = current as Record<string, unknown>
             const titled =
@@ -386,7 +385,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
       loadingPathRef.current = null
       abortController.abort()
     }
-  }, [path, pathname, slugArray, fileList, indexLoading, articleRetryKey, filesBaseUrl])
+  }, [path, pathname, pathSegments, fileList, indexLoading, articleRetryKey, filesBaseUrl])
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 50)
@@ -621,7 +620,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {subDirs.map(dir => {
                     let current = filesIndex
-                    for (const s of slugArray) if (current) current = current[s]
+                    for (const s of pathSegments) if (current) current = current[s]
                     const node = current?.[dir]
                     const count = node?._count || 0
                     const title = node?._title
@@ -668,7 +667,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
                 <div className="grid grid-cols-1 gap-4">
                   {mds.map(file => {
                     let cur = filesIndex
-                    for (const s of slugArray) {
+                    for (const s of pathSegments) {
                       if (cur) cur = cur[s]
                     }
                     const fileNode = cur?.[file]
@@ -718,7 +717,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                   {images.map(img => {
                     let current = filesIndex
-                    for (const s of slugArray) if (current) current = current[s]
+                    for (const s of pathSegments) if (current) current = current[s]
                     const imgMeta = current?.[img]
                     const imgTitle = imgMeta?._title
                     const imgDateTiny = formatIndexDateTiny(imgMeta?._updated)

@@ -62,3 +62,12 @@ export function isInvestigationSubmitEnabled (): boolean {
 export function isSsrMirrorRedirectEnabled (): boolean {
   return false
 }
+
+/**
+ * Interim SPA: rewrite article/hub paths to `/` (one cached shell, no per-path route).
+ * Default off — keeps `[[...slug]]` + server `generateMetadata` (social previews).
+ * Set `NEXT_PUBLIC_SPA_DOCUMENT_ROUTES=1` and redeploy if edge quota is critical.
+ */
+export function isSpaDocumentRoutesEnabled (): boolean {
+  return process.env.NEXT_PUBLIC_SPA_DOCUMENT_ROUTES === '1'
+}

@@ -12,6 +12,7 @@ import {
 
 const ARTICLE_PLAIN_MAX = 24_000
 
+export type { ShareRewriteTone } from '@/lib/share/buildShareRewritePrompt'
 export type DraftShareTextInput = {
   platform: SharePlatformId
   title: string

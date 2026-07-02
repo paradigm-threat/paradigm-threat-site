@@ -9,7 +9,7 @@ import { ArticleMarkdownRegion } from '@/components/ArticleMarkdownRegion'
 import { ArticleJsonLd } from '@/components/ArticleJsonLd'
 import { ArticleClientShell } from '@/components/ArticleClientShell'
 import { TextLeafClientShell } from '@/components/TextLeafClientShell'
-import { ClientCatchAllShell } from './ClientCatchAllShell'
+import { ClientCatchAllShell } from '@/components/content/ClientCatchAllShell'
 
 interface SsrCatchAllPageProps {
   params?: Promise<{ slug?: string | string[] }>

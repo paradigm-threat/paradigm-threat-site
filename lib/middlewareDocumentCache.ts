@@ -6,7 +6,9 @@ export const EDGE_NO_CACHE_PREFIXES = [
   '/search',
   '/timeline',
   '/reply',
+  '/submit',
   '/export',
+  '/files/',
   '/site/',
 ] as const
 

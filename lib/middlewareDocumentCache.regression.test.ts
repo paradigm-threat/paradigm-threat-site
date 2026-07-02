@@ -17,6 +17,8 @@ describe('shouldCacheDocumentPath', () => {
     assert.equal(shouldCacheDocumentPath('/chat'), false)
     assert.equal(shouldCacheDocumentPath('/search'), false)
     assert.equal(shouldCacheDocumentPath('/timeline/evt-x'), false)
+    assert.equal(shouldCacheDocumentPath('/submit'), false)
+    assert.equal(shouldCacheDocumentPath('/files/foo'), false)
     assert.equal(shouldCacheDocumentPath('/_next/data/x'), false)
   })
 })

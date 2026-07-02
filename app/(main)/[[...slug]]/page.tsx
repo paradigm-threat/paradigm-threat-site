@@ -1,4 +1,4 @@
-import { ClientCatchAllShell } from './ClientCatchAllShell'
+import { ClientCatchAllShell } from '@/components/content/ClientCatchAllShell'
 import { SsrCatchAllPage } from './SsrCatchAllPage'
 
 const SERVER_RELAY_FETCH = process.env.NEXT_PUBLIC_SERVER_RELAY_FETCH === '1'

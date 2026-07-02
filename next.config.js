@@ -95,6 +95,9 @@ const withPWA = require('@ducanh2912/next-pwa').default({
   },
 })
 
+/** When 1, article paths rewrite to `/` (see lib/spaDocumentRoutes.ts). Default off in production. */
+const SPA_DOCUMENT_ROUTES = process.env.NEXT_PUBLIC_SPA_DOCUMENT_ROUTES === '1'
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Transpile the local animation package (ESM, needs Next.js compilation)
@@ -175,28 +178,37 @@ const nextConfig = {
       },
     ]
   },
+  async rewrites() {
+    if (!SPA_DOCUMENT_ROUTES) return { beforeFiles: [] }
+    // Keep in sync with lib/spaDocumentRoutes.ts SPA_REWRITE_SOURCE
+    const spaRewriteSource =
+      '/((?!api/|_next/|timeline(?:/|$)|search(?:/|$)|chat(?:/|$)|reply(?:/|$)|submit(?:/|$)|export(?:/|$)|files(?:/|$)|site(?:/|$)|wasm/|robots\\.txt|sitemap\\.xml|favicon\\.ico|manifest\\.json|sw\\.js|swe-worker).*)'
+    return {
+      beforeFiles: [
+        { source: spaRewriteSource, destination: '/' },
+      ],
+    }
+  },
   async headers() {
     const documentCacheControl = `public, s-maxage=${EDGE_DOCUMENT_S_MAXAGE}, stale-while-revalidate=${EDGE_DOCUMENT_STALE_WHILE_REVALIDATE}`
-    return [
+    const documentCacheHeaders = [
+      { key: 'Vercel-CDN-Cache-Control', value: documentCacheControl },
+      { key: 'CDN-Cache-Control', value: documentCacheControl },
+      { key: 'Cache-Control', value: documentCacheControl },
+    ]
+    const documentHeaderRules = []
+    if (SPA_DOCUMENT_ROUTES) {
+      documentHeaderRules.push({ source: '/', headers: documentCacheHeaders })
+    }
+    documentHeaderRules.push(
       {
-        // Article/hub document routes — exclude interactive app surfaces and APIs.
         source:
-          '/((?!api/|_next/|chat(?:/|$)|search(?:/|$)|timeline(?:/|$)|reply(?:/|$)|export(?:/|$)|site(?:/|$)|robots\\.txt|sitemap\\.xml|favicon\\.ico).*)',
-        headers: [
-          {
-            key: 'Vercel-CDN-Cache-Control',
-            value: documentCacheControl,
-          },
-          {
-            key: 'CDN-Cache-Control',
-            value: documentCacheControl,
-          },
-          {
-            key: 'Cache-Control',
-            value: documentCacheControl,
-          },
-        ],
+          '/((?!api/|_next/|chat(?:/|$)|search(?:/|$)|timeline(?:/|$)|reply(?:/|$)|submit(?:/|$)|export(?:/|$)|site(?:/|$)|robots\\.txt|sitemap\\.xml|favicon\\.ico).*)',
+        headers: documentCacheHeaders,
       },
+    )
+    return [
+      ...documentHeaderRules,
       {
         source: '/(.*)',
         headers: [
