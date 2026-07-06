@@ -1,6 +1,7 @@
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
 import { expandSearchKeywords } from '@/lib/replyAssistant/expandKeywords'
 import { rankEntriesForSourceText } from '@/lib/replyAssistant/rankForText'
+import { scoreSearchEntry } from '@/lib/search/searchRankScore'
 import { matchSiteClaims } from '@/lib/siteAi/matchSiteClaims'
 import {
   type SearchContentFilters,
@@ -72,13 +73,11 @@ export type PartitionedArticleHits = {
 }
 
 function scoreMapForQuery (
-  entries: IndexedPathEntry[],
+  hits: IndexedPathEntry[],
   query: string,
-  filters: SearchContentFilters,
 ): Map<string, number> {
-  const { results } = rankEntriesForSourceText(entries, query, entries.length, filters)
   const scores = new Map<string, number>()
-  for (const r of results) scores.set(r.path, r.score)
+  for (const entry of hits) scores.set(entry.path, scoreSearchEntry(entry, query))
   return scores
 }
 
@@ -96,12 +95,12 @@ export function partitionArticleHits (
     return { primary: andHits, suggested: [] }
   }
 
-  const scores = scoreMapForQuery(allEntries, clean, filters)
+  const scores = scoreMapForQuery(andHits, clean)
   const andPathSet = new Set(andHits.map((e) => e.path))
 
   const primary = [...andHits].sort((a, b) => {
-    const sa = scores.get(a.path) ?? 0
-    const sb = scores.get(b.path) ?? 0
+    const sa = scores.get(a.path) ?? scoreSearchEntry(a, clean)
+    const sb = scores.get(b.path) ?? scoreSearchEntry(b, clean)
     if (sb !== sa) return sb - sa
     return a.path.localeCompare(b.path)
   })

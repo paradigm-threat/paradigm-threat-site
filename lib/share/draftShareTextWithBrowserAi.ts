@@ -91,11 +91,18 @@ export async function draftShareTextWithBrowserAi (
   try {
     input.onProgress?.({ message: 'Rewriting caption…', percent: null })
     const raw = await session.prompt(userPrompt, { signal: input.signal })
-    const text = trimToCharLimit(raw.trim(), maxChars)
+    const text = enforceCharLimit(raw.trim(), maxChars)
     return { text, charCount: text.length }
   } finally {
     session.destroy()
   }
+}
+
+/** Last-resort trim when the model exceeds the platform limit despite prompt instructions. */
+export function enforceCharLimit (text: string, maxChars: number): string {
+  const trimmed = text.trim()
+  if (trimmed.length <= maxChars) return trimmed
+  return trimToCharLimit(trimmed, maxChars)
 }
 
 function trimToCharLimit (text: string, maxChars: number): string {

@@ -21,11 +21,17 @@ export function buildBlogItemsFromIndex (
 
     const meta = data && typeof data === 'object' ? (data as Record<string, unknown>) : {}
     const updated = typeof meta._updated === 'string' ? meta._updated : ''
+    const originalPublishedAt =
+      typeof meta._originalPublishedAt === 'string' && meta._originalPublishedAt.trim()
+        ? meta._originalPublishedAt.trim()
+        : null
 
     items.push({
       path: `blog/${file}`,
       href: blogHref(file),
-      date: updated,
+      date: originalPublishedAt ?? updated,
+      updatedAt: updated,
+      originalPublishedAt,
       repo: 'paradigm-threat-files',
       imageSrc: null,
       kind: 'blog',
@@ -55,6 +61,8 @@ export function mergeBlogTabItems (
       ...(prev || item),
       ...item,
       date: item.date || prev?.date || '',
+      updatedAt: item.updatedAt || prev?.updatedAt || item.date || prev?.date || '',
+      originalPublishedAt: item.originalPublishedAt ?? prev?.originalPublishedAt ?? null,
       imageSrc: item.imageSrc ?? prev?.imageSrc ?? null,
     })
   }

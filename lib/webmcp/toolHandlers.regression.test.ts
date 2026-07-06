@@ -4,6 +4,7 @@ import type { IndexedPathEntry } from '../../components/helpers/indexHelper.ts'
 import {
   executeSearchSite,
   executeFindArticlesForText,
+  executePrepareIllustrationPrompt,
   executeListSearchFilters,
   executePrepareReplyContext,
   executeListIndexEntries,
@@ -99,6 +100,21 @@ describe('webmcp tool handlers', () => {
     const parsed = JSON.parse(text) as { perspective: string }
     assert.ok(parsed.perspective.includes('æther'))
     assert.ok(parsed.perspective.includes('Tartaria'))
+  })
+
+  it('prepare_illustration_prompt builds CLI from inline markdown', async () => {
+    const md = `# Test Article\n\nSubtitle here.\n\n<!-- image-gen:hero\nprompt: buried ring concept art\nmodel: final\n-->\n`
+    const result = await executePrepareIllustrationPrompt({
+      articlePath: 'science/test/article.md',
+      markdown: md,
+      slot: 'hero',
+    })
+    const text = result.content[0]?.type === 'text' ? result.content[0].text : ''
+    const parsed = JSON.parse(text) as { prompt: string; cliCommand: string; outputBasename: string }
+    assert.ok(parsed.prompt.includes('buried ring'))
+    assert.ok(parsed.cliCommand.includes('generate-illustration.py'))
+    assert.ok(parsed.outputBasename.endsWith('article.png'))
+    assert.notEqual(result.isError, true)
   })
 
   it('submit_investigation_idea rejects short description', async () => {

@@ -9,7 +9,7 @@ import {
 describe('buildShareRewritePrompt', () => {
   it('includes tone and platform limit in prompts', () => {
     const system = buildShareRewriteSystemPrompt('brief')
-    assert.match(system, /brief/i)
+    assert.match(system, /Keep it tight/i)
     assert.match(system, /complete sentences/i)
 
     const user = buildShareRewriteUserPrompt({
@@ -24,6 +24,7 @@ describe('buildShareRewritePrompt', () => {
     })
     assert.match(user, /Instagram/)
     assert.match(user, /Character limit: 2200/)
+    assert.match(user, /summarize to fit/i)
     assert.match(user, /Full body paragraph one/)
     assert.match(user, /Truncated/)
     assert.match(user, /#test #article/)

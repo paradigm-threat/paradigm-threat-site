@@ -1,6 +1,7 @@
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
 import { extractTermsFromText, extractedSearchQueries } from '@/lib/replyAssistant/extractTerms'
 import { searchEntryTitle } from '@/lib/searchEntryDisplay'
+import { scoreSearchEntry } from '@/lib/search/searchRankScore'
 import {
   type SearchContentFilters,
   filterIndexedEntriesByQuery,
@@ -65,14 +66,16 @@ export function rankEntriesForSourceText (
 
   const results = Array.from(merged.values())
     .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score
+      const sa = Math.max(a.score, scoreSearchEntry(a.entry, sourceText))
+      const sb = Math.max(b.score, scoreSearchEntry(b.entry, sourceText))
+      if (sb !== sa) return sb - sa
       return a.entry.path.localeCompare(b.entry.path)
     })
     .slice(0, maxArticles)
     .map(({ entry, score, matched }) => ({
       path: entry.path,
       title: searchEntryTitle(entry),
-      score,
+      score: Math.max(score, scoreSearchEntry(entry, sourceText)),
       matchedTerms: matched,
       canonicalUrl: canonicalUrlFor?.(entry.path),
     }))

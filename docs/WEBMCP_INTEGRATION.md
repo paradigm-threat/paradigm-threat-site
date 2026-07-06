@@ -672,6 +672,7 @@ pnpm add @mcp-b/webmcp-polyfill @mcp-b/webmcp-types
 |---|---|---|---|
 | `search_site` | 1 | Read | `searchIndexFilter`, `clientMergedSearchIndex` |
 | `suggest_search_from_path` | 1 | Read | `pathSearchQuery` |
+| `prepare_illustration_prompt` | 1 | Read | `lib/illustration/prepareIllustrationPrompt` → local `generate-illustration.py` |
 | `get_article_context` | 1 | Read | `extractShareMetadata`, index |
 | `compose_share_text` | 1 | Read | `composeShareText`, `platformLimits` |
 | `list_search_filters` | 1 | Read | `SearchContentFilters` |

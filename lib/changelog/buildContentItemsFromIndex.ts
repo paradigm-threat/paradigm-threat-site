@@ -1,6 +1,6 @@
 import { classifyContentPath, type ContentKind } from './classifyContentPath'
 import type { ContentItem, ContentItemsByTab } from './buildContentItemsFromChangelog'
-import { parseIndexUpdated } from '@/lib/indexUpdated'
+import { parseIndexUpdated, getIndexUpdatedTime } from '@/lib/indexUpdated'
 
 export const RECENT_CONTENT_DAYS = 30
 
@@ -26,6 +26,26 @@ function contentHref (path: string): string {
   return `/${normalized}`
 }
 
+function parseOriginalPublishedAt (value: unknown): string | null {
+  if (typeof value !== 'string' || !value.trim()) return null
+  const d = parseIndexUpdated(value)
+  return d ? value.trim() : null
+}
+
+function sortDateForItem (item: ContentItem): number {
+  return getIndexUpdatedTime(item.date)
+}
+
+function compareContentItemsByDate (a: ContentItem, b: ContentItem): number {
+  const diff = sortDateForItem(b) - sortDateForItem(a)
+  if (diff !== 0) return diff
+  return a.path.localeCompare(b.path)
+}
+
+function sortArticlesAndInvestigations (items: ContentItem[]): void {
+  items.sort(compareContentItemsByDate)
+}
+
 function walkIndexLeaves (
   node: Record<string, unknown>,
   prefix: string,
@@ -48,10 +68,16 @@ function walkIndexLeaves (
       const updated = parseIndexUpdated(record._updated)
       if (!updated || updated.getTime() < cutoffMs) continue
 
+      const updatedRaw = String(record._updated)
+      const originalPublishedAt = parseOriginalPublishedAt(record._originalPublishedAt)
+      const sortDate = originalPublishedAt ?? updatedRaw
+
       out.push({
         path,
         href: contentHref(path),
-        date: String(record._updated),
+        date: sortDate,
+        updatedAt: updatedRaw,
+        originalPublishedAt,
         repo: 'paradigm-threat-files',
         imageSrc: null,
         kind: kind as Exclude<ContentKind, 'exclude'>,
@@ -89,12 +115,9 @@ export function buildContentItemsFromIndex (
     else blogPosts.push(item)
   }
 
-  const byDateDesc = (a: ContentItem, b: ContentItem) =>
-    new Date(b.date).getTime() - new Date(a.date).getTime()
-
-  articles.sort(byDateDesc)
-  investigations.sort(byDateDesc)
-  blogPosts.sort(byDateDesc)
+  sortArticlesAndInvestigations(articles)
+  sortArticlesAndInvestigations(investigations)
+  blogPosts.sort(compareContentItemsByDate)
 
   return { articles, investigations, blog: blogPosts }
 }
@@ -115,6 +138,7 @@ export function mergeChangelogImagesIntoItems (
     items.map((item) => ({
       ...item,
       imageSrc: imageByPath.get(item.path) ?? item.imageSrc,
+      originalPublishedAt: item.originalPublishedAt,
     }))
 
   return {

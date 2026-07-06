@@ -26,7 +26,12 @@ export type TabContentKind = Exclude<ContentKind, 'exclude'>
 export interface ContentItem {
   path: string
   href: string
+  /** Sort key: original publish date when known, else last updated. */
   date: string
+  /** Last modified from index `_updated`. */
+  updatedAt: string
+  /** Substack original publish when available in index.json. */
+  originalPublishedAt: string | null
   repo: string
   imageSrc: string | null
   kind: TabContentKind
@@ -86,6 +91,8 @@ function upsertItem (
     path: file.path,
     href: file.href,
     date: entry.date,
+    updatedAt: entry.date,
+    originalPublishedAt: existing?.originalPublishedAt ?? null,
     repo: entry.repo,
     imageSrc: imageFromEntry ?? existing?.imageSrc ?? null,
     kind,

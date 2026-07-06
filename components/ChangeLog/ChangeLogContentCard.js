@@ -3,11 +3,29 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { changelogThumbSrc } from './changelogThumbUtils'
+import { formatIndexDateTiny, parseIndexUpdated } from '@/lib/indexUpdated'
 import styles from './ChangeLog.module.css'
 
 function placeholderTitleFromPath (path) {
   const base = String(path || '').split('/').pop() || ''
   return base.replace(/_/g, ' ').replace(/\.md$/i, '')
+}
+
+function formatChangelogDateLine (label, iso) {
+  const formatted = formatIndexDateTiny(iso)
+  if (!formatted) return null
+  return `${label}: ${formatted}`
+}
+
+function sameCalendarDay (a, b) {
+  const da = parseIndexUpdated(a)
+  const db = parseIndexUpdated(b)
+  if (!da || !db) return false
+  return (
+    da.getFullYear() === db.getFullYear()
+    && da.getMonth() === db.getMonth()
+    && da.getDate() === db.getDate()
+  )
 }
 
 export default function ChangeLogContentCard ({
@@ -26,9 +44,14 @@ export default function ChangeLogContentCard ({
   const thumbSrc = showImage ? changelogThumbSrc(item.imageSrc) : ''
   const thumbClass = `${styles.contentCardThumb}${fullscreen ? ` ${styles.thumbFs}` : ''}`
 
-  const dateLabel = item.date
-    ? new Date(item.date).toLocaleString('en-US', { dateStyle: 'medium' })
-    : ''
+  const publishedLine = item.originalPublishedAt
+    ? formatChangelogDateLine('Originally published', item.originalPublishedAt)
+    : null
+  const updatedLine = formatChangelogDateLine('Last updated', item.updatedAt || item.date)
+  const showBothDates = publishedLine && updatedLine && !sameCalendarDay(item.originalPublishedAt, item.updatedAt || item.date)
+  const singleDateLine = showBothDates
+    ? null
+    : (publishedLine || updatedLine)
 
   const inner = (
   <>
@@ -46,8 +69,18 @@ export default function ChangeLogContentCard ({
     ) : null}
     <div className={styles.contentCardBody}>
       <h3 className={styles.contentCardTitle}>{displayTitle}</h3>
-      {dateLabel ? (
-        <time className={styles.contentCardDate} dateTime={item.date}>{dateLabel}</time>
+      {showBothDates ? (
+        <div className={styles.contentCardDates}>
+          <time className={styles.contentCardDate} dateTime={item.originalPublishedAt}>{publishedLine}</time>
+          <time className={styles.contentCardDate} dateTime={item.updatedAt || item.date}>{updatedLine}</time>
+        </div>
+      ) : singleDateLine ? (
+        <time
+          className={styles.contentCardDate}
+          dateTime={item.originalPublishedAt || item.updatedAt || item.date}
+        >
+          {singleDateLine}
+        </time>
       ) : null}
       {loadingMeta && !description ? (
         <p className={styles.contentCardDescSkeleton} aria-hidden />

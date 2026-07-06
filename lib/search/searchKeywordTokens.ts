@@ -45,7 +45,7 @@ export function isKeywordExpansionSource (path: string): boolean {
   return /\.mdx?$/i.test(path)
 }
 
-/** Title, keywords, and snippet — omit repo path segments like events/ or .jpg stems. */
+/** Title and keywords — omit repo path segments like events/ or .jpg stems. */
 export function searchableTextWithoutPath (entry: IndexedPathEntry): string {
   const normPath = entry.path.replace(/\\/g, '/')
   let text = entry.searchText

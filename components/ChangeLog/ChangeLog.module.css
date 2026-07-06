@@ -376,10 +376,20 @@
     color: rgb(248 250 252);
 }
 
+.contentCardDates {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    margin-bottom: 0.35rem;
+}
+
 .contentCardDate {
     display: block;
     font-size: 0.75rem;
     color: rgb(100 116 139);
+}
+
+.contentCardDate:only-child {
     margin-bottom: 0.35rem;
 }
 

@@ -31,5 +31,6 @@ describe('registerTools WEBMCP_TOOL_NAMES', () => {
     }
     assert.equal(WEBMCP_TOOL_NAMES.includes('draft_reply_to_text'), false)
     assert.ok(WEBMCP_TOOL_NAMES.includes('submit_investigation_idea'))
+    assert.ok(WEBMCP_TOOL_NAMES.includes('prepare_illustration_prompt'))
   })
 })

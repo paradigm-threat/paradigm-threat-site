@@ -1,4 +1,4 @@
-/** index.json file entries may include `_updated` (ISO 8601 UTC from generate-index). paradigm-threat-files: blog `YYYY-MM-DD-*.md` uses filename date at 12:00 UTC; other tracked files use last Git commit touching the path; untracked falls back to mtime. paradigm-threat-timeline: Git then mtime. */
+/** index.json file entries may include `_updated` (ISO 8601 UTC from generate-index) and optional `_originalPublishedAt` (Substack publish). */
 
 export function parseIndexUpdated(iso: unknown): Date | null {
   if (typeof iso !== 'string' || !iso.trim()) return null

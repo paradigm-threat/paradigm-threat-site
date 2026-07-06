@@ -1,4 +1,5 @@
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
+import { REPLY_STOPWORDS } from '@/lib/replyAssistant/stopwords'
 
 export type SearchContentFilters = {
   /** When false, paths under `blog/` are hidden from search results. */
@@ -42,7 +43,14 @@ export function searchTermMatchesHaystack(term: string, haystack: string): boole
   return false
 }
 
-/** Same AND semantics as `/search`: every whitespace-separated term must appear in searchText (lowercased). */
+/** AND terms for keyword search; drops stopwords when the query has other tokens. */
+export function queryTermsForAndFilter (cleanQuery: string): string[] {
+  const raw = cleanQuery.trim().toLowerCase().split(/\s+/).filter(Boolean)
+  const meaningful = raw.filter((t) => !REPLY_STOPWORDS.has(t))
+  return meaningful.length > 0 ? meaningful : raw
+}
+
+/** Same AND semantics as `/search`: every term must appear in searchText (lowercased). */
 export function filterIndexedEntriesByQuery(
   entries: IndexedPathEntry[],
   query: string,
@@ -52,7 +60,7 @@ export function filterIndexedEntriesByQuery(
   const cleanQuery = query.trim().toLowerCase()
   if (cleanQuery.length < 2) return []
 
-  const searchTerms = cleanQuery.split(/\s+/).filter(Boolean)
+  const searchTerms = queryTermsForAndFilter(cleanQuery)
   return entries.filter((entry) => {
     if (!entry || typeof entry.path !== 'string') return false
     if (entry.path.includes('.auto.md')) return false

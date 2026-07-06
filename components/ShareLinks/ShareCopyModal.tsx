@@ -23,6 +23,9 @@ export interface ShareCopyModalProps {
   onClose: () => void
   copyText: string
   charCount: number
+  /** Platform character limit for the selected format (when applicable). */
+  copyCharLimit?: number
+  onCopyTextChange?: (text: string) => void
   /** X/Threads: optional t.co-style weighted length for composer hint */
   xComposerWeight?: number
   platformActions: ShareCopyPlatformAction[]
@@ -42,6 +45,7 @@ export interface ShareCopyModalProps {
   onResetShareCopy?: () => void
   onCancelShareRewrite?: () => void
   usingAiCopy?: boolean
+  copyIsEdited?: boolean
   relayMdDownload?: {
     url: string
     filename: string
@@ -81,6 +85,8 @@ export function ShareCopyModal ({
   onClose,
   copyText,
   charCount,
+  copyCharLimit,
+  onCopyTextChange,
   xComposerWeight,
   platformActions,
   ogImageUrl,
@@ -99,6 +105,7 @@ export function ShareCopyModal ({
   onResetShareCopy,
   onCancelShareRewrite,
   usingAiCopy = false,
+  copyIsEdited = false,
   relayMdDownload = null,
 }: ShareCopyModalProps) {
   const [copied, setCopied] = React.useState(false)
@@ -218,7 +225,7 @@ export function ShareCopyModal ({
                     Cancel
                   </button>
                 ) : null}
-                {usingAiCopy && !shareRewriting ? (
+                {copyIsEdited && !shareRewriting ? (
                   <button
                     type="button"
                     onClick={() => onResetShareCopy?.()}
@@ -268,12 +275,29 @@ export function ShareCopyModal ({
 
           <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Text to copy</label>
           <textarea
-            readOnly
             value={copyText}
+            onChange={(e) => onCopyTextChange?.(e.target.value)}
             rows={Math.min(18, Math.max(6, Math.ceil(copyText.length / 72)))}
             className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm p-3 font-mono resize-y min-h-[120px]"
-            onFocus={(e) => e.target.select()}
+            aria-describedby="share-copy-char-count"
           />
+          <p
+            id="share-copy-char-count"
+            className={`text-[11px] ${
+              copyCharLimit != null && charCount > copyCharLimit
+                ? 'text-amber-600 dark:text-amber-400'
+                : 'text-slate-500 dark:text-slate-400'
+            }`}
+          >
+            {charCount.toLocaleString()}
+            {copyCharLimit != null ? ` / ${copyCharLimit.toLocaleString()} characters` : ' characters'}
+            {xComposerWeight != null && copyFormatPlatform === 'x'
+              ? ` · X weighted length ~${xComposerWeight}`
+              : null}
+            {copyCharLimit != null && charCount > copyCharLimit
+              ? ' — over platform limit'
+              : null}
+          </p>
 
           <div className="flex flex-wrap items-center gap-2">
             <label

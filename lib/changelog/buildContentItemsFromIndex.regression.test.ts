@@ -47,7 +47,28 @@ describe('buildContentItemsFromIndex', () => {
     assert.ok(!result.investigations.some((i) => i.path.startsWith('docs/')))
   })
 
-  it('sorts by _updated descending', () => {
+  it('sorts by original publish date when present, else _updated', () => {
+    const index = {
+      a: {
+        'old-publish.md': {
+          _updated: '2026-06-25T12:00:00Z',
+          _originalPublishedAt: '2026-01-01T12:00:00Z',
+        },
+      },
+      b: { 'newer-update.md': { _updated: '2026-06-28T12:00:00Z' } },
+    }
+    const result = buildContentItemsFromIndex(index, { now: NOW })
+    assert.deepEqual(
+      result.articles.map((x) => x.path),
+      ['b/newer-update.md', 'a/old-publish.md'],
+    )
+    const published = result.articles.find((x) => x.path === 'a/old-publish.md')
+    assert.equal(published?.originalPublishedAt, '2026-01-01T12:00:00Z')
+    assert.equal(published?.updatedAt, '2026-06-25T12:00:00Z')
+    assert.equal(published?.date, '2026-01-01T12:00:00Z')
+  })
+
+  it('sorts by _updated descending when no original publish date', () => {
     const index = {
       a: { 'one.md': { _updated: '2026-06-20T12:00:00Z' } },
       b: { 'two.md': { _updated: '2026-06-25T12:00:00Z' } },

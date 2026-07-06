@@ -19,6 +19,8 @@ export function ShareLinks(props: ShareLinksProps) {
     closeModal,
     activeCopyText,
     charCount,
+    copyCharLimit,
+    setCopyText,
     xComposerWeight,
     platformOutbounds,
     ogImageUrl,
@@ -37,6 +39,7 @@ export function ShareLinks(props: ShareLinksProps) {
     resetShareCopy,
     cancelShareRewrite,
     usingAiCopy,
+    copyIsEdited,
     relayMdDownload,
   } = useShareLinksModel(props)
 
@@ -62,6 +65,8 @@ export function ShareLinks(props: ShareLinksProps) {
           onClose={closeModal}
           copyText={activeCopyText}
           charCount={charCount}
+          copyCharLimit={copyCharLimit}
+          onCopyTextChange={setCopyText}
           xComposerWeight={xComposerWeight}
           platformActions={platformOutbounds}
           ogImageUrl={ogImageUrl}
@@ -80,6 +85,7 @@ export function ShareLinks(props: ShareLinksProps) {
           onResetShareCopy={resetShareCopy}
           onCancelShareRewrite={cancelShareRewrite}
           usingAiCopy={usingAiCopy}
+          copyIsEdited={copyIsEdited}
           relayMdDownload={relayMdDownload}
         />
       ) : null}
@@ -99,6 +105,8 @@ export function ShareLinksFloating(props: ShareLinksProps) {
     closeModal,
     activeCopyText,
     charCount,
+    copyCharLimit,
+    setCopyText,
     xComposerWeight,
     platformOutbounds,
     ogImageUrl,
@@ -117,6 +125,7 @@ export function ShareLinksFloating(props: ShareLinksProps) {
     resetShareCopy,
     cancelShareRewrite,
     usingAiCopy,
+    copyIsEdited,
     relayMdDownload,
   } = useShareLinksModel(props)
 
@@ -144,6 +153,8 @@ export function ShareLinksFloating(props: ShareLinksProps) {
           onClose={closeModal}
           copyText={activeCopyText}
           charCount={charCount}
+          copyCharLimit={copyCharLimit}
+          onCopyTextChange={setCopyText}
           xComposerWeight={xComposerWeight}
           platformActions={platformOutbounds}
           ogImageUrl={ogImageUrl}
@@ -162,6 +173,7 @@ export function ShareLinksFloating(props: ShareLinksProps) {
           onResetShareCopy={resetShareCopy}
           onCancelShareRewrite={cancelShareRewrite}
           usingAiCopy={usingAiCopy}
+          copyIsEdited={copyIsEdited}
           relayMdDownload={relayMdDownload}
         />
       ) : null}

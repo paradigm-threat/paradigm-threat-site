@@ -26,8 +26,11 @@ import { platformModalCopyLimit } from '@/lib/share/platformLimits'
 import {
   filterIndexedEntriesByQuery,
 } from '@/lib/searchIndexFilter'
+import { filterAndRankSearchEntries } from '@/lib/search/searchSiteQuery'
+import { scoreSearchEntry } from '@/lib/search/searchRankScore'
 import { searchPathForQuery } from '@/lib/useSearchUrlState'
 import { fetchArticleMarkdown } from '@/lib/webmcp/fetchArticle'
+import { prepareIllustrationFromMarkdown } from '@/lib/illustration/prepareIllustrationPrompt'
 import { getWebMcpSearchIndex } from '@/lib/webmcp/indexStore'
 import {
   getSearchFiltersState,
@@ -71,7 +74,7 @@ export async function executeSearchSite (args: Record<string, unknown>): Promise
     includeSectionPages: parseBool(args.includeSectionPages, false),
   })
   const limit = parseIntBounded(args.limit, 20, 1, 50)
-  const hits = filterIndexedEntriesByQuery(index, query, filters).slice(0, limit)
+  const hits = filterAndRankSearchEntries(index, query, filters, limit)
 
   return toolJsonResult({
     query,
@@ -79,6 +82,7 @@ export async function executeSearchSite (args: Record<string, unknown>): Promise
     results: hits.map((e) => ({
       path: e.path,
       title: searchEntryTitle(e),
+      score: scoreSearchEntry(e, query),
       kind: e.path.startsWith('timeline/') ? 'timeline' : /\.(md|mdx)$/i.test(e.path) ? 'article' : 'other',
     })),
   })
@@ -425,4 +429,34 @@ export async function executeSubmitInvestigationIdea (
 
 export function hrefForSearchQueryExport (query: string): string {
   return hrefForSearchQuery(query)
+}
+
+export async function executePrepareIllustrationPrompt (
+  args: Record<string, unknown>
+): Promise<CallToolResult> {
+  const articlePath = String(args.articlePath ?? args.path ?? '').trim().replace(/^\/+/, '')
+  if (!articlePath) return toolErrorResult('articlePath is required')
+  const slot = String(args.slot ?? 'hero').trim() || 'hero'
+  const timeline = parseBool(args.timeline, articlePath.includes('timeline/') || articlePath.includes('content/'))
+
+  let markdown = String(args.markdown ?? '').trim()
+  if (!markdown) {
+    const md = await fetchArticleMarkdown(articlePath)
+    if (!md) return toolErrorResult(`Could not load markdown for path: ${articlePath}`)
+    markdown = md
+  }
+
+  const prepared = prepareIllustrationFromMarkdown({
+    articlePath,
+    markdown,
+    slot,
+    timeline,
+    outputExists: false,
+  })
+
+  return toolJsonResult({
+    ...prepared,
+    note: 'Read-only: run cliCommand locally after user approval. Never pass --yes-overwrite without explicit user consent.',
+    docs: 'paradigm-threat-files/docs/IMAGE_GENERATION.md',
+  })
 }

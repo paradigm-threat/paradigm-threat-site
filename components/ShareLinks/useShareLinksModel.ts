@@ -13,7 +13,7 @@ import {
   truncateShareTextForOutbound,
   type SharePlatformId,
 } from '@/lib/share'
-import { REDDIT_TITLE_MAX, platformModalCopyLimit } from '@/lib/share/platformLimits'
+import { REDDIT_TITLE_MAX, platformCopyLimit, platformModalCopyLimit } from '@/lib/share/platformLimits'
 import type { ShareLinksProps } from '@/components/ShareLinks/types'
 import { extractFirstHeading, prepareArticleMarkdown } from '@/lib/articleBody'
 import {
@@ -199,6 +199,7 @@ export function useShareLinksModel({
   const [copyFormatPlatform, setCopyFormatPlatform] = useState<SharePlatformId>('instagram')
   const [useSubstackUrlForShare, setUseSubstackUrlForShare] = useState(true)
   const [aiCopyText, setAiCopyText] = useState<string | null>(null)
+  const [customCopyText, setCustomCopyText] = useState<string | null>(null)
   const [shareTone, setShareTone] = useState<ShareRewriteTone>('conversational')
   const [shareRewriting, setShareRewriting] = useState(false)
   const [shareRewriteError, setShareRewriteError] = useState<string | null>(null)
@@ -210,6 +211,7 @@ export function useShareLinksModel({
 
   useEffect(() => {
     setAiCopyText(null)
+    setCustomCopyText(null)
     setShareRewriteError(null)
   }, [copyFormatPlatform])
 
@@ -250,9 +252,18 @@ export function useShareLinksModel({
     })
   }, [copyFormatPlatform, composeInput])
 
-  const displayCopyText = aiCopyText ?? activeCopyText
+  const displayCopyText = customCopyText ?? aiCopyText ?? activeCopyText
 
   const charCount = useMemo(() => shareTextCharCount(displayCopyText), [displayCopyText])
+
+  const copyCharLimit = useMemo(
+    () => platformModalCopyLimit(copyFormatPlatform) ?? platformCopyLimit(copyFormatPlatform),
+    [copyFormatPlatform],
+  )
+
+  const setCopyText = useCallback((text: string) => {
+    setCustomCopyText(text)
+  }, [])
 
   const xComposerWeight = useMemo(() => effectiveLengthX(displayCopyText), [displayCopyText])
 
@@ -311,6 +322,7 @@ export function useShareLinksModel({
     setShareRewriting(false)
     setShareRewriteProgress(null)
     setAiCopyText(null)
+    setCustomCopyText(null)
     setShareRewriteError(null)
   }, [])
 
@@ -332,12 +344,13 @@ export function useShareLinksModel({
         substackUrl: composeInput.substackUrl,
         hashtagsLine: composeInput.hashtagsLine,
         articlePlain: articlePlainForAi,
-        templateCopy: activeCopyText,
+        templateCopy: displayCopyText,
         tone: shareTone,
         signal: controller.signal,
         onProgress: setShareRewriteProgress,
       })
       setAiCopyText(result.text)
+      setCustomCopyText(null)
     } catch (e) {
       if (controller.signal.aborted) return
       setShareRewriteError(e instanceof Error ? e.message : 'Rewrite failed')
@@ -355,7 +368,7 @@ export function useShareLinksModel({
     composeInput.substackUrl,
     composeInput.hashtagsLine,
     articlePlainForAi,
-    activeCopyText,
+    displayCopyText,
     shareTone,
   ])
 
@@ -373,6 +386,8 @@ export function useShareLinksModel({
     activeCopyText: displayCopyText,
     templateCopyText: activeCopyText,
     charCount,
+    copyCharLimit,
+    setCopyText,
     xComposerWeight,
     platformOutbounds,
     ogImageUrl,
@@ -391,7 +406,8 @@ export function useShareLinksModel({
     rewriteShareCopy,
     resetShareCopy,
     cancelShareRewrite,
-    usingAiCopy: aiCopyText != null,
+    usingAiCopy: aiCopyText != null && customCopyText == null,
+    copyIsEdited: displayCopyText !== activeCopyText,
     relayMdDownload,
   }
 }

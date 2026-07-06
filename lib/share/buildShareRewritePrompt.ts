@@ -39,12 +39,14 @@ export function buildShareRewriteSystemPrompt (tone: ShareRewriteTone): string {
     toneGuidance(tone),
     '',
     'Rules:',
+    '- Summarize the article for the target platform — never paste the full article body when a shorter caption is required.',
     '- Write complete sentences only — never end mid-thought or with an ellipsis unless the platform limit forces it.',
     '- Fix confusing phrasing, jargon without context, and any text that reads like a truncated excerpt.',
     '- Ground the caption in the full article provided — do not invent facts or citations.',
     '- Preserve the article title as the opening line unless the platform limit makes that impossible.',
     '- Keep canonical URL, optional Substack mirror URL, and hashtags on their own lines at the end when provided.',
     '- Stay within the character limit given in the user message (count every character including newlines).',
+    '- Aim to use most of the allowed length only when the platform budget is large (e.g. Instagram, Facebook); for X/Threads/Bluesky, stay concise.',
     '- Do not add "Read more" or engagement CTAs unless the template already had them.',
   ].join('\n')
 }
@@ -67,7 +69,8 @@ export function buildShareRewriteUserPrompt (input: BuildShareRewriteUserPromptI
 
   return [
     `Platform: ${platformLabel}`,
-    `Character limit: ${input.maxChars} (hard max — trim body before dropping title or URL)`,
+    `Character limit: ${input.maxChars} (hard maximum — summarize to fit; do not exceed)`,
+    `Task: Write a fresh share caption that fits this platform. Summarize key ideas from the article; do not dump the full text or copy a mechanically clipped template.`,
     '',
     '## Article title',
     input.title.trim(),
@@ -81,13 +84,13 @@ export function buildShareRewriteUserPrompt (input: BuildShareRewriteUserPromptI
       ? ['', '## Hashtags (include on the last line, space-separated)', hashtags]
       : []),
     '',
-    '## Full article (plain text)',
+    '## Full article (plain text — source material; summarize, do not paste wholesale)',
     input.articlePlain.trim(),
     '',
-    '## Current template copy (may be truncated or awkward — rewrite it)',
+    '## Current copy in the modal (may be truncated or awkward — use for tone/structure only)',
     input.templateCopy.trim(),
     '',
-    'Rewrite the template into a polished share caption for this platform.',
-    'Use the full article above — not only the truncated template.',
+    `Rewrite into a polished ${platformLabel} caption of at most ${input.maxChars} characters.`,
+    'Count newlines as characters. Prefer a complete summary over mid-sentence cuts.',
   ].join('\n')
 }

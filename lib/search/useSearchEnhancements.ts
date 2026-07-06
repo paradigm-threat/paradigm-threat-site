@@ -2,10 +2,8 @@
 
 import { useMemo } from 'react'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
-import {
-  filterIndexedEntriesByQuery,
-  type SearchContentFilters,
-} from '@/lib/searchIndexFilter'
+import type { SearchContentFilters } from '@/lib/searchIndexFilter'
+import { filterAndRankSearchEntries } from '@/lib/search/searchSiteQuery'
 import {
   isArticleMdEntry,
   isTimelineSearchEntry,
@@ -25,7 +23,7 @@ export function useSearchEnhancements (
 
   const searchResults = useMemo(() => {
     if (cleanQuery.length < 2) return []
-    return filterIndexedEntriesByQuery(filesIndex, debouncedQuery, contentFilters)
+    return filterAndRankSearchEntries(filesIndex, debouncedQuery, contentFilters)
   }, [filesIndex, debouncedQuery, contentFilters, cleanQuery])
 
   const articleMdResults = useMemo(
@@ -58,13 +56,19 @@ export function useSearchEnhancements (
     return getLowResultsHints(filesIndex, cleanQuery, contentFilters, searchResults.length)
   }, [filesIndex, cleanQuery, contentFilters, searchResults.length])
 
-  const resultPaths = useMemo(
-    () => searchResults
-      .filter((e) => isArticleMdEntry(e.path) || isTimelineSearchEntry(e.path))
-      .slice(0, 12)
-      .map((e) => e.path),
-    [searchResults],
-  )
+  const resultPaths = useMemo(() => {
+    const ranked = [...primaryArticleEntries, ...suggestedArticleEntries]
+    const seen = new Set<string>()
+    const paths: string[] = []
+    for (const e of ranked) {
+      if (!isArticleMdEntry(e.path) && !isTimelineSearchEntry(e.path)) continue
+      if (seen.has(e.path)) continue
+      seen.add(e.path)
+      paths.push(e.path)
+      if (paths.length >= 12) break
+    }
+    return paths
+  }, [primaryArticleEntries, suggestedArticleEntries])
 
   return {
     searchResults,

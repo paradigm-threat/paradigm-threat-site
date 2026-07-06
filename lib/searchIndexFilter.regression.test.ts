@@ -8,6 +8,7 @@ import {
   isBlogSearchPath,
   isExcludedBySearchContentFilters,
   isNonArticleMdPath,
+  queryTermsForAndFilter,
   searchTermMatchesHaystack,
 } from './searchIndexFilter.ts'
 
@@ -89,20 +90,28 @@ describe('searchTermMatchesHaystack', () => {
   })
 })
 
-describe('filterIndexedEntriesByQuery body snippet indexing', () => {
+describe('queryTermsForAndFilter', () => {
+  it('drops stopwords when query has substantive terms', () => {
+    assert.deepEqual(queryTermsForAndFilter('what is mars dagger'), ['mars', 'dagger'])
+  })
+
+  it('keeps all tokens when every token is a stopword', () => {
+    assert.deepEqual(queryTermsForAndFilter('the and'), ['the', 'and'])
+  })
+})
+
+describe('filterIndexedEntriesByQuery keyword indexing', () => {
   const gagePath =
     'events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation.md'
 
-  it('matches body terms from _searchSnippet when flattened', () => {
+  it('matches title and keyword tokens from index metadata when flattened', () => {
     const index = {
       events: {
         false_flag: {
           investigations: {
             'richard-gage-ae911truth-controlled-demolition-investigation.md': {
               _title: 'Investigation: Richard Gage (9/11)',
-              _keywords: ['911', 'Demolition'],
-              _searchSnippet:
-                'DEW physics fails; structural and forensic claims associated with Richard Gage',
+              _keywords: ['911', 'Demolition', 'physics'],
             },
           },
         },
@@ -111,7 +120,11 @@ describe('filterIndexedEntriesByQuery body snippet indexing', () => {
     const flat = flattenFilesIndex(index)
     const entry = flat.find((e) => e.path === gagePath)
     assert.ok(entry)
-    const hits = filterIndexedEntriesByQuery(flat, '911 physics')
+    assert.match(entry.searchText, /Richard Gage/)
+    assert.match(entry.searchText, /Demolition/)
+    const hits = filterIndexedEntriesByQuery(flat, 'gage demolition')
     assert.ok(hits.some((h) => h.path === gagePath))
+    const bodyOnly = filterIndexedEntriesByQuery(flat, 'forensic claims')
+    assert.equal(bodyOnly.some((h) => h.path === gagePath), false)
   })
 })

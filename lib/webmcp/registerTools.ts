@@ -19,6 +19,7 @@ import {
   executeSearchSite,
   executeSetSearchFilters,
   executeSuggestSearchFromPath,
+  executePrepareIllustrationPrompt,
   executeSubmitInvestigationIdea,
 } from '@/lib/webmcp/toolHandlers'
 import { isInvestigationSubmitEnabled, isWebMcpActuationEnabled } from '@/lib/siteOpsFeature'
@@ -42,7 +43,7 @@ function wrap (
 }
 
 const TOOLS: AnyTool[] = [
-  wrap('search_site', 'Search paradigm-threat articles and timeline events by keyword (AND semantics).', {
+  wrap('search_site', 'Search paradigm-threat articles and timeline events by keyword (AND filter, title-aware rank).', {
     type: 'object',
     properties: {
       query: { type: 'string', minLength: 2, description: 'Space-separated terms; ALL must match' },
@@ -61,6 +62,17 @@ const TOOLS: AnyTool[] = [
     },
     required: ['path'],
   }, executeSuggestSearchFromPath),
+
+  wrap('prepare_illustration_prompt', 'Build illustration prompt + local generate-illustration.py CLI command (read-only; does not call HF or write files).', {
+    type: 'object',
+    properties: {
+      articlePath: { type: 'string', description: 'Repo-relative markdown path e.g. science/cern_portal/foo.md' },
+      path: { type: 'string', description: 'Alias for articlePath' },
+      slot: { type: 'string', enum: ['hero', 'section'], default: 'hero' },
+      timeline: { type: 'boolean', description: 'Use timeline 16:9 prompt style' },
+      markdown: { type: 'string', description: 'Optional inline markdown if article cannot be fetched' },
+    },
+  }, executePrepareIllustrationPrompt),
 
   wrap('get_article_context', 'Return TL;DR, keywords, and canonical URL for an article path.', {
     type: 'object',
