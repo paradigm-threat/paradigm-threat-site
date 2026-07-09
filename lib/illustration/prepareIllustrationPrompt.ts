@@ -20,8 +20,8 @@ export type ArticleIllustrationMeta = {
   hasHeroImage: boolean
 }
 
-const IMAGE_GEN_BLOCK_RE = /<!--\s*image-gen:(?<kind>[\w-]+)\s*(?<body>.*?)-->/gis
-const PENDING_RE = /<!--\s*image-gen:pending\s+(?<slot>\w+)\s*-->/gi
+const IMAGE_GEN_BLOCK_RE = /<!--\s*image-gen:([\w-]+)\s*([\s\S]*?)-->/gi
+const PENDING_RE = /<!--\s*image-gen:pending\s+(\w+)\s*-->/gi
 const TITLE_RE = /^#\s+(.+)$/m
 const HERO_IMAGE_RE = /!\[[^\]]*\]\([^)]+\)/
 
@@ -38,10 +38,12 @@ function parseImageGenBody (body: string): Record<string, string> {
 
 export function parseMarkdownIllustrationMeta (content: string): ArticleIllustrationMeta {
   const blocks: ImageGenBlock[] = []
-  for (const m of content.matchAll(IMAGE_GEN_BLOCK_RE)) {
-    const fields = parseImageGenBody(m.groups?.body ?? '')
+  const imageGenRe = new RegExp(IMAGE_GEN_BLOCK_RE.source, IMAGE_GEN_BLOCK_RE.flags)
+  let imageGenMatch: RegExpExecArray | null
+  while ((imageGenMatch = imageGenRe.exec(content)) !== null) {
+    const fields = parseImageGenBody(imageGenMatch[2] ?? '')
     blocks.push({
-      kind: (m.groups?.kind ?? '').toLowerCase(),
+      kind: (imageGenMatch[1] ?? '').toLowerCase(),
       prompt: fields.prompt ?? '',
       aspect: fields.aspect ?? '',
       model: fields.model ?? '',
@@ -50,8 +52,10 @@ export function parseMarkdownIllustrationMeta (content: string): ArticleIllustra
     })
   }
   const pendingSlots: string[] = []
-  for (const m of content.matchAll(PENDING_RE)) {
-    if (m.groups?.slot) pendingSlots.push(m.groups.slot.toLowerCase())
+  const pendingRe = new RegExp(PENDING_RE.source, PENDING_RE.flags)
+  let pendingMatch: RegExpExecArray | null
+  while ((pendingMatch = pendingRe.exec(content)) !== null) {
+    if (pendingMatch[1]) pendingSlots.push(pendingMatch[1].toLowerCase())
   }
 
   const titleM = content.match(TITLE_RE)

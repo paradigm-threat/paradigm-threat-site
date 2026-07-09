@@ -1,7 +1,7 @@
 {
   "headers": [
     {
-      "source": "/((?!api/|_next/|chat(?:/|$)|search(?:/|$)|timeline(?:/|$)|reply(?:/|$)|submit(?:/|$)|export(?:/|$)|site(?:/|$)|robots\\.txt|sitemap\\.xml|favicon\\.ico).*)",
+      "source": "/((?!api/|_next/|chat(?:/|$)|search(?:/|$)|timeline(?:/|$)|reply(?:/|$)|submit(?:/|$)|mcp(?:/|$)|export(?:/|$)|site(?:/|$)|robots\\.txt|sitemap\\.xml|favicon\\.ico).*)",
       "headers": [
         {
           "key": "Vercel-CDN-Cache-Control",

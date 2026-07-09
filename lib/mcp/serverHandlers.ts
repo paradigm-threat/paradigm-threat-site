@@ -119,13 +119,9 @@ export async function mcpReadArticle (args: Record<string, unknown>) {
 
   const offset = parseIntBounded(args.offset, 0, 0, 1_000_000)
   const limit = parseIntBounded(args.limit, 12_000, 500, 40_000)
-  const content = readArticleContentFromMarkdown(md, { offset, limit })
+  const content = readArticleContentFromMarkdown(path, md, { offset, maxChars: limit })
 
-  return {
-    path,
-    canonicalUrl: pathToCanonicalUrl(path),
-    ...content,
-  }
+  return content
 }
 
 export async function mcpResearchStatus (args: Record<string, unknown>): Promise<ResearchEnvelope & { error?: string }> {

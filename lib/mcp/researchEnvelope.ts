@@ -147,7 +147,7 @@ export function buildResearchStatus (input: ResearchStatusInput): ResearchEnvelo
     ...matchedClaims.flatMap((c) => c.canonicalPaths),
     ...searchHits.slice(0, 3).map((e) => e.path),
   ]
-  const uniqueRepoPaths = [...new Set(repoPaths)].slice(0, 5)
+  const uniqueRepoPaths = Array.from(new Set(repoPaths)).slice(0, 5)
 
   let coverage: CoverageStatus = 'not_in_corpus'
   let confidence: ResearchEnvelope['confidence'] = 'high'
