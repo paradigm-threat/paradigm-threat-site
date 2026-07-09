@@ -11,6 +11,7 @@ import {
   isWebMcpPolyfillForced,
   isWebMcpActuationEnabled,
   isReplyAssistantFeatureEnabled,
+  isMcpServerEnabled,
 } from './siteOpsFeature.ts'
 import {
   shouldRedirectPathToFilesMirror,
@@ -27,6 +28,7 @@ describe('siteOpsFeature flags', () => {
     webmcp: process.env.NEXT_PUBLIC_WEBMCP_ENABLED,
     webmcpPoly: process.env.NEXT_PUBLIC_WEBMCP_POLYFILL,
     webmcpAct: process.env.NEXT_PUBLIC_WEBMCP_ACTUATION,
+    mcp: process.env.MCP_SERVER_ENABLED,
   }
 
   afterEach(() => {
@@ -46,6 +48,8 @@ describe('siteOpsFeature flags', () => {
     else process.env.NEXT_PUBLIC_WEBMCP_POLYFILL = prev.webmcpPoly
     if (prev.webmcpAct === undefined) delete process.env.NEXT_PUBLIC_WEBMCP_ACTUATION
     else process.env.NEXT_PUBLIC_WEBMCP_ACTUATION = prev.webmcpAct
+    if (prev.mcp === undefined) delete process.env.MCP_SERVER_ENABLED
+    else process.env.MCP_SERVER_ENABLED = prev.mcp
   })
 
   beforeEach(() => {
@@ -57,6 +61,7 @@ describe('siteOpsFeature flags', () => {
     delete process.env.NEXT_PUBLIC_WEBMCP_ENABLED
     delete process.env.NEXT_PUBLIC_WEBMCP_POLYFILL
     delete process.env.NEXT_PUBLIC_WEBMCP_ACTUATION
+    delete process.env.MCP_SERVER_ENABLED
   })
 
   it('flags default off except server relay fetch', () => {
@@ -70,6 +75,7 @@ describe('siteOpsFeature flags', () => {
     assert.equal(isWebMcpPolyfillForced(), false)
     assert.equal(isWebMcpActuationEnabled(), false)
     assert.equal(isReplyAssistantFeatureEnabled(), false)
+    assert.equal(isMcpServerEnabled(), false)
   })
 
   it('server relay fetch on when env is 1', () => {
@@ -100,6 +106,11 @@ describe('siteOpsFeature flags', () => {
     assert.equal(isWebMcpPolyfillForced(), true)
     assert.equal(isWebMcpActuationEnabled(), true)
     assert.equal(isReplyAssistantFeatureEnabled(), true)
+  })
+
+  it('mcp server on when MCP_SERVER_ENABLED=1', () => {
+    process.env.MCP_SERVER_ENABLED = '1'
+    assert.equal(isMcpServerEnabled(), true)
   })
 })
 

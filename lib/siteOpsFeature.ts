@@ -55,6 +55,11 @@ export function isInvestigationSubmitEnabled (): boolean {
   return process.env.NEXT_PUBLIC_INVESTIGATION_SUBMIT !== '0'
 }
 
+/** Server MCP at /api/mcp (Streamable HTTP). Default off — set MCP_SERVER_ENABLED=1 on Vercel. */
+export function isMcpServerEnabled (): boolean {
+  return process.env.MCP_SERVER_ENABLED === '1'
+}
+
 /**
  * Reserved for a future Relay-hosted HTML + SEO phase. Must stay off while articles
  * use the Next app shell — redirecting to mirror md2ast HTML breaks client components.
