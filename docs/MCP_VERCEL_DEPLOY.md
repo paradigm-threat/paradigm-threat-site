@@ -45,6 +45,8 @@ Register custom MCP server URL: `https://paradigmthreat.net/api/mcp`
 
 Shipped tools include ChatGPT aliases: **`search`**, **`fetch`**.
 
+**Host restrictions:** Consumer agents (especially free ChatGPT) may block tool calls on sensitive topics — real people, alleged crimes or deaths, defamation-shaped prompts — *before* the request hits `/api/mcp`. If tools are discovered but never invoked, that is usually host policy, not an MCP outage. Prefer neutral search/list prompts or a dev client (Cursor) for blocked topics.
+
 ## Local dev
 
 ```bash
@@ -78,6 +80,7 @@ Requires `MCP_SERVER_ENABLED=1` on that deployment.
 | `read_article` / `fetch` | Markdown via Relay |
 | `get_chronology_framework` | NC / Blip glossary |
 | `compute_years_ago` / `get_event_dates` | Timeline date math |
+| `submit_investigation_idea` | Propose a new investigation topic (saved to Postgres; public list on `/submit`) |
 
 ## Code layout
 

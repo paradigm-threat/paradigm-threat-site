@@ -1,5 +1,6 @@
 import { createParadigmThreatMcpServer } from '@/lib/mcp/createServer'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
+import { getClientIpFromRequest } from '@/lib/investigationSubmission/rateLimit'
 
 /**
  * Stateless Streamable HTTP — one transport (+ connect) per request (Vercel serverless).
@@ -10,7 +11,9 @@ export async function handleMcpHttpRequest (req: Request): Promise<Response> {
     enableJsonResponse: true,
   })
 
-  const server = createParadigmThreatMcpServer()
+  const server = createParadigmThreatMcpServer({
+    submitClientKey: getClientIpFromRequest(req),
+  })
   await server.connect(transport)
 
   try {

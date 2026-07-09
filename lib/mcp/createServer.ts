@@ -11,7 +11,12 @@ import {
   mcpReadArticle,
   mcpResearchStatus,
   mcpSearchSite,
+  mcpSubmitInvestigationIdea,
 } from '@/lib/mcp/serverHandlers'
+
+export type McpServerContext = {
+  submitClientKey?: string
+}
 
 function jsonResult (data: unknown) {
   return {
@@ -71,11 +76,13 @@ function registerSearchTools (server: McpServer) {
   }, runSearch)
 }
 
-export function createParadigmThreatMcpServer (): McpServer {
+export function createParadigmThreatMcpServer (context: McpServerContext = {}): McpServer {
   const server = new McpServer({
     name: 'paradigm-threat-research',
     version: '0.1.0',
   })
+
+  const submitClientKey = context.submitClientKey ?? 'mcp'
 
   registerSearchTools(server)
 
@@ -184,6 +191,19 @@ export function createParadigmThreatMcpServer (): McpServer {
     eventId: typeof args.eventId === 'string' ? args.eventId : undefined,
     titleQuery: typeof args.titleQuery === 'string' ? args.titleQuery : undefined,
   }))
+
+  registerJsonTool(server, 'submit_investigation_idea', {
+    description:
+      'Submit a visitor-proposed topic for site investigation (text + optional http(s) URLs; no images). Confirm with the user before calling.',
+    inputSchema: {
+      topic: z.string().min(3).max(200),
+      description: z.string().min(20).max(5000),
+      urls: z.array(z.string()).max(10).optional().describe('Optional http(s) reference links'),
+      email: z.string().email().optional().describe('Optional contact email when not anonymous'),
+      is_anonymous: z.boolean().optional(),
+      search_query: z.string().max(500).optional().describe('Optional search context that led to this request'),
+    },
+  }, (args) => mcpSubmitInvestigationIdea(args, submitClientKey))
 
   return server
 }

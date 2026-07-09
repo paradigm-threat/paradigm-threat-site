@@ -64,6 +64,7 @@ export default function McpPage () {
           <li><code className="text-xs">get_site_claims</code> — curated thesis cards</li>
           <li><code className="text-xs">read_article</code> / <code className="text-xs">fetch</code> — markdown from Relay mirrors</li>
           <li><code className="text-xs">get_event_dates</code> / <code className="text-xs">compute_years_ago</code> — chronology and blip-adjusted elapsed time</li>
+          <li><code className="text-xs">submit_investigation_idea</code> — propose a new topic for the site to research (appears on <Link href="/submit" className="text-blue-600 dark:text-blue-400 hover:underline">/submit</Link>)</li>
         </ul>
       </section>
 
@@ -78,6 +79,24 @@ export default function McpPage () {
   }
 }`}
         </pre>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white">ChatGPT</h2>
+        <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+          Settings → Apps → Create app → Server URL <code className="text-xs">{MCP_ENDPOINT}</code>, authentication <strong>No Auth</strong>.
+          Add the app as a source in chat before asking research questions.
+        </p>
+      </section>
+
+      <section className="space-y-3 rounded-lg border border-amber-200/80 dark:border-amber-900/50 bg-amber-50/80 dark:bg-amber-950/30 p-5">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white">Host restrictions</h2>
+        <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+          The MCP endpoint is public and read-mostly, but <strong>the host model may refuse to call tools</strong> — especially on free or consumer tiers (ChatGPT, Gemini, etc.). Common blocks: real people and alleged crimes or deaths, defamation-shaped framing, or write tools without explicit user confirmation. That happens in the host&apos;s safety layer <em>before</em> a request reaches paradigmthreat.net; connector installed and tools listed does not guarantee every query will run.
+        </p>
+        <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+          Neutral corpus prompts often work better: search for a title or codename, list paths only, or call <code className="text-xs">research_status</code> without asking the model to assert claims. Cursor and other dev-oriented clients are usually less restrictive than free ChatGPT.
+        </p>
       </section>
 
       <section className="space-y-3">

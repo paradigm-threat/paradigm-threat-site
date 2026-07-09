@@ -35,7 +35,7 @@ export const investigationSubmissionBodySchema = z.object({
   email: z.string().trim().email().optional().nullable(),
   is_anonymous: z.boolean().optional().default(true),
   search_query: z.string().trim().max(500).optional().nullable(),
-  source: z.enum(['form', 'site_ai', 'webmcp']).optional().default('form'),
+  source: z.enum(['form', 'site_ai', 'webmcp', 'mcp']).optional().default('form'),
   website: z.string().optional(),
 })
 
@@ -47,7 +47,7 @@ export type ParsedInvestigationSubmission = {
   urls: string[]
   email: string | null
   is_anonymous: boolean
-  source: 'form' | 'site_ai' | 'webmcp'
+  source: 'form' | 'site_ai' | 'webmcp' | 'mcp'
   search_query: string | null
 }
 

@@ -87,7 +87,7 @@ async function main () {
   console.log('Tools:', names.join(', ') || '(none parsed — raw follows)')
   if (!names.length) console.log(listText.slice(0, 800))
 
-  for (const required of ['search_site', 'research_status', 'get_site_claims']) {
+  for (const required of ['search_site', 'research_status', 'get_site_claims', 'submit_investigation_idea']) {
     if (!names.includes(required)) {
       console.error(`Missing tool: ${required}`)
       process.exit(1)

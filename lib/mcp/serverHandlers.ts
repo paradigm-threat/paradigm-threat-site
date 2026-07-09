@@ -26,6 +26,15 @@ import {
   getEventYear,
 } from '@/components/Timeline/utils'
 import { fetchTimelineEventsServer, findTimelineEventById } from '@/lib/mcp/timelineServer'
+import { revalidateTag } from 'next/cache'
+import { parseInvestigationSubmissionBody } from '@/lib/investigationSubmission/validateSubmission'
+import {
+  checkInvestigationSubmitRateLimit,
+} from '@/lib/investigationSubmission/rateLimit'
+import { isInvestigationSubmitEnabled } from '@/lib/siteOpsFeature'
+import { insertInvestigationSubmission } from '@/server/investigationSubmissionsDB'
+
+const INVESTIGATION_LIST_CACHE_TAG = 'investigation-submissions-list'
 
 function parseBool (v: unknown, fallback: boolean): boolean {
   if (typeof v === 'boolean') return v
@@ -239,4 +248,41 @@ export async function mcpGetEventDates (args: Record<string, unknown>) {
 
 export async function mcpFetchTimelineIndex () {
   return fetchTimelineEventsServer()
+}
+
+export async function mcpSubmitInvestigationIdea (
+  args: Record<string, unknown>,
+  clientKey = 'mcp',
+) {
+  if (!isInvestigationSubmitEnabled()) {
+    return { error: 'Investigation submissions are temporarily unavailable.' }
+  }
+  if (!checkInvestigationSubmitRateLimit(clientKey)) {
+    return { error: 'Too many submissions. Please try again later.' }
+  }
+
+  const parsed = parseInvestigationSubmissionBody({
+    topic: args.topic,
+    description: args.description,
+    urls: args.urls,
+    email: args.email,
+    is_anonymous: args.is_anonymous,
+    search_query: args.search_query,
+    source: 'mcp',
+  })
+  if (!parsed.ok) return { error: parsed.error }
+
+  try {
+    const submission = await insertInvestigationSubmission(parsed.data)
+    revalidateTag(INVESTIGATION_LIST_CACHE_TAG, 'max')
+    return {
+      ok: true,
+      id: submission.id,
+      topic: submission.topic,
+      created_at: submission.created_at,
+      message: 'Submission saved. It will appear on https://paradigmthreat.net/submit.',
+    }
+  } catch {
+    return { error: 'Could not save submission.' }
+  }
 }

@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
-import { mcpSearchSite, mcpResearchStatus } from '@/lib/mcp/serverHandlers.ts'
+import { mcpSearchSite, mcpResearchStatus, mcpSubmitInvestigationIdea } from '@/lib/mcp/serverHandlers.ts'
 import { resetMcpRelayCaches } from '@/lib/mcp/relayFetch.ts'
+import { resetInvestigationSubmitRateLimitForTests } from '@/lib/investigationSubmission/rateLimit.ts'
 
 const originalFetch = globalThis.fetch
 
@@ -10,6 +11,7 @@ describe('mcp serverHandlers', () => {
   afterEach(() => {
     globalThis.fetch = originalFetch
     resetMcpRelayCaches()
+    resetInvestigationSubmitRateLimitForTests()
   })
 
   it('search_site uses AND semantics with mocked relay', async () => {
@@ -79,6 +81,15 @@ describe('mcp serverHandlers', () => {
     assert.ok(env.coverage)
     assert.ok(Array.isArray(env.suggestedNextSteps))
     assert.ok(Array.isArray(env.citableSources))
+  })
+
+  it('submit_investigation_idea rejects short description', async () => {
+    const result = await mcpSubmitInvestigationIdea({
+      topic: 'RFK staging',
+      description: 'too short',
+    })
+    assert.ok('error' in result && result.error)
+    assert.match(String((result as { error: string }).error), /description|Invalid|at least/i)
   })
 })
 
