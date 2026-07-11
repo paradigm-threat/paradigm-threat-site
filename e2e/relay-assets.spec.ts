@@ -26,8 +26,9 @@ test.describe('legacy proxy 404 (local build)', () => {
     'Production still serves catch-all until deploy with app/files + app/api/image routes',
   )
 
-  test('legacy /files/ and /api/image return 404', async ({ request }) => {
-    const filesRes = await request.head('/files/index.json')
+  test('legacy /files/ proxy and /api/image return 404', async ({ request }) => {
+    // Catalog JSON is gone; legacy /files/* proxy should still 404 (site uses Relay QUERY).
+    const filesRes = await request.head('/files/README.md')
     expect(filesRes.status()).toBe(404)
 
     const apiRes = await request.head('/api/image?url=test')

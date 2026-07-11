@@ -1,21 +1,21 @@
 import { test, expect } from '@playwright/test'
-import * as fs from 'node:fs'
-import * as path from 'node:path'
 import { flattenFilesIndex } from '../components/helpers/indexHelper'
 import { isNonArticlePath } from '../lib/isNonArticlePath'
+import { rebuildFilesIndexTree } from '../lib/queryCatalog'
 
-function resolveIndexJsonPath (): string {
+function filesBaseUrl (): string {
   return (
-    process.env.PLAYWRIGHT_INDEX_JSON ??
-    path.join(process.cwd(), '..', 'paradigm-threat-files', 'index.json')
-  )
+    process.env.PLAYWRIGHT_FILES_BASE_URL ||
+    process.env.NEXT_PUBLIC_FILES_BASE_URL ||
+    'https://dfw1.relaygateway.net/paradigm-threat-files'
+  ).replace(/\/+$/, '')
 }
 
 function buildUrlsFromIndex (index: unknown): string[] {
   const entries = flattenFilesIndex(index as Record<string, unknown>)
   const urls = new Set<string>()
   for (const { path: p } of entries) {
-    if (!p || p === 'index.json') continue
+    if (!p) continue
     const slug = p.replace(/^\/+/, '')
     if (isNonArticlePath(slug) && !slug.toLowerCase().endsWith('.txt')) continue
     const pathname = `/${slug}`.replace(/\/+/g, '/')
@@ -46,21 +46,32 @@ function applyLimitOffsetSample (urls: string[]): string[] {
   return slice
 }
 
-function loadCrawlUrls (): string[] {
-  const indexPath = resolveIndexJsonPath()
-  if (!fs.existsSync(indexPath)) {
-    return []
+async function loadCrawlUrlsFromQuery (): Promise<string[]> {
+  const origin = filesBaseUrl()
+  const res = await fetch(origin, {
+    method: 'QUERY',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      type: 'query',
+      collection: 'index',
+      query: '',
+      limit: 10_000,
+    }),
+  })
+  if (!res.ok) {
+    throw new Error(`QUERY ${origin} failed: HTTP ${res.status}`)
   }
-  try {
-    const raw = fs.readFileSync(indexPath, 'utf8')
-    const index = JSON.parse(raw) as unknown
-    return applyLimitOffsetSample(buildUrlsFromIndex(index))
-  } catch {
-    return []
+  const data = (await res.json()) as { results?: Record<string, unknown>[] }
+  const results = Array.isArray(data.results) ? data.results : []
+  if (!results.some((r) => typeof r.path === 'string')) {
+    throw new Error(`QUERY ${origin} returned no path catalog rows`)
   }
+  const tree = rebuildFilesIndexTree(results)
+  return applyLimitOffsetSample(buildUrlsFromIndex(tree))
 }
-
-const crawlUrls = loadCrawlUrls()
 
 const BENIGN_CONSOLE: RegExp[] = [
   /^\[HMR\]/i,
@@ -74,43 +85,46 @@ function isBenignConsole (text: string): boolean {
   return BENIGN_CONSOLE.some((re) => re.test(text))
 }
 
-if (crawlUrls.length === 0) {
-  test('index crawl: requires sibling paradigm-threat-files/index.json or PLAYWRIGHT_INDEX_JSON', () => {
-    expect(
-      fs.existsSync(resolveIndexJsonPath()),
-      `Expected index at ${resolveIndexJsonPath()}`
-    ).toBe(true)
-  })
-} else {
-  test.describe('index.json crawl', () => {
+test.describe('QUERY files catalog crawl', () => {
+  test('renders sample paths without crash', async ({ page }) => {
+    const crawlUrls = await loadCrawlUrlsFromQuery()
+    expect(crawlUrls.length, 'expected crawl URLs from Relay QUERY').toBeGreaterThan(0)
+
     for (const pathname of crawlUrls) {
-      test(`renders without crash: ${pathname}`, async ({ page }) => {
-        const consoleErrors: string[] = []
-        const pageErrors: string[] = []
+      const consoleErrors: string[] = []
+      const pageErrors: string[] = []
 
-        page.on('console', (msg) => {
-          if (msg.type() !== 'error') return
-          const text = msg.text()
-          if (isBenignConsole(text)) return
-          consoleErrors.push(text)
-        })
+      const onConsole = (msg: { type: () => string; text: () => string }) => {
+        if (msg.type() !== 'error') return
+        const text = msg.text()
+        if (isBenignConsole(text)) return
+        consoleErrors.push(text)
+      }
+      const onPageError = (err: Error) => {
+        pageErrors.push(err.message)
+      }
 
-        page.on('pageerror', (err) => {
-          pageErrors.push(err.message)
-        })
+      page.on('console', onConsole)
+      page.on('pageerror', onPageError)
 
+      try {
         const res = await page.goto(pathname, { waitUntil: 'domcontentloaded' })
         expect(res, `no response for ${pathname}`).toBeTruthy()
         expect(res!.status(), `HTTP ${res!.status()} for ${pathname}`).toBeLessThan(500)
 
-        await expect(page.locator('header img[alt="Paradigm Threat"]').first()).toBeVisible({ timeout: 45_000 })
+        await expect(page.locator('header img[alt="Paradigm Threat"]').first()).toBeVisible({
+          timeout: 45_000,
+        })
 
         await expect(page.getByText('Application error: a client-side exception', { exact: false })).toHaveCount(0)
         await expect(page.getByText('Unhandled Runtime Error', { exact: false })).toHaveCount(0)
 
         expect(pageErrors, `pageerror on ${pathname}: ${pageErrors.join(' | ')}`).toEqual([])
         expect(consoleErrors, `console.error on ${pathname}: ${consoleErrors.join(' | ')}`).toEqual([])
-      })
+      } finally {
+        page.off('console', onConsole)
+        page.off('pageerror', onPageError)
+      }
     }
   })
-}
+})

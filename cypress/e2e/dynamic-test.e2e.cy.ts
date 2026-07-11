@@ -49,17 +49,30 @@ describe('Dynamic Site Specification', () => {
         cy.wait(500);
     });
 
-    it('dynamically visits sample pages from index and detects critical errors', () => {
-        const baseUrl = Cypress.env('NEXT_PUBLIC_FILES_BASE_URL') || 'https://paradigm-threat-files-69f9dc.gitlab.io';
+    it('dynamically visits sample pages from QUERY catalog and detects critical errors', () => {
+        const baseUrl = (Cypress.env('NEXT_PUBLIC_FILES_BASE_URL') || 'https://dfw1.relaygateway.net/paradigm-threat-files').replace(/\/+$/, '');
 
-        cy.request(`${baseUrl}/index.json`).then((response) => {
-            const files = response.body as string[];
-            // Filter for markdown files and convert paths to routes
-            const pages = files
-                .filter(file => file.endsWith('.md'))
-                .map(file => '/' + file.replace(/\.md$/, ''))
+        cy.request({
+            method: 'QUERY',
+            url: baseUrl,
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+            body: {
+                type: 'query',
+                collection: 'index',
+                query: '',
+                limit: 5000,
+            },
+        }).then((response) => {
+            const results = (response.body?.results || []) as Array<{ path?: string }>;
+            const pages = results
+                .map((r) => r.path)
+                .filter((p): p is string => typeof p === 'string' && p.endsWith('.md'))
+                .map((file) => '/' + file.replace(/\.md$/, ''))
                 .sort()
-                .slice(0, 20); // Test only first 20 pages for now
+                .slice(0, 20);
 
             cy.log(`Testing ${pages.length} sample pages`);
 
