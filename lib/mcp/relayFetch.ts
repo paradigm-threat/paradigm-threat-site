@@ -3,12 +3,10 @@
  * Same public URLs as the browser client — no Next.js proxy layer.
  */
 
-import {
-  flattenFilesIndex,
-  flattenTimelineEntriesForSearch,
-  type IndexedPathEntry,
-} from '@/components/helpers/indexHelper'
+import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
 import { buildArticleMdCandidatePaths } from '@/lib/articleMdPaths'
+import { eventsRowsToTimelineData } from '@/lib/queryCatalog'
+import { queryRelayOrigin } from '@/lib/relayQuery'
 import { parseSiteClaimsJson } from '@/lib/siteAi/parseSiteClaims'
 import type { SiteClaimEntry } from '@/lib/siteAi/siteClaimsTypes'
 import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
@@ -21,12 +19,6 @@ import {
 } from '@/lib/urlListEnv'
 
 const FETCH_TIMEOUT_MS = 60_000
-
-type TimelineNode = {
-  id?: string
-  md_path?: string
-  children?: TimelineNode[]
-}
 
 let mergedIndexCache: { at: number; data: IndexedPathEntry[] } | null = null
 let siteClaimsCache: { at: number; data: SiteClaimEntry[] } | null = null
@@ -55,27 +47,13 @@ export async function fetchMergedSearchIndexServer (): Promise<IndexedPathEntry[
     return mergedIndexCache.data
   }
 
+  const { queryMergedSearchIndex } = await import('@/lib/queryCatalogFetch')
   const pairs = relayPairs()
-  const v = Math.floor(now / 60000)
-
   for (const pair of pairs) {
     try {
-      const filesBase = pair.files.replace(/\/$/, '')
-      const indexRes = await fetchWithTimeout(`${filesBase}/index.json?v=${v}`)
-      if (!indexRes.ok) continue
-
-      const fromFiles = flattenFilesIndex(await indexRes.json())
-
-      let fromTimeline: IndexedPathEntry[] = []
-      const timelineBase = pair.timeline.replace(/\/$/, '')
-      const eventsRes = await fetchWithTimeout(
-        `${timelineBase}/data/events.json${timelineManifestCacheQuery()}`,
-      )
-      if (eventsRes.ok) {
-        fromTimeline = flattenTimelineEntriesForSearch(await eventsRes.json())
-      }
-
-      const data = [...fromFiles, ...fromTimeline]
+      const signal = AbortSignal.timeout(FETCH_TIMEOUT_MS)
+      const data = await queryMergedSearchIndex(pair.files, pair.timeline, signal)
+      if (!data) continue
       mergedIndexCache = { at: now, data }
       return data
     } catch {
@@ -118,19 +96,22 @@ async function loadTimelineMdPathMapServer (): Promise<Map<string, string>> {
   const timelineBase = getPrimaryTimelineBaseUrl().replace(/\/$/, '')
 
   try {
-    const res = await fetchWithTimeout(`${timelineBase}/data/events.json${timelineManifestCacheQuery()}`)
-    if (res.ok) {
-      const data = (await res.json()) as { entries?: TimelineNode[] }
-      const walk = (nodes: TimelineNode[]) => {
-        for (const n of nodes) {
-          if (typeof n.id === 'string' && typeof n.md_path === 'string') {
-            map.set(n.id, n.md_path)
-          }
-          if (Array.isArray(n.children)) walk(n.children)
+    const env = await queryRelayOrigin(timelineBase, {
+      collection: 'events',
+      query: '',
+      limit: 10_000,
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    })
+    const { entries } = eventsRowsToTimelineData(env.results)
+    const walk = (nodes: { id?: string; md_path?: string; children?: unknown[] }[]) => {
+      for (const n of nodes) {
+        if (typeof n.id === 'string' && typeof n.md_path === 'string') {
+          map.set(n.id, n.md_path)
         }
+        if (Array.isArray(n.children)) walk(n.children as typeof nodes)
       }
-      if (Array.isArray(data.entries)) walk(data.entries)
     }
+    if (Array.isArray(entries)) walk(entries)
   } catch {
     // empty map
   }

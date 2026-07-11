@@ -90,10 +90,19 @@ export function MarkdownCarousel({
 
   useEffect(() => {
     if (!baseUrl) return
-    fetch(`${baseUrl}/index.json${timelineManifestCacheQuery()}`, { cache: 'no-store' })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setIndex(data ?? null))
-      .catch(() => setIndex(null))
+    let cancelled = false
+    void (async () => {
+      try {
+        await remoteRelay.bootstrap()
+        const { queryTimelineFilesTree } = await import('@/lib/queryCatalogFetch')
+        const tree = await queryTimelineFilesTree((opts) => remoteRelay.queryTimeline(opts))
+        if (cancelled) return
+        setIndex(tree)
+      } catch {
+        if (!cancelled) setIndex(null)
+      }
+    })()
+    return () => { cancelled = true }
   }, [baseUrl])
 
   useEffect(() => {

@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
 import { getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
 
 const TIMELINE_BASE = getPrimaryTimelineBaseUrl()
@@ -56,13 +55,12 @@ const ERAS = [
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const maxDepth = Math.min(4, Math.max(1, parseInt(searchParams.get('maxDepth') || '4', 10)))
+  void maxDepth
 
   try {
-    const res = await fetch(`${TIMELINE_BASE}/data/events.json${timelineManifestCacheQuery()}`, {
-      next: { revalidate: 60 },
-    })
-    if (!res.ok) throw new Error('Failed to fetch events')
-    const data = await res.json()
+    const { queryTimelineEventsData } = await import('@/lib/queryCatalogFetch')
+    const data = await queryTimelineEventsData(TIMELINE_BASE)
+    if (!data) throw new Error('Failed to QUERY events')
     const entries = data.entries || []
     type Entry = { id: string; title: string; md_path?: string; dates?: { start?: number | null; end?: number }[] }
     const events = flattenEntries(entries) as Entry[]

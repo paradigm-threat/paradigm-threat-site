@@ -1,5 +1,5 @@
 import { getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
-import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
+import { queryTimelineEventsData } from '@/lib/queryCatalogFetch'
 
 export type TimelineEventEntry = {
   id: string
@@ -39,15 +39,8 @@ export async function fetchTimelineEventsServer (): Promise<TimelineEventEntry[]
   const now = Date.now()
   if (eventsCache && now - eventsCache.at < CACHE_MS) return eventsCache.flat
 
-  const base = getPrimaryTimelineBaseUrl().replace(/\/$/, '')
-  const res = await fetch(`${base}/data/events.json${timelineManifestCacheQuery()}`, {
-    cache: 'no-store',
-    signal: AbortSignal.timeout(60_000),
-  })
-  if (!res.ok) return []
-
-  const data = (await res.json()) as { entries?: TimelineEventEntry[] }
-  const flat = flatten(data.entries ?? [])
+  const data = await queryTimelineEventsData(getPrimaryTimelineBaseUrl())
+  const flat = flatten((data?.entries ?? []) as TimelineEventEntry[])
   eventsCache = { at: now, flat }
   return flat
 }

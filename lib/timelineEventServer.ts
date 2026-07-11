@@ -3,9 +3,8 @@
  */
 
 import { firstTimelineOgMediaPath } from '@/lib/timelineMedia'
-import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
-
 import { mirrorRasterOgUrl } from '@/lib/canonicalPublicSite'
+import { queryTimelineEventsData } from '@/lib/queryCatalogFetch'
 import { getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
 
 const TIMELINE_BASE = getPrimaryTimelineBaseUrl()
@@ -17,9 +16,9 @@ interface TimelineEntry {
   children?: TimelineEntry[]
 }
 
-function flattenEntries(entries: TimelineEntry[]): TimelineEntry[] {
+function flattenEntries (entries: TimelineEntry[]): TimelineEntry[] {
   const result: TimelineEntry[] = []
-  function visit(nodes: TimelineEntry[]) {
+  function visit (nodes: TimelineEntry[]) {
     for (const e of nodes) {
       result.push(e)
       if (e.children?.length) visit(e.children)
@@ -34,13 +33,10 @@ export interface TimelineEventMeta {
   ogImageUrl?: string
 }
 
-export async function getTimelineEventMeta(eventId: string): Promise<TimelineEventMeta | null> {
+export async function getTimelineEventMeta (eventId: string): Promise<TimelineEventMeta | null> {
   try {
-    const res = await fetch(`${TIMELINE_BASE}/data/events.json${timelineManifestCacheQuery()}`, {
-      next: { revalidate: 60 },
-    })
-    if (!res.ok) return null
-    const data = await res.json()
+    const data = await queryTimelineEventsData(TIMELINE_BASE)
+    if (!data) return null
     const entries = (data.entries || []) as TimelineEntry[]
     const events = flattenEntries(entries)
     const event = events.find((e) => e.id === eventId)
@@ -49,10 +45,7 @@ export async function getTimelineEventMeta(eventId: string): Promise<TimelineEve
     const ogPath = firstTimelineOgMediaPath(event.media)
     const ogImageUrl = ogPath ? mirrorRasterOgUrl(ogPath) : undefined
 
-    return {
-      title: event.title,
-      ogImageUrl
-    }
+    return { title: event.title, ogImageUrl }
   } catch {
     return null
   }

@@ -1,11 +1,22 @@
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
-import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
 import { mcpSearchSite, mcpResearchStatus, mcpSubmitInvestigationIdea } from '@/lib/mcp/serverHandlers.ts'
 import { resetMcpRelayCaches } from '@/lib/mcp/relayFetch.ts'
 import { resetInvestigationSubmitRateLimitForTests } from '@/lib/investigationSubmission/rateLimit.ts'
 
 const originalFetch = globalThis.fetch
+
+function queryEnvelope (results: Record<string, unknown>[]) {
+  return {
+    results,
+    collection: 'index',
+    query: '',
+    count: results.length,
+    docCount: results.length,
+    status: 'ok',
+    indexFresh: true,
+  }
+}
 
 describe('mcp serverHandlers', () => {
   afterEach(() => {
@@ -14,36 +25,28 @@ describe('mcp serverHandlers', () => {
     resetInvestigationSubmitRateLimitForTests()
   })
 
-  it('search_site uses AND semantics with mocked relay', async () => {
-    globalThis.fetch = async (input: RequestInfo | URL) => {
+  it('search_site uses AND semantics with mocked relay QUERY', async () => {
+    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
-      if (url.includes('index.json')) {
-        return new Response(JSON.stringify({ entries: [] }), { status: 200 })
-      }
-      if (url.includes('events.json')) {
-        return new Response(JSON.stringify({ entries: [] }), { status: 200 })
-      }
-      return new Response('not found', { status: 404 })
-    }
-
-    // Override index load by mocking flatten - actually fetch returns empty entries
-    // Use direct mock by patching fetch to return valid index structure
-    globalThis.fetch = async (input: RequestInfo | URL) => {
-      const url = String(input)
-      if (url.includes('index.json')) {
-        return new Response(JSON.stringify({
-          science: {
-            'aether.md': { _title: 'Aether', _keywords: ['Aether', 'Plasma'] },
+      const method = (init?.method || 'GET').toUpperCase()
+      if (method === 'QUERY' && url.includes('paradigm-threat-files')) {
+        return new Response(JSON.stringify(queryEnvelope([
+          {
+            path: 'science/aether.md',
+            _title: 'Aether',
+            _keywords: ['Aether', 'Plasma'],
+            title: 'Aether',
           },
-          history: {
-            mudflood: {
-              'page.md': { _title: 'Mud Flood', _keywords: ['MudFlood', 'MFEE', 'mud', 'flood'] },
-            },
+          {
+            path: 'history/mudflood/page.md',
+            _title: 'Mud Flood',
+            _keywords: ['MudFlood', 'MFEE', 'mud', 'flood'],
+            title: 'Mud Flood',
           },
-        }), { status: 200 })
+        ])), { status: 200 })
       }
-      if (url.includes('events.json')) {
-        return new Response(JSON.stringify({ entries: [] }), { status: 200 })
+      if (method === 'QUERY' && url.includes('paradigm-threat-timeline')) {
+        return new Response(JSON.stringify(queryEnvelope([])), { status: 200 })
       }
       if (url.includes('site-claims.json')) {
         return new Response(JSON.stringify([]), { status: 200 })
@@ -59,17 +62,21 @@ describe('mcp serverHandlers', () => {
   })
 
   it('research_status returns envelope shape', async () => {
-    globalThis.fetch = async (input: RequestInfo | URL) => {
+    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
-      if (url.includes('index.json')) {
-        return new Response(JSON.stringify({
-          history: {
-            mudflood: { 'page.md': { _title: 'Mud Flood', _keywords: ['MudFlood'] } },
+      const method = (init?.method || 'GET').toUpperCase()
+      if (method === 'QUERY' && url.includes('paradigm-threat-files')) {
+        return new Response(JSON.stringify(queryEnvelope([
+          {
+            path: 'history/mudflood/page.md',
+            _title: 'Mud Flood',
+            _keywords: ['MudFlood'],
+            title: 'Mud Flood',
           },
-        }), { status: 200 })
+        ])), { status: 200 })
       }
-      if (url.includes('events.json')) {
-        return new Response(JSON.stringify({ entries: [] }), { status: 200 })
+      if (method === 'QUERY' && url.includes('paradigm-threat-timeline')) {
+        return new Response(JSON.stringify(queryEnvelope([])), { status: 200 })
       }
       if (url.includes('site-claims.json')) {
         return new Response(JSON.stringify(mockClaimsJson()), { status: 200 })
@@ -98,10 +105,6 @@ function mockClaimsJson () {
     id: 'mfee-mud-flood-reset',
     title: 'MFEE',
     claim: 'Mud flood thesis',
-    confidence: 'project-thesis',
-    uniqueness: 'site-distinctive',
-    topics: ['mud flood', 'mfee', 'tartaria'],
-    searchQueries: ['mud flood MFEE'],
-    canonicalPaths: ['history/mudflood/page.md'],
+    keywords: ['mud', 'flood', 'MFEE'],
   }]
 }

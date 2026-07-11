@@ -18,6 +18,7 @@ import {
     buildOptimizedAssetUrl,
     listOptimizedAssetUrls,
 } from '@/lib/relayOptimizedAssetUrl'
+import { queryFilesPathExists } from '@/lib/queryCatalogFetch'
 import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
 
 /** Fullscreen / gallery popout raster width on Relay mirrors. */
@@ -25,28 +26,12 @@ const HIGH_RES_DISPLAY_W = 2400
 
 const DEFAULT_FILES_BASE_URL = getPrimaryFilesBaseUrl()
 
-let cachedIndex: any = null;
-let indexPromise: Promise<any> | null = null;
-
-export async function checkFileExists(path: string): Promise<boolean> {
+export async function checkFileExists (path: string): Promise<boolean> {
     try {
-        if (!indexPromise) {
-            indexPromise = fetch(`${DEFAULT_FILES_BASE_URL}/index.json`)
-                .then(res => res.ok ? res.json() : null)
-                .then(index => {
-                    cachedIndex = index;
-                    return index;
-                });
-        }
-        const index = await indexPromise;
-        if (!index) return false;
-
-        if (Array.isArray(index)) {
-            return index.includes(path) || index.includes('/' + path);
-        }
-        return !!index[path] || !!index['/' + path];
-    } catch (e) {
-        return false;
+        const clean = path.replace(/^\//, '')
+        return await queryFilesPathExists(clean, DEFAULT_FILES_BASE_URL)
+    } catch {
+        return false
     }
 }
 

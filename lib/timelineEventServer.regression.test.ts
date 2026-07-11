@@ -15,30 +15,33 @@ describe('getTimelineEventMeta ogImageUrl', () => {
   })
 
   it('includes ?w= on raster timeline OG paths', async () => {
-    const eventsPayload = {
-      entries: [
-        {
-          id: 'evt-test-og',
-          title: 'Test OG',
-          media: ['/media/00.overview/paradigm-threat-the-third-story.png'],
-        },
-      ],
-    }
-
     const originalFetch = globalThis.fetch
-    globalThis.fetch = (async (input: RequestInfo | URL) => {
-      const url = String(input)
-      if (url.includes('/data/events.json')) {
-        return new Response(JSON.stringify(eventsPayload), {
+    globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if ((init?.method || '').toUpperCase() === 'QUERY') {
+        return new Response(JSON.stringify({
+          status: 'ok',
+          collection: 'events',
+          query: '',
+          count: 1,
+          docCount: 1,
+          results: [
+            {
+              id: 'evt-test-og',
+              title: 'Test OG',
+              media: ['/media/00.overview/paradigm-threat-the-third-story.png'],
+              children: [],
+            },
+          ],
+        }), {
           status: 200,
           headers: { 'content-type': 'application/json' },
         })
       }
-      return originalFetch(input)
+      return originalFetch(_input, init)
     }) as typeof fetch
 
     try {
-      const { getTimelineEventMeta } = await import('./timelineEventServer.ts')
+      const { getTimelineEventMeta } = await import(`./timelineEventServer.ts?t=${Date.now()}`)
       const meta = await getTimelineEventMeta('evt-test-og')
       assert.ok(meta?.ogImageUrl)
       assert.match(

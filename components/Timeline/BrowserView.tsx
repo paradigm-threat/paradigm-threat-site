@@ -5,7 +5,7 @@ import { ChevronRight, FileText, Folder, FolderOpen } from 'lucide-react'
 import { useTimeline } from '@/components/TimelineContext'
 import { RelayTimelineMarkdown } from '@/components/RelayTimelineMarkdown'
 import { transformImageCaptions } from './markdownTransform'
-import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
+import { remoteRelay } from '@/lib/remoteRelayStore'
 
 /* ── Types ──────────────────────────────────────────────────────── */
 
@@ -197,27 +197,26 @@ export function BrowserView({ initialPath }: BrowserViewProps) {
   const [loadingContent, setLoadingContent] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
 
-  // Fetch index.json
+  // QUERY timeline file-tree catalog (never GET index.json)
   useEffect(() => {
     let cancelled = false
     queueMicrotask(() => setLoadingIndex(true))
-    fetch(`${baseUrl}/index.json${timelineManifestCacheQuery()}`, { cache: 'no-store' })
-      .then((res) => {
-        if (!res.ok) throw new Error(`Failed to fetch index: ${res.status}`)
-        return res.json()
-      })
-      .then((data) => {
-        if (!cancelled) {
-          setIndex(data)
-          setLoadingIndex(false)
-        }
-      })
-      .catch((err) => {
+    void (async () => {
+      try {
+        await remoteRelay.bootstrap()
+        const { queryTimelineFilesTree } = await import('@/lib/queryCatalogFetch')
+        const tree = await queryTimelineFilesTree((opts) => remoteRelay.queryTimeline(opts))
+        if (cancelled) return
+        if (!tree) throw new Error('Failed to QUERY timeline file catalog')
+        setIndex(tree as IndexNode)
+        setLoadingIndex(false)
+      } catch (err) {
         if (!cancelled) {
           setIndexError(err instanceof Error ? err.message : 'Failed to load index')
           setLoadingIndex(false)
         }
-      })
+      }
+    })()
     return () => { cancelled = true }
   }, [baseUrl])
 

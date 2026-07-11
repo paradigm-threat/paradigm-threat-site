@@ -9,7 +9,6 @@ import React, {
   useMemo,
   useSyncExternalStore,
 } from 'react'
-import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
 import { remoteRelay } from '@/lib/remoteRelayStore'
 
 export interface TimelineDate {
@@ -92,13 +91,12 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
     const fetchData = async () => {
       await remoteRelay.bootstrap()
       if (!isMounted) return
-      const url = `${baseUrl}/data/events.json${timelineManifestCacheQuery()}`
       setLoading(true)
       setError(null)
       try {
-        const res = await fetch(url, { cache: 'no-store' })
-        if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`)
-        const data: TimelineData = await res.json()
+        const { queryTimelineEventsData } = await import('@/lib/queryCatalogFetch')
+        const data = await queryTimelineEventsData(baseUrl || undefined)
+        if (!data) throw new Error('Failed to QUERY timeline events')
         if (isMounted) {
           setEntries(data.entries || [])
           setIntroArticles(data.introArticles || [])

@@ -146,11 +146,13 @@ export default function ChangeLog ({ target = '_self' }) {
         const filesBaseUrl = getPrimaryFilesBaseUrl()
         const timelineBaseUrl = getPrimaryTimelineBaseUrl()
 
-        const [filesRes, timelineRes, indexRes] = await Promise.allSettled([
+        const [filesRes, timelineRes] = await Promise.allSettled([
           fetch(`${filesBaseUrl}/changelog.json`, { cache: 'no-store' }),
           fetch(`${timelineBaseUrl}/changelog.json`, { cache: 'no-store' }),
-          fetch(`${filesBaseUrl}/index.json`, { cache: 'no-store' }),
         ])
+
+        const { queryFilesIndexTree } = await import('@/lib/queryCatalogFetch')
+        const indexData = await queryFilesIndexTree(filesBaseUrl)
 
         const filesData =
           filesRes.status === 'fulfilled' && filesRes.value.ok
@@ -160,10 +162,6 @@ export default function ChangeLog ({ target = '_self' }) {
           timelineRes.status === 'fulfilled' && timelineRes.value.ok
             ? await timelineRes.value.json()
             : []
-        const indexData =
-          indexRes.status === 'fulfilled' && indexRes.value.ok
-            ? await indexRes.value.json()
-            : null
 
         const filesEntries = Array.isArray(filesData)
           ? filesData.map((x) => normalizeEntry(x, 'paradigm-threat-files')).filter(Boolean)

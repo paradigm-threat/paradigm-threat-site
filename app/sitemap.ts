@@ -1,11 +1,7 @@
 import type { MetadataRoute } from 'next'
-import { fetchFromAssetMirrors } from '@/lib/remoteAssetMirrors'
 import { CANONICAL_SITE_ORIGIN } from '@/lib/canonicalPublicSite'
+import { queryFilesIndexTree } from '@/lib/queryCatalogFetch'
 import { isServerRelayFetchDisabled } from '@/lib/siteOpsFeature'
-import {
-  MIRROR_INDEX_REVALIDATE_SEC,
-  mirrorFetchNext,
-} from '@/lib/serverMirrorRevalidate'
 
 /** Keep in sync with lib/edgeDocumentCache.ts */
 export const revalidate = 86_400
@@ -32,15 +28,7 @@ function collectPaths (node: IndexNode, prefix: string, out: Set<string>): void 
 }
 
 async function loadIndex (): Promise<IndexNode | null> {
-  const res = await fetchFromAssetMirrors('files', '/index.json', {
-    next: mirrorFetchNext(MIRROR_INDEX_REVALIDATE_SEC),
-  })
-  if (!res?.ok) return null
-  try {
-    return (await res.json()) as IndexNode
-  } catch {
-    return null
-  }
+  return queryFilesIndexTree()
 }
 
 function staticSitemapEntries (): MetadataRoute.Sitemap {

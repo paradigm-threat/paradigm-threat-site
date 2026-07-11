@@ -1,20 +1,16 @@
 /**
- * Browser-only search index: Relay mirrors (index.json + events.json).
- * No Vercel /api/search-index or /api/feeling-lucky — zero Fast Origin Transfer for these flows.
+ * Browser-only search index via Relay QUERY (files index + timeline events).
+ * No GET of index.json / events.json.
  */
 
-import {
-  flattenFilesIndex,
-  flattenTimelineEntriesForSearch,
-  type IndexedPathEntry,
-} from '@/components/helpers/indexHelper'
+import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
 import {
   feelingLuckyPathToHref,
   isFeelingLuckyCandidate,
 } from '@/lib/feelingLucky'
+import { queryMergedSearchIndex } from '@/lib/queryCatalogFetch'
 import { remoteRelay } from '@/lib/remoteRelayStore'
 import { withFetchReport } from '@/lib/webmcp/fetchProgress'
-import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
 
 const CLIENT_INDEX_TIMEOUT_MS = 60_000
 
@@ -22,35 +18,12 @@ export async function fetchMergedSearchIndexClient (): Promise<IndexedPathEntry[
   if (typeof window === 'undefined') return null
 
   await remoteRelay.bootstrap()
-  const pairs = remoteRelay.getRelayPairs()
-  const idx = remoteRelay.getActivePairIndex()
-  const pair = pairs[idx] ?? pairs[0]
-  if (!pair) return null
-
   const signal = AbortSignal.timeout(CLIENT_INDEX_TIMEOUT_MS)
-  const filesData = await withFetchReport('search-index/index.json', () => remoteRelay.fetchIndexJson(signal))
-  if (filesData === null) return null
+  const snap = remoteRelay.getSnapshot()
 
-  let fromFiles: IndexedPathEntry[] = []
-  try {
-    fromFiles = flattenFilesIndex(filesData)
-  } catch {
-    return null
-  }
-
-  let fromTimeline: IndexedPathEntry[] = []
-  const timelineUrl = `${pair.timeline.replace(/\/$/, '')}/data/events.json${timelineManifestCacheQuery()}`
-  try {
-    const eventsRes = await withFetchReport('timeline/events.json', () =>
-      fetch(timelineUrl, { cache: 'no-store', signal }))
-    if (eventsRes.ok) {
-      fromTimeline = flattenTimelineEntriesForSearch(await eventsRes.json())
-    }
-  } catch {
-    fromTimeline = []
-  }
-
-  return [...fromFiles, ...fromTimeline]
+  return withFetchReport('search-index/QUERY', () =>
+    queryMergedSearchIndex(snap.filesBaseUrl, snap.timelineBaseUrl, signal),
+  )
 }
 
 /** Random article or timeline event href on paradigmthreat.net (client-side pick). */

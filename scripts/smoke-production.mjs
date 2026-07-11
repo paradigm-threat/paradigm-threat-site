@@ -110,8 +110,25 @@ async function main () {
     fail(`${BASE}/api/tts/piper — expected HTTP 410/503 (use relay Piper in browser), got ${ttsRes.status}`)
   }
 
-  await expectHead(`${FILES_MIRROR}/index.json`, { contentTypeIncludes: 'application/json' })
-  await expectHead(`${TIMELINE_MIRROR}/data/events.json`, { contentTypeIncludes: 'application/json' })
+  // Catalog health via QUERY (site no longer GETs index.json / events.json)
+  for (const [label, origin, collection] of [
+    ['files', FILES_MIRROR, 'index'],
+    ['timeline-events', TIMELINE_MIRROR, 'events'],
+  ]) {
+    const qRes = await fetch(`${origin.replace(/\/$/, '')}/`, {
+      method: 'QUERY',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({ collection, query: '', limit: 1 }),
+    })
+    if (!qRes.ok) {
+      fail(`QUERY ${label} ${origin} — expected HTTP 200, got ${qRes.status}`)
+    }
+    const qJson = await qRes.json()
+    if (qJson.status === 'not_indexed' || !(qJson.docCount > 0)) {
+      fail(`QUERY ${label} ${origin} — expected indexed docs, got status=${qJson.status} docCount=${qJson.docCount}`)
+    }
+    console.log(`smoke-production: QUERY ${label} OK docCount=${qJson.docCount}`)
+  }
   await expectHead(
     `${FILES_MIRROR}/events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation.png?w=400`,
     { contentTypeIncludes: 'image/' },

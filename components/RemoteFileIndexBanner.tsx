@@ -3,7 +3,7 @@
 import React from 'react'
 import { useFiles } from '@/components/FilesContext'
 
-/** Shown when index.json fails or times out; retry is the primary recovery path. */
+/** Shown when the files QUERY catalog fails or times out; retry is the primary recovery path. */
 export function RemoteFileIndexBanner() {
   const { loading, error, fileList, retryLoadIndex } = useFiles()
 

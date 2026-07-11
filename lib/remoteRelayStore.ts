@@ -114,7 +114,8 @@ export type RelayNotifyEvent =
 
 const PROBE_TIMEOUT_MS = 8000
 const MD_FETCH_TIMEOUT_MS = 12_000
-const INDEX_FETCH_TIMEOUT_MS = 5000
+/** Full catalog QUERY can exceed 5s on cold JIT / slow mirrors. */
+const INDEX_FETCH_TIMEOUT_MS = 60_000
 
 /** Persisted manual relay selection (survives refresh). Failover does not overwrite. */
 const RELAY_PREFERRED_PAIR_KEY = 'paradigm-threat-relay-preferred-pair'
@@ -363,22 +364,29 @@ class RemoteRelayStore {
     filesOk: boolean
     timelineOk: boolean
   }> {
-    const filesUrl = `${p.files.replace(/\/$/, '')}/index.json`
-    const timelineUrl = `${p.timeline.replace(/\/$/, '')}/data/events.json${timelineManifestCacheQuery()}`
     const start = t0()
     let filesOk = false
     let timelineOk = false
     try {
+      const signal = AbortSignal.timeout(PROBE_TIMEOUT_MS)
+      const headers = {
+        'content-type': 'application/json',
+        accept: 'application/json',
+      }
       const [rf, rt] = await Promise.all([
-        fetch(filesUrl, {
-          method: 'GET',
+        fetch(`${p.files.replace(/\/$/, '')}/`, {
+          method: 'QUERY',
+          headers,
+          body: JSON.stringify({ collection: 'index', query: '', limit: 1 }),
           cache: 'no-store',
-          signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+          signal,
         }),
-        fetch(timelineUrl, {
-          method: 'GET',
+        fetch(`${p.timeline.replace(/\/$/, '')}/`, {
+          method: 'QUERY',
+          headers,
+          body: JSON.stringify({ collection: 'events', query: '', limit: 1 }),
           cache: 'no-store',
-          signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+          signal,
         }),
       ])
       filesOk = rf.ok
@@ -495,20 +503,31 @@ class RemoteRelayStore {
   }
 
   /**
-   * Load index.json from the active pair, then other pairs on timeout/error.
+   * QUERY the files mirror (default collection index). Failover across pairs.
    */
-  async fetchIndexJson(externalAbort: AbortSignal): Promise<unknown | null> {
+  async queryFiles (
+    opts: {
+      collection?: string
+      query?: string | Record<string, unknown>
+      limit?: number
+      signal?: AbortSignal
+    } = {},
+  ): Promise<import('@/lib/relayQuery').RelayQueryEnvelope | null> {
+    const { queryRelayOrigin } = await import('@/lib/relayQuery')
     this.ensurePairs()
     const order = this.pairFailoverOrder()
     let lastErr: Error | null = null
     for (const p of order) {
-      const v = Math.floor(Date.now() / 60000)
-      const url = `${p.files.replace(/\/$/, '')}/index.json?v=${v}`
-      const signal = mergeAbort(externalAbort, INDEX_FETCH_TIMEOUT_MS)
+      const signal = opts.signal
+        ? mergeAbort(opts.signal, INDEX_FETCH_TIMEOUT_MS)
+        : AbortSignal.timeout(INDEX_FETCH_TIMEOUT_MS)
       try {
-        const res = await fetch(url, { signal, cache: 'no-store' })
-        if (!res.ok) continue
-        const data = (await res.json()) as unknown
+        const data = await queryRelayOrigin(p.files, {
+          collection: opts.collection ?? 'index',
+          query: opts.query ?? '',
+          limit: opts.limit ?? 10_000,
+          signal,
+        })
         if (p.files !== this.filesOrigin || p.timeline !== this.timelineOrigin) {
           this.switchToPair(p, 'index_failover')
         }
@@ -517,8 +536,61 @@ class RemoteRelayStore {
         lastErr = e instanceof Error ? e : new Error(String(e))
       }
     }
-    if (lastErr) console.warn('[remoteRelay] fetchIndexJson:', lastErr.message)
+    if (lastErr) console.warn('[remoteRelay] queryFiles:', lastErr.message)
     return null
+  }
+
+  /**
+   * QUERY the timeline mirror. Failover across pairs.
+   */
+  async queryTimeline (
+    opts: {
+      collection?: string
+      query?: string | Record<string, unknown>
+      limit?: number
+      signal?: AbortSignal
+    } = {},
+  ): Promise<import('@/lib/relayQuery').RelayQueryEnvelope | null> {
+    const { queryRelayOrigin } = await import('@/lib/relayQuery')
+    this.ensurePairs()
+    const order = this.pairFailoverOrder()
+    let lastErr: Error | null = null
+    for (const p of order) {
+      const signal = opts.signal
+        ? mergeAbort(opts.signal, INDEX_FETCH_TIMEOUT_MS)
+        : AbortSignal.timeout(INDEX_FETCH_TIMEOUT_MS)
+      try {
+        const data = await queryRelayOrigin(p.timeline, {
+          collection: opts.collection ?? 'events',
+          query: opts.query ?? '',
+          limit: opts.limit ?? 10_000,
+          signal,
+        })
+        if (p.files !== this.filesOrigin || p.timeline !== this.timelineOrigin) {
+          this.switchToPair(p, 'index_failover')
+        }
+        return data
+      } catch (e) {
+        lastErr = e instanceof Error ? e : new Error(String(e))
+      }
+    }
+    if (lastErr) console.warn('[remoteRelay] queryTimeline:', lastErr.message)
+    return null
+  }
+
+  /**
+   * Load files catalog via QUERY and rebuild nested tree (replaces GET index.json).
+   */
+  async fetchIndexJson(externalAbort: AbortSignal): Promise<unknown | null> {
+    const { rebuildFilesIndexTree } = await import('@/lib/queryCatalog')
+    const env = await this.queryFiles({
+      collection: 'index',
+      query: '',
+      limit: 10_000,
+      signal: externalAbort,
+    })
+    if (!env) return null
+    return rebuildFilesIndexTree(env.results)
   }
 
   /**

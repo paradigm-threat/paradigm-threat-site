@@ -1,13 +1,14 @@
-import { fetchFromAssetMirrors } from '@/lib/remoteAssetMirrors'
-import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
+import { queryTimelineEventsData } from '@/lib/queryCatalogFetch'
+import { getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
 
-/** First mirror that returns ok for timeline `data/events.json` */
+/** QUERY timeline events catalog (no GET of data/events.json). */
 export async function fetchTimelineEventsResponse (
-  init?: { next?: { revalidate?: number | false } },
+  _init?: { next?: { revalidate?: number | false } },
 ): Promise<Response | null> {
-  const q = timelineManifestCacheQuery()
-  return fetchFromAssetMirrors('timeline', '/data/events.json', {
-    search: q,
-    next: init?.next ?? { revalidate: 60 },
+  const data = await queryTimelineEventsData(getPrimaryTimelineBaseUrl())
+  if (!data) return null
+  return new Response(JSON.stringify(data), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
   })
 }

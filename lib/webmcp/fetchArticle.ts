@@ -2,14 +2,9 @@ import { buildArticleMdCandidatePaths } from '@/lib/articleMdPaths'
 import { withFetchReport } from '@/lib/webmcp/fetchProgress'
 import { remoteRelay } from '@/lib/remoteRelayStore'
 import { timelineManifestCacheQuery } from '@/lib/timelineManifestCacheBust'
+import { queryTimelineEventsData } from '@/lib/queryCatalogFetch'
 
 const MD_TIMEOUT_MS = 45_000
-
-type TimelineNode = {
-  id?: string
-  md_path?: string
-  children?: TimelineNode[]
-}
 
 let timelineMdPathCache: Map<string, string> | null = null
 
@@ -17,29 +12,18 @@ async function loadTimelineMdPathMap (): Promise<Map<string, string>> {
   if (timelineMdPathCache) return timelineMdPathCache
   const map = new Map<string, string>()
   await remoteRelay.bootstrap()
-  const pairs = remoteRelay.getRelayPairs()
-  const idx = remoteRelay.getActivePairIndex()
-  const pair = pairs[idx] ?? pairs[0]
-  if (!pair) {
-    timelineMdPathCache = map
-    return map
-  }
-  const url = `${pair.timeline.replace(/\/$/, '')}/data/events.json${timelineManifestCacheQuery()}`
   try {
-    const res = await withFetchReport('timeline/events.json', () =>
-      fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(MD_TIMEOUT_MS) }))
-    if (res.ok) {
-      const data = (await res.json()) as { entries?: TimelineNode[] }
-      const walk = (nodes: TimelineNode[]) => {
-        for (const n of nodes) {
-          if (typeof n.id === 'string' && typeof n.md_path === 'string') {
-            map.set(n.id, n.md_path)
-          }
-          if (Array.isArray(n.children)) walk(n.children)
+    const snap = remoteRelay.getSnapshot()
+    const data = await queryTimelineEventsData(snap.timelineBaseUrl || undefined)
+    const walk = (nodes: { id?: string; md_path?: string; children?: unknown[] }[]) => {
+      for (const n of nodes) {
+        if (typeof n.id === 'string' && typeof n.md_path === 'string') {
+          map.set(n.id, n.md_path)
         }
+        if (Array.isArray(n.children)) walk(n.children as typeof nodes)
       }
-      if (Array.isArray(data.entries)) walk(data.entries)
     }
+    if (data?.entries) walk(data.entries)
   } catch {
     // empty map
   }
