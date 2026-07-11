@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Probe Spot relay mirror pairs (files index.json + timeline events.json).
+# Probe Spot relay mirror pairs (files + timeline QUERY catalogs).
 # Usage: ./scripts/probe-relay-mirrors.sh
 set -euo pipefail
 
@@ -31,15 +31,19 @@ for ((i=0; i<n; i++)); do
   t="${TIMELINE[$i]:-${TIMELINE[0]}}"
   echo "--- pair $((i+1)): files=$f"
   echo "              timeline=$t"
-  if curl -fsS --connect-timeout 20 "${f%/}/index.json" -o /dev/null; then
-    ok "files index.json"
+  if curl -fsS --connect-timeout 20 -X QUERY "${f%/}" \
+      -H 'Accept: application/json' -H 'Content-Type: application/json' \
+      -d '{"type":"query","collection":"index","query":"venus","limit":1}' -o /dev/null; then
+    ok "files QUERY"
   else
-    bad "files index.json"
+    bad "files QUERY"
   fi
-  if curl -fsS --connect-timeout 20 "${t%/}/data/events.json" -o /dev/null; then
-    ok "timeline events.json"
+  if curl -fsS --connect-timeout 20 -X QUERY "${t%/}" \
+      -H 'Accept: application/json' -H 'Content-Type: application/json' \
+      -d '{"type":"query","collection":"index","query":"venus","limit":1}' -o /dev/null; then
+    ok "timeline QUERY"
   else
-    bad "timeline events.json"
+    bad "timeline QUERY"
   fi
   host="$(echo "$f" | sed -n 's|https://paradigm-threat-files\.\([^/]*\)\.relaygateway.net.*|\1|p')"
   if [[ -n "$host" ]]; then
