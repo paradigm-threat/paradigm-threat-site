@@ -104,34 +104,76 @@ export const CatchAllClient = memo(function CatchAllClient() {
   /** Index / generated listing pages (no article MDX) — same label as the page title (h1). */
   const listingPageTitle = useMemo(() => path.split('/').pop() || 'Home', [path])
   const loadingPathRef = useRef<string | null>(null)
+  const articlePathRef = useRef<string | null>(null)
+  const contentRef = useRef<string | null>(null)
+  const basePathRef = useRef('')
   const articleRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
-    if (indexLoading) return
+    contentRef.current = content
+  }, [content])
+  useEffect(() => {
+    basePathRef.current = basePath
+  }, [basePath])
 
+  useEffect(() => {
     const tree = fileList
     setFilesIndex(tree ?? null)
 
-    const baseUrl = filesBaseUrl
     const version = typeof tree?._version === 'string' ? tree._version : ''
     const vParam = version ? `?v=${version}` : ''
 
     const requestPath = path
+    const pathChanged = loadingPathRef.current !== requestPath || articlePathRef.current !== requestPath
     loadingPathRef.current = requestPath
     let isMounted = true
     const abortController = new AbortController()
 
     const loadPage = async () => {
+      let articleLoaded = false
+      let waitingForIndex = false
       try {
+        // Catalog arrived after article already painted — only fill gallery unused images.
+        if (!pathChanged && articlePathRef.current === requestPath && tree) {
+          const calcBasePath = basePathRef.current
+          const articleBody = contentRef.current
+          let current = tree
+          for (const s of (calcBasePath || '').split('/').filter(Boolean)) {
+            if (current && current[s]) current = current[s]
+            else { current = null; break }
+          }
+          if (current && typeof current === 'object' && articleBody) {
+            const imagesInDir = Object.keys(current).filter(k => {
+              if (k === '_count') return false
+              const val = current[k]
+              const isFile = val !== null && typeof val === 'object' && !('_count' in val)
+              return isFile && /\.(jpg|jpeg|png|gif|svg|webp)$/i.test(k)
+            })
+            const unused = imagesInDir.filter((img: string) => {
+              const escapedImg = img.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+              const regex = new RegExp(`[\\(/\\s"'.]${escapedImg}([\\?\\s"')]|$)`, 'i')
+              return !regex.test(articleBody)
+            })
+            if (isMounted && loadingPathRef.current === requestPath) setUnusedImages(unused)
+          }
+          return
+        }
+
         setLoading(true)
+        if (pathChanged) {
+          setContent(null)
+          setArticleMeta(null)
+          setArticleTitle('')
+          setUnusedImages([])
+          setDirectImageLeaf(null)
+          setDirectTextLeaf(null)
+          setArticleMdRelPath(undefined)
+          articlePathRef.current = null
+        }
         setRemoteArticle404(false)
         setArticle404PathMissingFromIndex(false)
         setError(null)
-        setDirectImageLeaf(null)
-        setDirectTextLeaf(null)
-        setArticleMdRelPath(undefined)
 
-        let articleLoaded = false
         let articleFetchStatus: number | null = null
         const skipMdArticleProbe = isNonArticlePath(requestPath)
         try {
@@ -167,26 +209,31 @@ export const CatchAllClient = memo(function CatchAllClient() {
               setMds([])
             }
 
-            let current = tree
-            for (const s of (calcBasePath || '').split('/').filter(Boolean)) {
-              if (current && current[s]) current = current[s]
-              else { current = null; break }
-            }
+            if (tree) {
+              let current = tree
+              for (const s of (calcBasePath || '').split('/').filter(Boolean)) {
+                if (current && current[s]) current = current[s]
+                else { current = null; break }
+              }
 
-            if (current && typeof current === 'object') {
-              const imagesInDir = Object.keys(current).filter(k => {
-                if (k === '_count') return false
-                const val = current[k]
-                const isFile = val !== null && typeof val === 'object' && !('_count' in val)
-                return isFile && /\.(jpg|jpeg|png|gif|svg|webp)$/i.test(k)
-              })
-              const unused = imagesInDir.filter((img: string) => {
-                const escapedImg = img.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-                const regex = new RegExp(`[\\(/\\s"'.]${escapedImg}([\\?\\s"')]|$)`, 'i')
-                return !regex.test(mdxSource)
-              })
-              if (isMounted && loadingPathRef.current === requestPath) setUnusedImages(unused)
+              if (current && typeof current === 'object') {
+                const imagesInDir = Object.keys(current).filter(k => {
+                  if (k === '_count') return false
+                  const val = current[k]
+                  const isFile = val !== null && typeof val === 'object' && !('_count' in val)
+                  return isFile && /\.(jpg|jpeg|png|gif|svg|webp)$/i.test(k)
+                })
+                const unused = imagesInDir.filter((img: string) => {
+                  const escapedImg = img.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+                  const regex = new RegExp(`[\\(/\\s"'.]${escapedImg}([\\?\\s"')]|$)`, 'i')
+                  return !regex.test(mdxSource)
+                })
+                if (isMounted && loadingPathRef.current === requestPath) setUnusedImages(unused)
+              }
+            } else if (isMounted && loadingPathRef.current === requestPath) {
+              setUnusedImages([])
             }
+            articlePathRef.current = requestPath
             articleLoaded = true
           }
           }
@@ -195,7 +242,11 @@ export const CatchAllClient = memo(function CatchAllClient() {
         }
 
         if (articleLoaded) {
-          /* article path handled */
+          /* article path handled — paint without waiting for catalog */
+        } else if (!tree && indexLoading) {
+          // Directory listing / 404 needs the catalog; keep spinner until fileList arrives.
+          waitingForIndex = true
+          return
         } else {
           let current = tree
           if (current && typeof current === 'object') {
@@ -362,9 +413,8 @@ export const CatchAllClient = memo(function CatchAllClient() {
               setRemoteArticle404(true)
               setArticle404PathMissingFromIndex(pathMissingFromIndex)
             } else {
-              setRemoteArticle404(false)
-              setArticle404PathMissingFromIndex(false)
-              setError('Could not load this page.')
+              setRemoteArticle404(true)
+              setArticle404PathMissingFromIndex(pathMissingFromIndex)
             }
           }
         }
@@ -375,7 +425,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
           setArticle404PathMissingFromIndex(false)
         }
       } finally {
-        if (loadingPathRef.current === requestPath) setLoading(false)
+        if (loadingPathRef.current === requestPath && !waitingForIndex) setLoading(false)
       }
     }
 
@@ -394,7 +444,10 @@ export const CatchAllClient = memo(function CatchAllClient() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  if (indexLoading || loading) {
+  // Paint article / leaf content as soon as ready; only block on catalog for listings/404.
+  if (directImageLeaf || directTextLeaf || content) {
+    /* fall through to content renders below */
+  } else if (indexLoading || loading) {
     return <div className="flex items-center justify-center min-h-screen"><SuspenseLoader /></div>
   }
 

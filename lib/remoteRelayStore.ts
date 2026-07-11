@@ -114,8 +114,8 @@ export type RelayNotifyEvent =
 
 const PROBE_TIMEOUT_MS = 8000
 const MD_FETCH_TIMEOUT_MS = 12_000
-/** Full catalog QUERY can exceed 5s on cold JIT / slow mirrors. */
-const INDEX_FETCH_TIMEOUT_MS = 60_000
+/** Full catalog QUERY; keep below old 60s so slow mirrors failover sooner. */
+const INDEX_FETCH_TIMEOUT_MS = 20_000
 
 /** Persisted manual relay selection (survives refresh). Failover does not overwrite. */
 const RELAY_PREFERRED_PAIR_KEY = 'paradigm-threat-relay-preferred-pair'
@@ -347,6 +347,7 @@ class RemoteRelayStore {
     const pair = this.pairs[index]
     if (!pair) return false
     this.switchToPair(pair, 'manual_select')
+    this.warmFilesCatalog(pair.files)
     return true
   }
 
@@ -474,6 +475,12 @@ class RemoteRelayStore {
     this.emit()
   }
 
+  /** Kick off full files catalog QUERY in parallel with probes (deduped via filesCatalogCache). */
+  private warmFilesCatalog (filesOrigin: string): void {
+    if (typeof window === 'undefined' || !filesOrigin) return
+    void this.fetchIndexJsonForOrigin(filesOrigin, AbortSignal.timeout(INDEX_FETCH_TIMEOUT_MS))
+  }
+
   private async runBootstrap(): Promise<void> {
     this.ensurePairs()
     if (this.pairs.length === 0) {
@@ -482,13 +489,17 @@ class RemoteRelayStore {
       return
     }
 
+    const preferredEarly = this.readStoredPreferredPair()
+    const warmOrigin = preferredEarly?.files ?? this.pairs[0]?.files
+    if (warmOrigin) this.warmFilesCatalog(warmOrigin)
+
     const results =
       this.pairs.length === 1
         ? [await this.probePair(this.pairs[0]!)]
         : await Promise.all(this.pairs.map((p) => this.probePair(p)))
     this.cacheProbeResults(results)
 
-    const preferred = this.readStoredPreferredPair()
+    const preferred = preferredEarly
     if (preferred) {
       const prefProbe = results.find(
         (r) => r.pair.files === preferred.files && r.pair.timeline === preferred.timeline,
@@ -499,7 +510,11 @@ class RemoteRelayStore {
       }
     }
 
-    this.finishBootstrap(this.pickBestFromProbeResults(results))
+    const best = this.pickBestFromProbeResults(results)
+    if (best.files !== warmOrigin) {
+      this.warmFilesCatalog(best.files)
+    }
+    this.finishBootstrap(best)
   }
 
   /**
@@ -580,17 +595,56 @@ class RemoteRelayStore {
 
   /**
    * Load files catalog via QUERY and rebuild nested tree (replaces GET index.json).
+   * Uses session cache + inflight dedupe shared with search.
    */
-  async fetchIndexJson(externalAbort: AbortSignal): Promise<unknown | null> {
-    const { rebuildFilesIndexTree } = await import('@/lib/queryCatalog')
-    const env = await this.queryFiles({
-      collection: 'index',
-      query: '',
-      limit: 10_000,
-      signal: externalAbort,
+  async fetchIndexJson (externalAbort: AbortSignal): Promise<unknown | null> {
+    await this.bootstrap()
+    return this.fetchIndexJsonForOrigin(this.filesOrigin, externalAbort)
+  }
+
+  private async fetchIndexJsonForOrigin (
+    filesOrigin: string,
+    externalAbort: AbortSignal,
+  ): Promise<unknown | null> {
+    const {
+      getCachedFilesCatalogTree,
+      loadFilesCatalogCached,
+      rememberFilesCatalogFromEnvelope,
+    } = await import('@/lib/filesCatalogCache')
+    const hit = getCachedFilesCatalogTree(filesOrigin)
+    if (hit) return hit
+
+    return loadFilesCatalogCached(filesOrigin, async () => {
+      // Prefer the warmed origin first, then normal failover order.
+      const { queryRelayOrigin } = await import('@/lib/relayQuery')
+      this.ensurePairs()
+      const order = this.pairFailoverOrder()
+      const preferred = order.find((p) => p.files === filesOrigin)
+      const tryOrder = preferred ? [preferred, ...order.filter((p) => p !== preferred)] : order
+      let lastErr: Error | null = null
+      for (const p of tryOrder) {
+        const signal = mergeAbort(externalAbort, INDEX_FETCH_TIMEOUT_MS)
+        try {
+          const data = await queryRelayOrigin(p.files, {
+            collection: 'index',
+            query: '',
+            limit: 10_000,
+            signal,
+          })
+          if (p.files !== this.filesOrigin || p.timeline !== this.timelineOrigin) {
+            this.switchToPair(p, 'index_failover')
+          }
+          if (p.files !== filesOrigin) {
+            rememberFilesCatalogFromEnvelope(p.files, data)
+          }
+          return data
+        } catch (e) {
+          lastErr = e instanceof Error ? e : new Error(String(e))
+        }
+      }
+      if (lastErr) console.warn('[remoteRelay] fetchIndexJsonForOrigin:', lastErr.message)
+      return null
     })
-    if (!env) return null
-    return rebuildFilesIndexTree(env.results)
   }
 
   /**

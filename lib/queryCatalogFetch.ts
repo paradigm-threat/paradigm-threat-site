@@ -33,14 +33,18 @@ export async function queryFilesIndexTree (
   signal?: AbortSignal,
 ): Promise<Record<string, unknown> | null> {
   try {
-    const env = await queryRelayOrigin(origin, {
-      collection: 'index',
-      query: '',
-      limit: 10_000,
-      signal,
+    const { getCachedFilesCatalogTree, loadFilesCatalogCached } = await import('@/lib/filesCatalogCache')
+    const hit = getCachedFilesCatalogTree(origin)
+    if (hit) return hit
+    return loadFilesCatalogCached(origin, async () => {
+      const env = await queryRelayOrigin(origin, {
+        collection: 'index',
+        query: '',
+        limit: 10_000,
+        signal,
+      })
+      return isPathCatalog(env) ? env : null
     })
-    if (!isPathCatalog(env)) return null
-    return rebuildFilesIndexTree(env.results)
   } catch {
     return null
   }
@@ -114,29 +118,40 @@ export async function queryMergedSearchIndex (
   signal?: AbortSignal,
 ): Promise<IndexedPathEntry[] | null> {
   try {
-    const [filesEnv, eventsEnv] = await Promise.all([
-      queryRelayOrigin(filesOrigin, {
+    const { getCachedFilesIndexedEntries } = await import('@/lib/filesCatalogCache')
+    const cachedFiles = getCachedFilesIndexedEntries(filesOrigin)
+
+    const eventsPromise = queryRelayOrigin(timelineOrigin, {
+      collection: 'events',
+      query: '',
+      limit: 10_000,
+      signal,
+    }).catch(async () =>
+      queryRelayOrigin(timelineOrigin, {
         collection: 'index',
         query: '',
         limit: 10_000,
         signal,
       }),
-      queryRelayOrigin(timelineOrigin, {
-        collection: 'events',
+    )
+
+    let fromFiles: IndexedPathEntry[]
+    if (cachedFiles) {
+      fromFiles = cachedFiles
+    } else {
+      const filesEnv = await queryRelayOrigin(filesOrigin, {
+        collection: 'index',
         query: '',
         limit: 10_000,
         signal,
-      }).catch(async () =>
-        queryRelayOrigin(timelineOrigin, {
-          collection: 'index',
-          query: '',
-          limit: 10_000,
-          signal,
-        }),
-      ),
-    ])
-    if (!isPathCatalog(filesEnv)) return null
-    const fromFiles = filesRowsToIndexedEntries(filesEnv.results)
+      })
+      if (!isPathCatalog(filesEnv)) return null
+      const { rememberFilesCatalogFromEnvelope } = await import('@/lib/filesCatalogCache')
+      rememberFilesCatalogFromEnvelope(filesOrigin, filesEnv)
+      fromFiles = filesRowsToIndexedEntries(filesEnv.results)
+    }
+
+    const eventsEnv = await eventsPromise
     const fromTimeline = isEventsCatalog(eventsEnv)
       ? eventRowsToIndexedEntries(eventsEnv.results)
       : []

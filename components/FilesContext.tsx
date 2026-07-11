@@ -9,6 +9,7 @@ import React, {
   ReactNode,
   useMemo,
   useSyncExternalStore,
+  useRef,
 } from 'react'
 import { remoteRelay } from '@/lib/remoteRelayStore'
 import { sendClientTelemetry } from '@/lib/clientTelemetrySend'
@@ -29,6 +30,7 @@ export function FilesProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [retryKey, setRetryKey] = useState(0)
+  const loadedOriginRef = useRef<string | null>(null)
 
   const filesUrl = useSyncExternalStore(
     (cb) => remoteRelay.subscribe(cb),
@@ -49,13 +51,12 @@ export function FilesProvider({ children }: { children: ReactNode }) {
       setLoading(true)
       setError(null)
       try {
-        await remoteRelay.bootstrap()
-        if (!isMounted) return
         const data = await remoteRelay.fetchIndexJson(abortController.signal)
         if (!isMounted) return
         void prefetchSiteClaims(abortController.signal)
         if (data == null) {
           setFileList(null)
+          loadedOriginRef.current = null
           setError(
             'Could not load the file index from any relay mirror (timeout or network error). Use Retry or check your connection.',
           )
@@ -71,16 +72,17 @@ export function FilesProvider({ children }: { children: ReactNode }) {
           return
         }
         setFileList(data)
+        loadedOriginRef.current = remoteRelay.getSnapshot().filesBaseUrl
         setError(null)
         setLoading(false)
       } catch (err: unknown) {
         if (!isMounted) return
         const name = err instanceof Error ? err.name : ''
         if (name === 'AbortError') {
-          setFileList(null)
-          setError('File index load was cancelled.')
+          setLoading(false)
         } else {
           setFileList(null)
+          loadedOriginRef.current = null
           setError(err instanceof Error ? err.message : 'Failed to load file index')
           const snap = remoteRelay.getSnapshot()
           sendClientTelemetry({
@@ -90,8 +92,8 @@ export function FilesProvider({ children }: { children: ReactNode }) {
             attemptedHostCount: getFilesBaseUrlList().length,
             attemptedHostsSummary: snap.serverLabel || snap.filesHostLabel || undefined,
           })
+          setLoading(false)
         }
-        setLoading(false)
       }
     }
 
@@ -101,7 +103,31 @@ export function FilesProvider({ children }: { children: ReactNode }) {
       isMounted = false
       abortController.abort()
     }
-  }, [retryKey, filesUrl])
+  }, [retryKey])
+
+  // Soft refresh when active mirror changes (manual select / failover) without aborting first paint.
+  useEffect(() => {
+    if (!filesUrl) return
+    if (loadedOriginRef.current === filesUrl && fileList) return
+    let isMounted = true
+    const abortController = new AbortController()
+    void (async () => {
+      try {
+        const data = await remoteRelay.fetchIndexJson(abortController.signal)
+        if (!isMounted || data == null) return
+        setFileList(data)
+        loadedOriginRef.current = remoteRelay.getSnapshot().filesBaseUrl
+        setError(null)
+        setLoading(false)
+      } catch {
+        /* ignore — primary effect owns hard errors */
+      }
+    })()
+    return () => {
+      isMounted = false
+      abortController.abort()
+    }
+  }, [filesUrl, fileList])
 
   const contextValue = useMemo(
     () => ({ fileList, loading, error, retryLoadIndex }),
