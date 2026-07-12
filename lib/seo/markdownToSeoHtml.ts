@@ -33,7 +33,7 @@ function preprocessCustomComponents (source: string): string {
 }
 
 function restoreChangelog (html: string, changelogHtml?: string): string {
-  const block = changelogHtml ?? '<p><em>Change log</em></p>'
+  const block = changelogHtml ?? '<p><em>Recent content</em></p>'
   return html.split(CHANGELOG_PLACEHOLDER).join(block)
 }
 

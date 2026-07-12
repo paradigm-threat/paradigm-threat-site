@@ -1,14 +1,9 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Maximize2, Minimize2 } from 'lucide-react'
 import { useImageGallery } from '@/components/Image/ImageGalleryContext'
-import { buildContentItemsFromChangelog } from '@/lib/changelog/buildContentItemsFromChangelog'
-import {
-  buildContentItemsFromIndex,
-  mergeChangelogImagesIntoItems,
-} from '@/lib/changelog/buildContentItemsFromIndex'
-import { getPrimaryFilesBaseUrl, getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
+import { queryRecentFilesContent } from '@/lib/changelog/queryRecentContent'
 import ChangeLogTabs from './ChangeLogTabs'
 import ChangeLogContentList from './ChangeLogContentList'
 import ChangeLogFeed from './ChangeLogFeed'
@@ -20,63 +15,8 @@ import styles from './ChangeLog.module.css'
 
 const TAB_STORAGE_KEY = 'paradigm-changelog-tab'
 
-const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg)$/i
-
-function toHrefForRepo (pathLike, repo) {
-  const clean = String(pathLike || '').replace(/^\/+/, '')
-  if (!clean) return null
-  if (repo === 'paradigm-threat-timeline') {
-    return clean.startsWith('timeline/') ? `/${clean}` : `/timeline/${clean}`.replace(/\/+/g, '/')
-  }
-  return `/${clean}`
-}
-
-function inferFilesFromMessage (message, repo) {
-  if (typeof message !== 'string' || !message) return []
-  const pathMatch = message.match(/\b([a-z0-9._-]+\/[a-z0-9._/-]+)\b/i)
-  if (!pathMatch) return []
-  const rawPath = pathMatch[1].replace(/[),.;:!?]+$/, '')
-  const href = toHrefForRepo(rawPath, repo)
-  if (!href) return []
-  return [{ path: rawPath, href, status: 'M' }]
-}
-
-function inferImagesFromFiles (files) {
-  if (!Array.isArray(files)) return []
-  const out = []
-  const seen = new Set()
-  for (const f of files) {
-    const p = f.path || ''
-    if (!IMAGE_EXT.test(p)) continue
-    const src = p.startsWith('/') ? p : `/${p.replace(/^\//, '')}`
-    if (!seen.has(src)) {
-      seen.add(src)
-      out.push({ src })
-    }
-  }
-  return out
-}
-
-function normalizeEntry (entry, fallbackRepo) {
-  if (!entry || typeof entry !== 'object') return null
-  const repo = entry.repo || fallbackRepo
-  const explicitFiles =
-    Array.isArray(entry.files) ? entry.files
-      : Array.isArray(entry.changedFiles) ? entry.changedFiles
-        : Array.isArray(entry.paths) ? entry.paths.map((p) => ({ path: p, href: toHrefForRepo(p, repo), status: 'M' }))
-          : []
-  const files = explicitFiles.length > 0 ? explicitFiles : inferFilesFromMessage(entry.message || '', repo)
-  let images = Array.isArray(entry.images) ? entry.images.map((x) => ({ src: x.src, alt: x.alt })) : []
-  if (images.length === 0) {
-    images = inferImagesFromFiles(files)
-  }
-  return {
-    repo,
-    date: entry.date || '',
-    message: entry.message || '',
-    files,
-    images,
-  }
+function emptyContentByTab () {
+  return { articles: [], investigations: [], blog: [] }
 }
 
 function readStoredTab () {
@@ -94,8 +34,7 @@ function readStoredTab () {
 
 export default function ChangeLog ({ target = '_self' }) {
   const [feedLog, setFeedLog] = useState([])
-  const [filesChangelog, setFilesChangelog] = useState([])
-  const [indexData, setIndexData] = useState(null)
+  const [contentByTab, setContentByTab] = useState(emptyContentByTab)
   const [loading, setLoading] = useState(true)
   const [fullscreen, setFullscreen] = useState(false)
   const [activeTab, setActiveTab] = useState('articles')
@@ -113,12 +52,6 @@ export default function ChangeLog ({ target = '_self' }) {
       /* ignore */
     }
   }, [])
-
-  const contentByTab = useMemo(() => {
-    const fromIndex = buildContentItemsFromIndex(indexData)
-    const fromChangelog = buildContentItemsFromChangelog(filesChangelog)
-    return mergeChangelogImagesIntoItems(fromIndex, fromChangelog)
-  }, [filesChangelog, indexData])
 
   const toggleFullscreen = useCallback(() => {
     setFullscreen((v) => !v)
@@ -143,42 +76,11 @@ export default function ChangeLog ({ target = '_self' }) {
   useEffect(() => {
     const fetchChangeLog = async () => {
       try {
-        const filesBaseUrl = getPrimaryFilesBaseUrl()
-        const timelineBaseUrl = getPrimaryTimelineBaseUrl()
-
-        const [filesRes, timelineRes] = await Promise.allSettled([
-          fetch(`${filesBaseUrl}/changelog.json`, { cache: 'no-store' }),
-          fetch(`${timelineBaseUrl}/changelog.json`, { cache: 'no-store' }),
-        ])
-
-        const { queryFilesIndexTree } = await import('@/lib/queryCatalogFetch')
-        const indexData = await queryFilesIndexTree(filesBaseUrl)
-
-        const filesData =
-          filesRes.status === 'fulfilled' && filesRes.value.ok
-            ? await filesRes.value.json()
-            : []
-        const timelineData =
-          timelineRes.status === 'fulfilled' && timelineRes.value.ok
-            ? await timelineRes.value.json()
-            : []
-
-        const filesEntries = Array.isArray(filesData)
-          ? filesData.map((x) => normalizeEntry(x, 'paradigm-threat-files')).filter(Boolean)
-          : []
-        const timelineEntries = Array.isArray(timelineData)
-          ? timelineData.map((x) => normalizeEntry(x, 'paradigm-threat-timeline')).filter(Boolean)
-          : []
-
-        const feedMerged = [...filesEntries, ...timelineEntries]
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-          .slice(0, 16)
-
-        setFeedLog(feedMerged)
-        setFilesChangelog(filesEntries)
-        setIndexData(indexData)
+        const result = await queryRecentFilesContent()
+        setFeedLog(result.feed)
+        setContentByTab(result.contentByTab)
       } catch (e) {
-        console.error('Failed to fetch changelog.json', e)
+        console.error('Failed to fetch recent content from QUERY', e)
       } finally {
         setLoading(false)
       }

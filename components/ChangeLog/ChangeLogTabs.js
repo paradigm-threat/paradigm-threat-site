@@ -7,7 +7,7 @@ export const CHANGELOG_TABS = [
   { id: 'articles', label: 'Articles' },
   { id: 'investigations', label: 'Investigations' },
   { id: 'blog', label: 'Blog' },
-  { id: 'changelog', label: 'Changelog' },
+  { id: 'changelog', label: 'Recent' },
 ]
 
 export default function ChangeLogTabs ({ activeTab, onTabChange }) {
@@ -15,7 +15,7 @@ export default function ChangeLogTabs ({ activeTab, onTabChange }) {
     <div
       className={styles.tabBar}
       role="tablist"
-      aria-label="Change log sections"
+      aria-label="Recent content sections"
     >
       {CHANGELOG_TABS.map((tab) => {
         const selected = activeTab === tab.id

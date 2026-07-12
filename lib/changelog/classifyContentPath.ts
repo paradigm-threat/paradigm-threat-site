@@ -22,6 +22,7 @@ export function classifyContentPath (path: string, repo?: string): ContentKind {
 
   const base = basename(normalized)
   if (base === 'page.md') return 'exclude'
+  if (/^readme\.md$/i.test(base)) return 'exclude'
   if (normalized.startsWith('docs/')) return 'exclude'
 
   if (normalized.startsWith('blog/')) return 'blog'

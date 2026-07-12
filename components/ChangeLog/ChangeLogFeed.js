@@ -105,7 +105,7 @@ export default function ChangeLogFeed ({
                 </div>
               )}
               {(!Array.isArray(entry.files) || entry.files.length === 0) && (
-                <div className="opacity-70 text-sm">no file links in source changelog yet</div>
+                <div className="opacity-70 text-sm">no file links in recent-content index yet</div>
               )}
             </div>
           </li>

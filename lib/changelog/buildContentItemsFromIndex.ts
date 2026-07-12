@@ -1,5 +1,5 @@
 import { classifyContentPath, type ContentKind } from './classifyContentPath'
-import type { ContentItem, ContentItemsByTab } from './buildContentItemsFromChangelog'
+import type { ContentItem, ContentItemsByTab } from './contentTypes'
 import { parseIndexUpdated, getIndexUpdatedTime } from '@/lib/indexUpdated'
 
 export const RECENT_CONTENT_DAYS = 30
@@ -122,28 +122,3 @@ export function buildContentItemsFromIndex (
   return { articles, investigations, blog: blogPosts }
 }
 
-/** Overlay changelog slug-matched hero images onto index-backed items. */
-export function mergeChangelogImagesIntoItems (
-  fromIndex: ContentItemsByTab,
-  fromChangelog: ContentItemsByTab,
-): ContentItemsByTab {
-  const imageByPath = new Map<string, string>()
-  for (const tab of ['articles', 'investigations', 'blog'] as const) {
-    for (const item of fromChangelog[tab]) {
-      if (item.imageSrc) imageByPath.set(item.path, item.imageSrc)
-    }
-  }
-
-  const merge = (items: ContentItem[]) =>
-    items.map((item) => ({
-      ...item,
-      imageSrc: imageByPath.get(item.path) ?? item.imageSrc,
-      originalPublishedAt: item.originalPublishedAt,
-    }))
-
-  return {
-    articles: merge(fromIndex.articles),
-    investigations: merge(fromIndex.investigations),
-    blog: merge(fromIndex.blog),
-  }
-}

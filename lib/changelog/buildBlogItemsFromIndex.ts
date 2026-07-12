@@ -1,4 +1,4 @@
-import type { ContentItem } from './buildContentItemsFromChangelog'
+import type { ContentItem } from './contentTypes'
 
 function blogHref (filename: string): string {
   const stem = filename.replace(/\.md$/i, '')
@@ -42,32 +42,3 @@ export function buildBlogItemsFromIndex (
   return items
 }
 
-/**
- * Index lists every blog post; changelog adds commit dates and hero images when present.
- */
-export function mergeBlogTabItems (
-  fromIndex: ContentItem[],
-  fromChangelog: ContentItem[],
-): ContentItem[] {
-  const byPath = new Map<string, ContentItem>()
-
-  for (const item of fromIndex) {
-    byPath.set(item.path, item)
-  }
-
-  for (const item of fromChangelog) {
-    const prev = byPath.get(item.path)
-    byPath.set(item.path, {
-      ...(prev || item),
-      ...item,
-      date: item.date || prev?.date || '',
-      updatedAt: item.updatedAt || prev?.updatedAt || item.date || prev?.date || '',
-      originalPublishedAt: item.originalPublishedAt ?? prev?.originalPublishedAt ?? null,
-      imageSrc: item.imageSrc ?? prev?.imageSrc ?? null,
-    })
-  }
-
-  return Array.from(byPath.values()).sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-  )
-}

@@ -2,10 +2,9 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
   buildContentItemsFromIndex,
-  mergeChangelogImagesIntoItems,
   RECENT_CONTENT_DAYS,
 } from './buildContentItemsFromIndex.ts'
-import { buildContentItemsFromChangelog } from './buildContentItemsFromChangelog.ts'
+import { buildRecentContentFromRows } from './queryRecentContent.ts'
 
 const NOW = new Date('2026-06-29T12:00:00.000Z')
 
@@ -91,22 +90,61 @@ describe('buildContentItemsFromIndex', () => {
   })
 })
 
-describe('mergeChangelogImagesIntoItems', () => {
-  it('copies imageSrc from changelog items onto index items by path', () => {
-    const fromIndex = buildContentItemsFromIndex(
-      { cosmos: { 'mars-dagger.md': { _updated: '2026-06-28T13:45:12Z' } } },
-      { now: NOW },
-    )
-    const fromChangelog = buildContentItemsFromChangelog([
+describe('buildRecentContentFromRows', () => {
+  it('buckets flat QUERY rows by content_kind and attaches slug-matched images', () => {
+    const result = buildRecentContentFromRows([
       {
-        repo: 'paradigm-threat-files',
-        date: '2026-06-28T13:45:12Z',
-        message: 'img',
-        files: [{ path: 'cosmos/mars-dagger.md', href: '/cosmos/mars-dagger' }],
-        images: [{ src: '/cosmos/mars-dagger.png' }],
+        path: 'cosmos/mars-dagger.md',
+        title: 'Mars Dagger',
+        content_kind: 'article',
+        _updated: '2026-06-28T13:45:12Z',
       },
-    ])
-    const merged = mergeChangelogImagesIntoItems(fromIndex, fromChangelog)
-    assert.equal(merged.articles[0]?.imageSrc, '/cosmos/mars-dagger.png')
+      {
+        path: 'events/false_flag/investigations/richard-gage-investigation.md',
+        title: 'Richard Gage',
+        content_kind: 'investigation',
+        _updated: '2026-06-28T12:15:46Z',
+      },
+      {
+        path: 'blog/2026-06-01-roundup.md',
+        title: 'Roundup',
+        content_kind: 'blog',
+        _updated: '2026-06-27T12:00:00Z',
+        _originalPublishedAt: '2026-06-01T12:00:00Z',
+      },
+      { path: 'cosmos/mars-dagger.png', content_kind: 'exclude', title: 'mars' },
+      { path: 'history/old-article.md', content_kind: 'article', _updated: '2026-01-01T12:00:00Z' },
+      { path: 'README.md', content_kind: 'article', _updated: '2026-06-28T12:00:00Z', title: 'README' },
+    ], { now: NOW, withinDays: RECENT_CONTENT_DAYS })
+
+    assert.deepEqual(result.contentByTab.articles.map((x) => x.path), ['cosmos/mars-dagger.md'])
+    assert.equal(result.contentByTab.articles[0]?.imageSrc, '/cosmos/mars-dagger.png')
+    assert.equal(result.contentByTab.articles[0]?.title, 'Mars Dagger')
+    assert.equal(result.contentByTab.investigations.length, 1)
+    assert.equal(result.contentByTab.blog[0]?.originalPublishedAt, '2026-06-01T12:00:00Z')
+    assert.ok(!result.contentByTab.articles.some((a) => a.path === 'README.md'))
+    assert.deepEqual(
+      result.feed.map((x) => x.files[0]?.path),
+      [
+        'cosmos/mars-dagger.md',
+        'events/false_flag/investigations/richard-gage-investigation.md',
+        'blog/2026-06-01-roundup.md',
+      ],
+    )
+  })
+
+  it('prefers same-directory hero images over basename collisions', () => {
+    const result = buildRecentContentFromRows([
+      {
+        path: 'cosmos/mars.md',
+        title: 'Mars',
+        content_kind: 'article',
+        _updated: '2026-06-28T13:45:12Z',
+      },
+      { path: 'other/mars.png', content_kind: 'exclude' },
+      { path: 'cosmos/mars.png', content_kind: 'exclude' },
+    ], { now: NOW, withinDays: RECENT_CONTENT_DAYS })
+
+    assert.equal(result.contentByTab.articles[0]?.imageSrc, '/cosmos/mars.png')
   })
 })

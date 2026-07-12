@@ -53,7 +53,9 @@ export default function ChangeLogContentList ({
     const initial = {}
     visibleItems.forEach((item) => {
       initial[item.path] = {
-        title: placeholderTitleFromPath(item.path),
+        title: (typeof item.title === 'string' && item.title.trim())
+          ? item.title.trim()
+          : placeholderTitleFromPath(item.path),
         description: '',
       }
     })
@@ -72,7 +74,9 @@ export default function ChangeLogContentList ({
             const title = await extractTitleFromMarkdown(text)
             const { snippetPlain } = extractShareMetadata({ rawMarkdown: text })
             results[item.path] = {
-              title: title || placeholderTitleFromPath(item.path),
+              title: title
+                || (typeof item.title === 'string' && item.title.trim())
+                || placeholderTitleFromPath(item.path),
               description: snippetPlain || '',
             }
           } catch {

@@ -37,6 +37,11 @@ describe('classifyContentPath', () => {
     assert.equal(classifyContentPath('blog/page.md'), 'exclude')
   })
 
+  it('excludes README.md housekeeping files', () => {
+    assert.equal(classifyContentPath('README.md'), 'exclude')
+    assert.equal(classifyContentPath('science/README.md'), 'exclude')
+  })
+
   it('excludes docs/** and sweep plans', () => {
     assert.equal(classifyContentPath('docs/INVESTIGATION_LLM_SWEEP.md'), 'exclude')
     assert.equal(
