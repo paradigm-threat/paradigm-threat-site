@@ -1,5 +1,10 @@
 git:
   branchRules:
+    default:
+      requireSigned: true
+      allowUnsigned: false
+      allowedKeys:
+        - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIACk5sziqzdeqWPlUGoXxNvQ4lVqmo0mqBHSJO2C7cQ8 paradigm-threat-signing"
     branches:
       - name: "*"
         rule:
@@ -11,3 +16,17 @@ git:
         rule:
           allowUnsigned: true
           requireSigned: false
+      - name: chat/public
+        rule:
+          allowUnsigned: true
+          requireSigned: false
+server:
+  hooks:
+    index:
+      path: hooks/server/index.cs
+      branches: [chat/public]
+    query:
+      path: hooks/server/query.cs
+      branches: [chat/public]
+  search:
+    plugin: sqlite

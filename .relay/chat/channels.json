@@ -1,0 +1,21 @@
+{
+  "schema": "paradigm.chat.channels.v1",
+  "channels": [
+    { "name": "general", "description": "Site-wide discussion" },
+    { "name": "cosmos/mars", "description": "Life on Mars" },
+    { "name": "cosmos/cosmology", "description": "Saturnian cosmology" },
+    { "name": "history/mudflood", "description": "Mudflood" },
+    { "name": "history/chronology", "description": "Chronology" },
+    { "name": "history/maps", "description": "Maps" },
+    { "name": "governance/war", "description": "War" },
+    { "name": "governance/usury", "description": "Usury" },
+    { "name": "governance/genocide", "description": "Genocide" },
+    { "name": "nukes", "description": "Nuclear weapons" },
+    { "name": "controlled-opposition", "description": "Controlled opposition" },
+    { "name": "influence/censorship", "description": "Censorship" },
+    { "name": "suppressed-tech", "description": "Suppressed technology" },
+    { "name": "hollow-earth", "description": "Hollow Earth" },
+    { "name": "ech-in-time", "description": "Echoes in time" },
+    { "name": "rus-horde-tartaria", "description": "Christ / Tartaria" }
+  ]
+}

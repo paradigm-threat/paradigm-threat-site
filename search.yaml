@@ -1,0 +1,8 @@
+plugin: sqlite
+collections:
+  chat:
+    sources:
+      - type: path_tree
+        mode: replace
+    idFields: [path]
+    ftsFields: [path, title, _title, body]
