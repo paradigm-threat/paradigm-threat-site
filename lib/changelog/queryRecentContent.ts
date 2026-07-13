@@ -160,19 +160,44 @@ export function buildRecentContentFromRows (
   return { contentByTab, feed }
 }
 
+export type RecentContentLoadStep =
+  | 'connecting'
+  | 'fetching'
+  | 'organizing'
+  | 'done'
+  | 'error'
+
+export const RECENT_CONTENT_LOAD_MESSAGES: Record<RecentContentLoadStep, string> = {
+  connecting: 'Connecting to content index…',
+  fetching: 'Fetching recent updates…',
+  organizing: 'Organizing articles, investigations, and blog posts…',
+  done: 'Ready',
+  error: 'Could not load recent content',
+}
+
 export async function queryRecentFilesContent (
   origin = getPrimaryFilesBaseUrl(),
-  signal?: AbortSignal,
+  options?: {
+    signal?: AbortSignal
+    onProgress?: (step: RecentContentLoadStep) => void
+  },
 ): Promise<RecentContentResult> {
+  const { signal, onProgress } = options ?? {}
   try {
+    onProgress?.('connecting')
+    onProgress?.('fetching')
     const env = await queryRelayOrigin(origin, {
       collection: 'index',
       query: '',
       limit: 10_000,
       signal,
     })
-    return buildRecentContentFromRows(env.results)
+    onProgress?.('organizing')
+    const result = buildRecentContentFromRows(env.results)
+    onProgress?.('done')
+    return result
   } catch {
+    onProgress?.('error')
     return {
       contentByTab: { articles: [], investigations: [], blog: [] },
       feed: [],

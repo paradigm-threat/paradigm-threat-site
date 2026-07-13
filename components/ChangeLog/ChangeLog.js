@@ -3,7 +3,11 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Maximize2, Minimize2 } from 'lucide-react'
 import { useImageGallery } from '@/components/Image/ImageGalleryContext'
-import { queryRecentFilesContent } from '@/lib/changelog/queryRecentContent'
+import {
+  queryRecentFilesContent,
+  RECENT_CONTENT_LOAD_MESSAGES,
+} from '@/lib/changelog/queryRecentContent'
+import ChangeLogLoading from './ChangeLogLoading'
 import ChangeLogTabs from './ChangeLogTabs'
 import ChangeLogContentList from './ChangeLogContentList'
 import ChangeLogFeed from './ChangeLogFeed'
@@ -36,13 +40,11 @@ export default function ChangeLog ({ target = '_self' }) {
   const [feedLog, setFeedLog] = useState([])
   const [contentByTab, setContentByTab] = useState(emptyContentByTab)
   const [loading, setLoading] = useState(true)
+  const [loadStep, setLoadStep] = useState('connecting')
+  const [loadError, setLoadError] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
-  const [activeTab, setActiveTab] = useState('articles')
+  const [activeTab, setActiveTab] = useState(readStoredTab)
   const { openGallery, isOpen: galleryOpen } = useImageGallery()
-
-  useEffect(() => {
-    setActiveTab(readStoredTab())
-  }, [])
 
   const handleTabChange = useCallback((tabId) => {
     setActiveTab(tabId)
@@ -74,19 +76,39 @@ export default function ChangeLog ({ target = '_self' }) {
   }, [fullscreen, galleryOpen])
 
   useEffect(() => {
+    const controller = new AbortController()
+
     const fetchChangeLog = async () => {
-      try {
-        const result = await queryRecentFilesContent()
-        setFeedLog(result.feed)
-        setContentByTab(result.contentByTab)
-      } catch (e) {
-        console.error('Failed to fetch recent content from QUERY', e)
-      } finally {
-        setLoading(false)
-      }
+      setLoading(true)
+      setLoadError(false)
+      setLoadStep('connecting')
+
+      const result = await queryRecentFilesContent(undefined, {
+        signal: controller.signal,
+        onProgress: (step) => {
+          if (!controller.signal.aborted) {
+            setLoadStep(step)
+            if (step === 'error') setLoadError(true)
+          }
+        },
+      })
+
+      if (controller.signal.aborted) return
+
+      setFeedLog(result.feed)
+      setContentByTab(result.contentByTab)
+      setLoading(false)
     }
 
-    fetchChangeLog()
+    fetchChangeLog().catch((e) => {
+      if (controller.signal.aborted) return
+      console.error('Failed to fetch recent content from QUERY', e)
+      setLoadError(true)
+      setLoadStep('error')
+      setLoading(false)
+    })
+
+    return () => controller.abort()
   }, [])
 
   useEffect(() => {
@@ -121,17 +143,10 @@ export default function ChangeLog ({ target = '_self' }) {
     return () => window.removeEventListener('hashchange', tryOpenFromHash)
   }, [feedLog, openGallery])
 
-  if (loading) {
-    return (
-      <div className="not-prose w-full min-w-0 max-w-none animate-pulse flex space-x-4 py-2" data-toc-ignore>
-        <div className="flex-1 space-y-4 py-1 min-w-0">
-          <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
-        </div>
-      </div>
-    )
-  }
-
   const wrapClass = fullscreen ? styles.wrapFullscreen : styles.wrap
+  const statusMessage = loadError
+    ? RECENT_CONTENT_LOAD_MESSAGES.error
+    : RECENT_CONTENT_LOAD_MESSAGES[loadStep] ?? RECENT_CONTENT_LOAD_MESSAGES.connecting
 
   const panelItems = activeTab === 'articles'
     ? contentByTab.articles
@@ -157,7 +172,16 @@ export default function ChangeLog ({ target = '_self' }) {
         </button>
       </div>
 
-      {activeTab === 'changelog' ? (
+      {loading ? (
+        <div
+          role="tabpanel"
+          id={`changelog-panel-${activeTab}`}
+          aria-labelledby={`changelog-tab-${activeTab}`}
+          className={styles.tabPanel}
+        >
+          <ChangeLogLoading statusMessage={statusMessage} fullscreen={fullscreen} />
+        </div>
+      ) : activeTab === 'changelog' ? (
         <div
           role="tabpanel"
           id="changelog-panel-changelog"
