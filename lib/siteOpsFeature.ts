@@ -18,6 +18,7 @@ export function isSearchDisabled (): boolean {
   return isSearchServerApiDisabled()
 }
 
+/** @deprecated Chat uses Relay directly; flag unused — kept for e2e transition only. */
 export function isChatDisabled (): boolean {
   return process.env.NEXT_PUBLIC_CHAT_DISABLED === '1'
 }

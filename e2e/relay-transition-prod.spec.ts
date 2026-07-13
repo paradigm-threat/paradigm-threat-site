@@ -28,12 +28,12 @@ test.describe('Relay transition (production)', () => {
     await expect(searchInput).toBeEnabled()
   })
 
-  test('chat shows disabled overlay on chat component', async ({ page }) => {
+  test('chat page loads Relay chat UI', async ({ page }) => {
     await page.goto(`${BASE}/chat`, { waitUntil: 'domcontentloaded' })
-    await expect(page.getByText(/Chat disabled until Relay migration/i)).toBeVisible({
+    await expect(page.getByText(/Relay public chat|Public Repository Chat/i)).toBeVisible({
       timeout: 30_000,
     })
-    await expect(page.getByText(/Public Repository Chat/i)).toBeVisible()
+    await expect(page.getByText(/Chat disabled until Relay migration/i)).toHaveCount(0)
   })
 
   test('home and articles stay on paradigmthreat.net with app shell', async ({ page }) => {
@@ -80,7 +80,7 @@ test.describe('Relay transition (production)', () => {
     const timelineJson = await request.get(`${BASE}/api/timeline-json`)
     expect(timelineJson.status()).toBe(503)
     const chat = await request.get(`${BASE}/api/chat/getChannels`)
-    expect(chat.status()).toBe(503)
+    expect(chat.status()).toBe(404)
   })
 
   test('Feeling Lucky uses client index not API', async ({ page }) => {

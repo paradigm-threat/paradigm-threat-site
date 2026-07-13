@@ -20,6 +20,8 @@ export type RelayQueryRequest = {
   query?: string | Record<string, unknown>
   limit?: number
   signal?: AbortSignal
+  /** Auxiliary branch (e.g. `chat/public`) until Host `--branch-slug` routing ships. */
+  branch?: string
 }
 
 export async function queryRelayOrigin (
@@ -27,12 +29,16 @@ export async function queryRelayOrigin (
   req: RelayQueryRequest,
 ): Promise<RelayQueryEnvelope> {
   const base = origin.replace(/\/$/, '')
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+    accept: 'application/json',
+  }
+  if (req.branch?.trim()) {
+    headers['X-Relay-Branch'] = req.branch.trim()
+  }
   const res = await fetch(base + '/', {
     method: 'QUERY',
-    headers: {
-      'content-type': 'application/json',
-      accept: 'application/json',
-    },
+    headers,
     body: JSON.stringify({
       collection: req.collection ?? 'index',
       query: req.query ?? '',

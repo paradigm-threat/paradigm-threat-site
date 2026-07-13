@@ -5,8 +5,18 @@ import { usePathname } from 'next/navigation'
 import ErrorBoundary from '../ErrorBoundary/ErrorBoundary'
 import SuspenseLoader from '../atoms/SuspenseLoader/SuspenseLoader'
 import { ChatMarkdown } from './ChatMarkdown'
-import { ChatDisabledNotice } from '@/components/chat/ChatDisabledNotice'
-import { isChatDisabled } from '@/lib/siteOpsFeature'
+import { ChatRelayUnavailableNotice } from '@/components/chat/ChatRelayUnavailableNotice'
+import {
+  queryChannels,
+  queryPosts,
+  queryRecentPosts,
+  queryUserPosts,
+  putComment,
+  resetChatRelayCaches,
+  type ChatChannelInfo,
+  type ChatPostEntry,
+} from '@/lib/chat/relayChatClient'
+import { checkChatSubmitRateLimit } from '@/lib/chatSubmission/rateLimit'
 import { Send, User, MessageSquare, AlertCircle, RefreshCcw, Maximize2, Minimize2, ArrowLeft } from 'lucide-react'
 
 interface ChatRoomProps {
@@ -16,41 +26,13 @@ interface ChatRoomProps {
     mode?: 'full'
 }
 
-interface ChannelEntry {
-    id: number
-    user_id?: number
-    username: string
-    created: string
-    content: string
+interface ChannelEntry extends ChatPostEntry {
     isError?: boolean
 }
 
 interface ChannelContent {
     channel: string
     posts: Array<ChannelEntry>
-}
-
-interface ChannelInfo {
-    id: number
-    name: string
-    description: string
-}
-
-interface ChannelList extends Array<ChannelInfo> {}
-
-interface RecentPost {
-    id: number
-    user_id: number
-    channel_id: number
-    channel_name: string
-    created: string
-    content: string
-    username?: string
-}
-
-interface UserProfileData {
-    user: { id: number; username: string; email?: string; full_name?: string }
-    recentPosts: Array<{ id: number; channel_name: string; created: string; content: string }>
 }
 
 function formatPostTime(created: string): string {
@@ -75,22 +57,22 @@ type ChatView = 'channel' | 'recent' | 'user'
 export default function ChatRoom({ channel: channelProp, title, className, mode }: ChatRoomProps) {
     const pathname = usePathname()
     const channelFromPath = getChannelFromPath(pathname)
-    const chatOpsDisabled = isChatDisabled()
 
     const [channelContent, setChannelContent] = useState<ChannelContent | null>(null)
-    const [channelList, setChannelList] = useState<ChannelList>([])
+    const [channelList, setChannelList] = useState<ChatChannelInfo[]>([])
     const [loading, setLoading] = useState(true)
-    const [disabled, setDisabled] = useState<boolean>(false)
+    const [submitting, setSubmitting] = useState(false)
+    const [relayUnavailable, setRelayUnavailable] = useState<string | null>(null)
     const [postCount, setPostCount] = useState<number>(0)
     const DEFAULT_HOME_CHANNEL = 'general'
     const [currentChannelName, setCurrentChannelName] = useState<string>(channelFromPath || channelProp || DEFAULT_HOME_CHANNEL)
     const [currentUserName, setCurrentUserName] = useState<string>('')
     const [view, setView] = useState<ChatView>('channel')
-    const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
-    const [recentPosts, setRecentPosts] = useState<RecentPost[]>([])
+    const [selectedAuthor, setSelectedAuthor] = useState<string | null>(null)
+    const [recentPosts, setRecentPosts] = useState<ChatPostEntry[]>([])
     const [recentLoading, setRecentLoading] = useState(false)
     const [recentError, setRecentError] = useState<string | null>(null)
-    const [userData, setUserData] = useState<UserProfileData | null>(null)
+    const [userPosts, setUserPosts] = useState<ChatPostEntry[]>([])
     const [userLoading, setUserLoading] = useState(false)
     const [userError, setUserError] = useState<string | null>(null)
     const [isExpanded, setIsExpanded] = useState(false)
@@ -98,11 +80,15 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
     const addError = useCallback((error: string) => {
         setChannelContent(prev => {
             const newEntry: ChannelEntry = {
+                id: 'error',
+                channel: currentChannelName,
+                channel_name: currentChannelName,
                 username: 'system',
-                id: -1,
                 created: new Date().toISOString(),
                 content: error,
-                isError: true
+                anonymous: false,
+                path: '',
+                isError: true,
             }
             return {
                 channel: currentChannelName,
@@ -117,20 +103,19 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
     }, [])
 
     const fetchPosts = useCallback(() => {
-        if (chatOpsDisabled || !currentChannelName) return
+        if (!currentChannelName) return
         setLoading(true)
-        fetch(`/api/chat/getPosts?channel=${encodeURIComponent(currentChannelName)}&limit=50`)
-            .then(res => res.json())
-            .then((data) => {
-                if (data.error) addError(data.error)
-                else setChannelContent(data)
-            })
-            .catch(error => {
+        setRelayUnavailable(null)
+        resetChatRelayCaches()
+        queryPosts(currentChannelName, 50)
+            .then((data) => setChannelContent(data))
+            .catch((error: Error) => {
                 console.error(error)
+                setRelayUnavailable(error.message)
                 addError(error.message)
             })
             .finally(() => setLoading(false))
-    }, [chatOpsDisabled, currentChannelName, addError])
+    }, [currentChannelName, addError])
 
     useEffect(() => { fetchPosts() }, [fetchPosts, postCount])
 
@@ -142,38 +127,29 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
     }, [channelFromPath, currentChannelName])
 
     useEffect(() => {
-        if (chatOpsDisabled) {
-            setLoading(false)
-            return
-        }
         if (mode === 'full') {
             setLoading(true)
-            fetch(`/api/chat/getChannels`)
-                .then(res => res.json())
-                .then((data: ChannelInfo[] | { error: string }) => {
-                    if (data && 'error' in data) {
-                        addError(data.error)
-                    } else {
-                        const channels = data as ChannelInfo[]
-                        setChannelList(channels)
-                        if (channels.length > 0) {
-                            const validFromPath = channelFromPath && channels.some((c) => c.name === channelFromPath)
-                            const hasGeneral = channels.some((c) => c.name === DEFAULT_HOME_CHANNEL)
-                            setCurrentChannelName((prev) =>
-                                validFromPath ? channelFromPath
-                                    : !channelFromPath && hasGeneral ? DEFAULT_HOME_CHANNEL
-                                    : (prev && channels.some((c) => c.name === prev) ? prev : channels[0].name)
-                            )
-                        }
+            queryChannels()
+                .then((channels) => {
+                    setChannelList(channels)
+                    if (channels.length > 0) {
+                        const validFromPath = channelFromPath && channels.some((c) => c.name === channelFromPath)
+                        const hasGeneral = channels.some((c) => c.name === DEFAULT_HOME_CHANNEL)
+                        setCurrentChannelName((prev) =>
+                            validFromPath ? channelFromPath
+                                : !channelFromPath && hasGeneral ? DEFAULT_HOME_CHANNEL
+                                : (prev && channels.some((c) => c.name === prev) ? prev : channels[0].name)
+                        )
                     }
                 })
-                .catch(error => {
+                .catch((error: Error) => {
                     console.error(error)
+                    setRelayUnavailable(error.message)
                     addError(error.message)
                 })
                 .finally(() => setLoading(false))
         }
-    }, [chatOpsDisabled, mode, channelFromPath, addError])
+    }, [mode, channelFromPath, addError])
 
     const goToChannel = useCallback((name: string) => {
         setView('channel')
@@ -182,36 +158,38 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
     }, [])
 
     const showRecent = useCallback(() => {
-        if (chatOpsDisabled) return
         setView('recent')
         setRecentLoading(true)
         setRecentError(null)
-        fetch('/api/chat/getRecentPosts?limit=50')
-            .then((res) => res.json())
-            .then((json) => {
-                if (json.error) setRecentError(json.error)
-                else setRecentPosts(json.posts || [])
-            })
-            .catch((err) => setRecentError(err.message))
+        queryRecentPosts(50)
+            .then((json) => setRecentPosts(json.posts || []))
+            .catch((err: Error) => setRecentError(err.message))
             .finally(() => setRecentLoading(false))
-    }, [chatOpsDisabled])
+    }, [])
 
-    const showUser = useCallback((userId: number) => {
-        if (chatOpsDisabled) return
+    const showUser = useCallback((author: string) => {
+        if (!author || author === 'anonymous' || author === 'system') return
         setView('user')
-        setSelectedUserId(userId)
+        setSelectedAuthor(author)
         setUserLoading(true)
         setUserError(null)
-        setUserData(null)
-        fetch(`/api/chat/getUserInfo?userId=${encodeURIComponent(String(userId))}`)
-            .then((res) => res.json())
+        setUserPosts([])
+        queryUserPosts(author, 20)
             .then((json) => {
-                if (json.error) setUserError(json.error)
-                else setUserData(json)
+                setUserPosts(json.recentPosts.map((p) => ({
+                    id: p.id,
+                    channel: p.channel_name,
+                    channel_name: p.channel_name,
+                    username: author,
+                    created: p.created,
+                    content: p.content,
+                    anonymous: false,
+                    path: '',
+                })))
             })
-            .catch((err) => setUserError(err.message))
+            .catch((err: Error) => setUserError(err.message))
             .finally(() => setUserLoading(false))
-    }, [chatOpsDisabled])
+    }, [])
 
     const backToChannel = useCallback(() => {
         setView('channel')
@@ -219,34 +197,32 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
 
     async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault()
-        if (chatOpsDisabled) return
         const form = event.currentTarget
         const formData = new FormData(form)
-        const username = formData.get('username') as string || 'guest'
-        const content = formData.get('content') as string
+        const username = (formData.get('username') as string)?.trim() || 'guest'
+        const content = (formData.get('content') as string)?.trim()
 
-        if (!content.trim()) return
+        if (!content) return
+        if (!checkChatSubmitRateLimit('chatroom')) {
+            addError('Too many messages. Please wait a moment.')
+            return
+        }
 
         localStorage.setItem('ChatRoom:username', username)
-        setDisabled(true)
+        setSubmitting(true)
 
         try {
-            const res = await fetch(`/api/chat/createGuestPost`, {
-                headers: { 'Content-Type': 'application/json' },
-                method: 'POST',
-                body: JSON.stringify({ username, content, channel: currentChannelName })
+            const post = await putComment({
+                channel: currentChannelName,
+                content,
+                author: username,
+                anonymous: false,
+                source: 'web',
             })
 
-            const json = await res.json()
-            if (!res.ok) throw new Error(json.error || 'Failed to post message')
-
-            const post = json as { id: number; user_id: number; created: string; content: string }
             const newEntry: ChannelEntry = {
-                id: post.id,
-                user_id: post.user_id,
-                username,
-                created: post.created,
-                content: post.content,
+                ...post,
+                username: post.username,
             }
             setChannelContent((prev) =>
                 prev ? { ...prev, posts: [newEntry, ...prev.posts] } : { channel: currentChannelName, posts: [newEntry] }
@@ -254,19 +230,22 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
 
             form.reset()
             setPostCount(prev => prev + 1)
-        } catch (error: any) {
-            addError(error.message)
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : 'Failed to post message'
+            addError(msg)
         } finally {
-            setDisabled(false)
+            setSubmitting(false)
         }
     }
+
+    const inputDisabled = submitting || loading || !!relayUnavailable
 
     const containerClassName = `relative flex flex-col bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xl ${className || ''} ${isExpanded ? 'fixed inset-0 z-[110] min-h-0' : 'h-[70vh]'} select-none`
 
     return (
         <ErrorBoundary assetName="ChatRoom">
             <div className={containerClassName}>
-                {chatOpsDisabled && <ChatDisabledNotice />}
+                {relayUnavailable && <ChatRelayUnavailableNotice message={relayUnavailable} />}
                 <span className="absolute opacity-0 pointer-events-none select-text">
                     [Paradigm Threat Live Chat: {title || currentChannelName}]
                 </span>
@@ -288,10 +267,10 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
                         </div>
                         <div>
                             <h3 className="font-bold text-slate-900 dark:text-white leading-none mb-1">
-                                {view === 'recent' ? 'Recent messages' : view === 'user' && userData ? userData.user.username : title || `Channel: ${currentChannelName}`}
+                                {view === 'recent' ? 'Recent messages' : view === 'user' && selectedAuthor ? selectedAuthor : title || `Channel: ${currentChannelName}`}
                             </h3>
                             <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">
-                                {view === 'recent' ? 'Latest activity' : view === 'user' ? 'User profile' : 'Public Repository Chat'}
+                                {view === 'recent' ? 'Latest activity' : view === 'user' ? 'User profile' : 'Relay public chat'}
                             </p>
                         </div>
                     </div>
@@ -356,14 +335,14 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
 
                             {channelContent?.posts?.map((post, index) => (
                                 <div
-                                    key={post.id === -1 ? `err-${index}` : post.id}
+                                    key={post.id === 'error' ? `err-${index}` : post.id}
                                     className={`flex flex-col ${post.isError ? 'bg-red-500/10 border border-red-500/20 p-4 rounded-xl shadow-inner' : ''}`}
                                 >
                                     <div className="flex items-center gap-2 mb-1">
-                                        {post.user_id != null && !post.isError ? (
+                                        {!post.isError && post.username !== 'anonymous' && post.username !== 'system' ? (
                                             <button
                                                 type="button"
-                                                onClick={() => showUser(post.user_id!)}
+                                                onClick={() => showUser(post.username)}
                                                 className="font-bold text-sm text-blue-600 dark:text-blue-400 hover:underline text-left"
                                             >
                                                 {post.username}
@@ -426,13 +405,17 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
                                             #{post.channel_name}
                                         </button>
                                         <span className="text-slate-400">·</span>
-                                        <button
-                                            type="button"
-                                            onClick={() => showUser(post.user_id)}
-                                            className="font-medium text-blue-600 dark:text-blue-400 hover:underline"
-                                        >
-                                            {post.username || 'unknown'}
-                                        </button>
+                                        {post.username !== 'anonymous' ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => showUser(post.username)}
+                                                className="font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                                            >
+                                                {post.username}
+                                            </button>
+                                        ) : (
+                                            <span>{post.username}</span>
+                                        )}
                                         <span className="font-mono">{formatPostTime(post.created)}</span>
                                     </div>
                                     <div className="prose prose-sm dark:prose-invert max-w-none prose-p:mb-0 text-slate-700 dark:text-slate-300">
@@ -445,7 +428,7 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
 
                     {view === 'user' && (
                         <>
-                            {userLoading && !userData && (
+                            {userLoading && userPosts.length === 0 && (
                                 <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-400">
                                     <SuspenseLoader />
                                     <p className="animate-pulse">Loading user...</p>
@@ -456,20 +439,10 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
                                     {userError}
                                 </div>
                             )}
-                            {userData && !userError && (
+                            {selectedAuthor && !userError && (
                                 <>
-                                    {(userData.user.full_name || userData.user.email) && (
-                                        <div className="mb-4 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800">
-                                            {userData.user.full_name && (
-                                                <p className="text-sm text-slate-600 dark:text-slate-400">{userData.user.full_name}</p>
-                                            )}
-                                            {userData.user.email && (
-                                                <p className="text-xs font-mono text-slate-500 mt-1">{userData.user.email}</p>
-                                            )}
-                                        </div>
-                                    )}
                                     <div className="flex flex-wrap gap-2 mb-4">
-                                        {Array.from(new Set(userData.recentPosts.map((p) => p.channel_name))).map((ch) => (
+                                        {Array.from(new Set(userPosts.map((p) => p.channel_name))).map((ch) => (
                                             <button
                                                 key={ch}
                                                 type="button"
@@ -481,7 +454,7 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
                                         ))}
                                     </div>
                                     <div className="space-y-4">
-                                        {userData.recentPosts.map((post) => (
+                                        {userPosts.map((post) => (
                                             <div
                                                 key={post.id}
                                                 className="flex flex-col gap-1 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800"
@@ -519,7 +492,7 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
                                     name="username"
                                     defaultValue={currentUserName}
                                     placeholder="guest"
-                                    disabled={disabled || loading || chatOpsDisabled}
+                                    disabled={inputDisabled}
                                     className="pl-9 pr-3 py-2.5 w-32 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                                 />
                             </div>
@@ -529,14 +502,14 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
                                     name="content"
                                     placeholder="Write a message..."
                                     required
-                                    disabled={disabled || loading || chatOpsDisabled}
+                                    disabled={inputDisabled}
                                     autoComplete="off"
                                     className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                                 />
                             </div>
                             <button
                                 type="submit"
-                                disabled={disabled || loading || chatOpsDisabled}
+                                disabled={inputDisabled}
                                 className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white p-2.5 rounded-xl transition-all shadow-lg shadow-blue-600/20 active:scale-95 flex items-center justify-center flex-shrink-0"
                             >
                                 <Send size={18} />

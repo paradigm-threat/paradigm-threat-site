@@ -65,6 +65,7 @@ export default function McpPage () {
           <li><code className="text-xs">read_article</code> / <code className="text-xs">fetch</code> — markdown from Relay mirrors</li>
           <li><code className="text-xs">get_event_dates</code> / <code className="text-xs">compute_years_ago</code> — chronology and blip-adjusted elapsed time</li>
           <li><code className="text-xs">submit_investigation_idea</code> — propose a new topic for the site to research (appears on <Link href="/submit" className="text-blue-600 dark:text-blue-400 hover:underline">/submit</Link>)</li>
+          <li><code className="text-xs">submit_chat_comment</code> — post to a chat channel on Relay <code className="text-xs">chat/public</code> branch</li>
         </ul>
       </section>
 

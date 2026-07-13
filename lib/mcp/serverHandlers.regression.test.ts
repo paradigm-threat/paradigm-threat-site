@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
-import { mcpSearchSite, mcpResearchStatus, mcpSubmitInvestigationIdea } from '@/lib/mcp/serverHandlers.ts'
+import { mcpSearchSite, mcpResearchStatus, mcpSubmitInvestigationIdea, mcpSubmitChatComment } from '@/lib/mcp/serverHandlers.ts'
 import { resetMcpRelayCaches } from '@/lib/mcp/relayFetch.ts'
 import { resetInvestigationSubmitRateLimitForTests } from '@/lib/investigationSubmission/rateLimit.ts'
+import { resetChatSubmitRateLimitForTests } from '@/lib/chatSubmission/rateLimit.ts'
 
 const originalFetch = globalThis.fetch
 
@@ -23,6 +24,7 @@ describe('mcp serverHandlers', () => {
     globalThis.fetch = originalFetch
     resetMcpRelayCaches()
     resetInvestigationSubmitRateLimitForTests()
+    resetChatSubmitRateLimitForTests()
   })
 
   it('search_site uses AND semantics with mocked relay QUERY', async () => {
@@ -97,6 +99,11 @@ describe('mcp serverHandlers', () => {
     })
     assert.ok('error' in result && result.error)
     assert.match(String((result as { error: string }).error), /description|Invalid|at least/i)
+  })
+
+  it('submit_chat_comment rejects missing channel', async () => {
+    const result = await mcpSubmitChatComment({ content: 'hello world' })
+    assert.ok('error' in result && result.error)
   })
 })
 

@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { isChatDisabled } from '@/lib/siteOpsFeature'
 import { useReplyAssistantAvailable } from '@/lib/replyAssistant/useReplyAssistantAvailable'
 
 const linkClass =
@@ -36,15 +35,9 @@ export function FooterSiteNav () {
       <Link href="/timeline" className={linkClass}>
         Timeline
       </Link>
-      {isChatDisabled() ? (
-        <span className="shrink-0 text-slate-400 dark:text-slate-500" title="Chat disabled until Relay migration">
-          Chat (paused)
-        </span>
-      ) : (
-        <Link href="/chat" className={linkClass}>
-          Chat
-        </Link>
-      )}
+      <Link href="/chat" className={linkClass}>
+        Chat
+      </Link>
       <Link
         href="https://paradigmthreat2.substack.com/"
         target="_blank"

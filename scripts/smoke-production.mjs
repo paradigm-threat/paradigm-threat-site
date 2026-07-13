@@ -253,8 +253,8 @@ async function main () {
       fail(`${BASE}/api/timeline-json — expected HTTP 503 (client timeline), got ${timelineJsonRes.status}`)
     }
     const chatRes = await fetch(`${BASE}/api/chat/getChannels`)
-    if (chatRes.status !== 503) {
-      fail(`${BASE}/api/chat/getChannels — expected HTTP 503 when ops disabled, got ${chatRes.status}`)
+    if (chatRes.status !== 404) {
+      fail(`${BASE}/api/chat/getChannels — legacy chat API removed (expected 404), got ${chatRes.status}`)
     }
     const searchPage = await fetch(`${BASE}/search`)
     if (!searchPage.ok) {

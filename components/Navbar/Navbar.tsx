@@ -12,7 +12,6 @@ import {
     RELAY_REPO_NAMES_LABEL,
     type RelayPairOption,
 } from '@/lib/remoteRelayStore'
-import { isChatDisabled } from '@/lib/siteOpsFeature'
 
 interface NavbarProps {
     fileList: any
@@ -152,9 +151,7 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
         { href: '/search', label: 'Search', icon: Search },
         { href: '/', label: 'Home', icon: Home },
         { href: '/timeline', label: 'Timeline', icon: Clock },
-        ...(!isChatDisabled()
-            ? [{ href: '/chat', label: 'Chat', icon: MessageSquare }]
-            : []),
+        { href: '/chat', label: 'Chat', icon: MessageSquare },
         { href: 'https://paradigmthreat2.substack.com/', label: 'Substack', icon: Rss, external: true },
         { href: 'https://www.bitchute.com/channel/paradigmthreat', label: 'Videos', icon: Video, external: true },
         { href: 'https://www.patreon.com/c/ahsctimeline', label: 'Donate', icon: Heart, external: true },
