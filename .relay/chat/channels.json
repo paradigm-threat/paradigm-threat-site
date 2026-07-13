@@ -1,21 +1,173 @@
 {
   "schema": "paradigm.chat.channels.v1",
   "channels": [
-    { "name": "general", "description": "Site-wide discussion" },
-    { "name": "cosmos/mars", "description": "Life on Mars" },
-    { "name": "cosmos/cosmology", "description": "Saturnian cosmology" },
-    { "name": "history/mudflood", "description": "Mudflood" },
-    { "name": "history/chronology", "description": "Chronology" },
-    { "name": "history/maps", "description": "Maps" },
-    { "name": "governance/war", "description": "War" },
-    { "name": "governance/usury", "description": "Usury" },
-    { "name": "governance/genocide", "description": "Genocide" },
-    { "name": "nukes", "description": "Nuclear weapons" },
-    { "name": "controlled-opposition", "description": "Controlled opposition" },
-    { "name": "influence/censorship", "description": "Censorship" },
-    { "name": "suppressed-tech", "description": "Suppressed technology" },
-    { "name": "hollow-earth", "description": "Hollow Earth" },
-    { "name": "ech-in-time", "description": "Echoes in time" },
-    { "name": "rus-horde-tartaria", "description": "Christ / Tartaria" }
+    {
+      "name": "5g",
+      "description": "5G Tower Topic and Debates"
+    },
+    {
+      "name": "censorship",
+      "description": "Censorship Topics and Debate"
+    },
+    {
+      "name": "chronology",
+      "description": "Chronology Links and Debate"
+    },
+    {
+      "name": "communism",
+      "description": "Communism Topics and Debate"
+    },
+    {
+      "name": "controlled-opposition",
+      "description": "Controlled Opposition Topics and Debate"
+    },
+    {
+      "name": "cosmology",
+      "description": "Cosmology Topics and Debate"
+    },
+    {
+      "name": "deep-state",
+      "description": "The Deep State"
+    },
+    {
+      "name": "development",
+      "description": "For testing bots and apis"
+    },
+    {
+      "name": "ech-in-time",
+      "description": "Science Fiction based on Saturnian Cosmology"
+    },
+    {
+      "name": "election",
+      "description": "Election Topics and Debate"
+    },
+    {
+      "name": "forgotten-future",
+      "description": "Development channel for the game/book"
+    },
+    {
+      "name": "general",
+      "description": "General Chat. Welcome to our Discord! What brought you here? Got anything to share? :D :D "
+    },
+    {
+      "name": "genocide",
+      "description": "Genocide Topics and Links"
+    },
+    {
+      "name": "geoengineering",
+      "description": "GeoEngineering Topics and Debate"
+    },
+    {
+      "name": "giants-and-faeries",
+      "description": "Giants & Faeries Topics and Debate"
+    },
+    {
+      "name": "hollow-earth",
+      "description": "Hollow Earth Topics and Debate"
+    },
+    {
+      "name": "maps",
+      "description": "Map Topics and Debate"
+    },
+    {
+      "name": "mars",
+      "description": "Mars Topics and Debate"
+    },
+    {
+      "name": "memes",
+      "description": "Share your Memes!"
+    },
+    {
+      "name": "mind-control",
+      "description": "Mind Control Topics & Debate"
+    },
+    {
+      "name": "mudflood",
+      "description": "Mudflood Topics and Debate"
+    },
+    {
+      "name": "nukes",
+      "description": "Nuclear Weapons"
+    },
+    {
+      "name": "off-topic",
+      "description": ""
+    },
+    {
+      "name": "philadelphia-experiment",
+      "description": "The Philadelphia Experiment was an attempt to use high amplitude energy to create a cloaking device. While it functioned, the ship didn't just disappear - it was sent somewhere else. Not another dimension. Not another time, nor another universe. Inst"
+    },
+    {
+      "name": "planned-obsolescence",
+      "description": ""
+    },
+    {
+      "name": "podcasts",
+      "description": "Podcast Topics and Debate"
+    },
+    {
+      "name": "predictive-programming",
+      "description": "Predictive Programming Topics & Debate"
+    },
+    {
+      "name": "pyramidal-empire",
+      "description": "Pyramidal Empire Topics and Debate"
+    },
+    {
+      "name": "reset-agenda",
+      "description": ""
+    },
+    {
+      "name": "rus-horde-tartaria",
+      "description": "Rus-Horde/Tartaria Topics and Debate"
+    },
+    {
+      "name": "science-fiction",
+      "description": "Fake Science Topics and Debate"
+    },
+    {
+      "name": "songwalker",
+      "description": ""
+    },
+    {
+      "name": "suppressed-tech",
+      "description": "Suppressed Technology Topics and Debate"
+    },
+    {
+      "name": "telepathy",
+      "description": "Telepathy Topics and Debate"
+    },
+    {
+      "name": "town-square",
+      "description": ""
+    },
+    {
+      "name": "traffic",
+      "description": "Human Traffic Topics & Debate"
+    },
+    {
+      "name": "transvestigation",
+      "description": "Investigation into LGBTQ+ indoctrination of children"
+    },
+    {
+      "name": "unexplained",
+      "description": "Unexplained Topics & Debate"
+    },
+    {
+      "name": "usury",
+      "description": "Usury (Bank Crimes) Topics and Debate"
+    },
+    {
+      "name": "vaccine-population-control",
+      "description": "Vaccine Population Control Topics and Debate"
+    },
+    {
+      "name": "war",
+      "description": "War Topics and Debate"
+    },
+    {
+      "name": "zombies-vampires",
+      "description": "Zombies & Vampires"
+    }
   ]
 }
