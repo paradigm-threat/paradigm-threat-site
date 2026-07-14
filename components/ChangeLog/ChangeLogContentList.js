@@ -61,37 +61,37 @@ export default function ChangeLogContentList ({
     })
     setMetaByPath(initial)
 
-    const fetchAll = async () => {
-      const baseUrl = getPrimaryFilesBaseUrl()
-      const results = { ...initial }
+    const baseUrl = getPrimaryFilesBaseUrl()
+    let remaining = visibleItems.length
 
-      await Promise.all(
-        visibleItems.map(async (item) => {
-          try {
-            const res = await fetch(`${baseUrl}/${item.path}`, { cache: 'no-store' })
-            if (!res.ok) return
-            const text = await res.text()
-            const title = await extractTitleFromMarkdown(text)
-            const { snippetPlain } = extractShareMetadata({ rawMarkdown: text })
-            results[item.path] = {
+    visibleItems.forEach((item) => {
+      ;(async () => {
+        try {
+          const res = await fetch(`${baseUrl}/${item.path}`, { cache: 'force-cache' })
+          if (!res.ok || cancelled) return
+          const text = await res.text()
+          if (cancelled) return
+          const title = await extractTitleFromMarkdown(text)
+          const { snippetPlain } = extractShareMetadata({ rawMarkdown: text })
+          if (cancelled) return
+          setMetaByPath((prev) => ({
+            ...prev,
+            [item.path]: {
               title: title
                 || (typeof item.title === 'string' && item.title.trim())
                 || placeholderTitleFromPath(item.path),
               description: snippetPlain || '',
-            }
-          } catch {
-            /* ignore */
-          }
-        }),
-      )
+            },
+          }))
+        } catch {
+          /* ignore */
+        } finally {
+          remaining -= 1
+          if (!cancelled && remaining <= 0) setLoadingMeta(false)
+        }
+      })()
+    })
 
-      if (!cancelled) {
-        setMetaByPath(results)
-        setLoadingMeta(false)
-      }
-    }
-
-    fetchAll()
     return () => {
       cancelled = true
     }

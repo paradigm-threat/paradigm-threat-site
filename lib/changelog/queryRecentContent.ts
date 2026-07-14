@@ -168,7 +168,7 @@ export type RecentContentLoadStep =
   | 'error'
 
 export const RECENT_CONTENT_LOAD_MESSAGES: Record<RecentContentLoadStep, string> = {
-  connecting: 'Connecting to content index…',
+  connecting: 'Checking content index…',
   fetching: 'Fetching recent updates…',
   organizing: 'Organizing articles, investigations, and blog posts…',
   done: 'Ready',
@@ -185,15 +185,35 @@ export async function queryRecentFilesContent (
   const { signal, onProgress } = options ?? {}
   try {
     onProgress?.('connecting')
+
+    const {
+      getCachedFilesCatalogResults,
+      loadFilesCatalogCached,
+    } = await import('@/lib/filesCatalogCache')
+
+    const cached = getCachedFilesCatalogResults(origin)
+    if (cached?.length) {
+      onProgress?.('organizing')
+      const result = buildRecentContentFromRows(cached)
+      onProgress?.('done')
+      return result
+    }
+
     onProgress?.('fetching')
-    const env = await queryRelayOrigin(origin, {
-      collection: 'index',
-      query: '',
-      limit: 10_000,
-      signal,
+    // Share the full-catalog QUERY with search/nav via filesCatalogCache (one round-trip).
+    await loadFilesCatalogCached(origin, async () => {
+      const env = await queryRelayOrigin(origin, {
+        collection: 'index',
+        query: '',
+        limit: 10_000,
+        signal,
+      })
+      return env
     })
+
+    const rows = getCachedFilesCatalogResults(origin) ?? []
     onProgress?.('organizing')
-    const result = buildRecentContentFromRows(env.results)
+    const result = buildRecentContentFromRows(rows)
     onProgress?.('done')
     return result
   } catch {
