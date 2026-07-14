@@ -1,4 +1,4 @@
-/** index.json file entries may include `_updated` (ISO 8601 UTC from generate-index) and optional `_originalPublishedAt` (Substack publish). */
+/** Catalog / QUERY file entries may include `_updated` (ISO 8601 from Relay git tip) and optional `_originalPublishedAt` (Substack publish). */
 
 export function parseIndexUpdated(iso: unknown): Date | null {
   if (typeof iso !== 'string' || !iso.trim()) return null

@@ -1,5 +1,8 @@
 # Paradigm Threat MCP Server — Plan
 
+> **Update (2026-07):** Discovery catalogs are **Relay QUERY** (`collection: index` / `events`), not committed `index.json` / `data/events.json`. `scripts/generate-index.py` and pre-commit catalog writers are **removed**. Prefer QUERY + `site-claims.json` + markdown GETs in implementation notes below.
+
+
 How to expose Paradigm Threat research (mainstream position, credible alternates, and repo thesis) to AI agents via a **server-side Model Context Protocol (MCP)** — complementing the shipped [WebMCP integration](WEBMCP_INTEGRATION.md).
 
 **Status:** planning  
@@ -112,11 +115,11 @@ See [WEBMCP_INTEGRATION.md](WEBMCP_INTEGRATION.md) for full tool list and featur
 
 | Artifact | Location | Behavior |
 |----------|----------|----------|
-| `index.json` | `paradigm-threat-files/` | ~2,300 paths: title, keywords, updated |
-| `events.json` | `paradigm-threat-timeline/data/` | Merged into client search |
+| QUERY `index` | `paradigm-threat-files` mirror | ~2,300 paths: title, keywords, updated |
+| QUERY `events` | `paradigm-threat-timeline` mirror | Merged into client search |
 | Keyword AND filter | `lib/searchIndexFilter.ts` | All terms must match |
 | Ranking | `lib/search/searchRankScore.ts` | Title / slug-aware |
-| Autogen | `paradigm-threat-files/scripts/generate-index.py` | Pre-commit index refresh |
+| Indexing | Relay `path_tree` / `content_events` on push | QUERY catalogs; no committed index JSON |
 
 ### Timeline & chronology (`paradigm-threat-timeline`)
 
@@ -185,7 +188,7 @@ See [WEBMCP_INTEGRATION.md](WEBMCP_INTEGRATION.md) for full tool list and featur
 
 ### Reuse strategy: contracts + pure logic, not shared handlers
 
-**Yes — reuse WebMCP and server MCP contracts.** No — do **not** route WebMCP through the Next.js API or move WebMCP execution server-side. The site already fetches `index.json`, `events.json`, `site-claims.json`, and markdown from **Relay mirrors in the browser** (`lib/clientMergedSearchIndex.ts` explicitly avoids `/api/search-index`). Server MCP should fetch the **same public URLs** in Node, not add a proprietary API layer.
+**Yes — reuse WebMCP and server MCP contracts.** No — do **not** route WebMCP through the Next.js API or move WebMCP execution server-side. The site already loads catalogs via **Relay QUERY**, plus `site-claims.json` and markdown from **Relay mirrors in the browser** (`lib/clientMergedSearchIndex.ts` explicitly avoids `/api/search-index`). Server MCP should fetch the **same public URLs** in Node, not add a proprietary API layer.
 
 ```
                     ┌─────────────────────────────────────┐

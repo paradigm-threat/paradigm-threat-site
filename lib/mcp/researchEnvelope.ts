@@ -220,7 +220,7 @@ export function getChronologyFramework (): Record<string, unknown> {
     frames: {
       scaligerian: 'Conventional textbook chronology — challenged default; curated per event when available',
       nc: 'New Chronology (Fomenko) — statistical duplication / phantom centuries',
-      project: 'Signed-year timeline in events.json (NC + Saturnian synthesis)',
+      project: 'Signed-year timeline in Relay events catalog (NC + Saturnian synthesis)',
       blip: {
         interval: { start: -670, end: 1053 },
         phantomYears: 1723,

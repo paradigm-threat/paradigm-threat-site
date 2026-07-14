@@ -45,7 +45,7 @@ function displayName(filename: string): string {
   return filename.replace(/\.md$/, '')
 }
 
-/** Build a tree of dirs and .md files from the index.json structure */
+/** Build a tree of dirs and .md files from the nested files-catalog tree */
 function buildTree(node: IndexNode, parentPath: string): TreeItem[] {
   const items: TreeItem[] = []
   for (const key of Object.keys(node)) {

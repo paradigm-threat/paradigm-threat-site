@@ -113,7 +113,7 @@ export function resolveImagePath(src: string, basePath?: string): string {
         resolved = pathPart.slice(2);
     }
 
-    // When basePath is an absolute URL (e.g. timeline base = same domain as events.json), resolve to full URL
+    // When basePath is an absolute URL (e.g. timeline mirror base), resolve to full URL
     if (basePath?.startsWith('http')) {
         return (prefix + resolved) + query;
     }

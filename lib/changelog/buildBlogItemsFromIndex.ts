@@ -6,7 +6,7 @@ function blogHref (filename: string): string {
 }
 
 /**
- * All reader-facing blog roundups from index.json `blog/` node.
+ * All reader-facing blog roundups from the files catalog `blog/` node.
  */
 export function buildBlogItemsFromIndex (
   blogNode: Record<string, unknown> | null | undefined,

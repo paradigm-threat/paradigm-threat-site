@@ -90,7 +90,7 @@ function walkIndexLeaves (
 }
 
 /**
- * Reader content tabs from index.json: paths with `_updated` within the recent window.
+ * Reader content tabs from the files catalog: paths with `_updated` within the recent window.
  */
 export function buildContentItemsFromIndex (
   indexRoot: Record<string, unknown> | null | undefined,

@@ -53,7 +53,7 @@ export interface AutoIndexProps {
 }
 
 /**
- * Renders directory contents from index.json (same as CatchAllClient when no page.md),
+ * Renders directory contents from files catalog (same as CatchAllClient when no page.md),
  * embeddable inside a page.md. Use for blog listings, custom indexes, etc.
  */
 export default function AutoIndex({

@@ -2,7 +2,7 @@
 
 Curated **major conclusions** Paradigm Threat supports, used by Site AI and the reply assistant to lead with the site’s thesis before `read_article` expands from source articles.
 
-**Source of truth:** `site-claims.json` in **paradigm-threat-files** (published on FILES mirrors alongside `index.json`).  
+**Source of truth:** `site-claims.json` in **paradigm-threat-files** (published on FILES mirrors; catalogs come from Relay QUERY, not a committed `index.json`).  
 **Site runtime:** `lib/siteAi/siteClaimsStore.ts` fetches `/site-claims.json` from the active relay pair.  
 **Matching:** `lib/siteAi/matchSiteClaims.ts`  
 **Tool:** `get_site_claims` (WebMCP + on-device agent)

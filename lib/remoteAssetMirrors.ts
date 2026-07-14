@@ -38,7 +38,7 @@ export interface FetchFromAssetMirrorsInit {
 }
 
 /**
- * @param pathname Absolute path on the upstream site, e.g. `/data/events.json` or `/events/foo.png`
+ * @param pathname Absolute path on the upstream site, e.g. `/export/README.md` or `/events/foo.png`
  */
 export async function fetchFromAssetMirrors (
   repo: RemoteAssetRepo,

@@ -65,7 +65,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
   const [mdContents, setMdContents] = useState<Record<string, { title: string; content: string }>>({})
   const [error, setError] = useState<string | null>(null)
   const [remoteArticle404, setRemoteArticle404] = useState(false)
-  /** True when 404 is shown and the URL path does not appear in index.json (vs indexed .txt CDN miss, etc.). */
+  /** True when 404 is shown and the URL path does not appear in the files catalog (vs indexed .txt CDN miss, etc.). */
   const [article404PathMissingFromIndex, setArticle404PathMissingFromIndex] = useState(false)
   const [articleRetryKey, setArticleRetryKey] = useState(0)
   const [isScrolled, setIsScrolled] = useState(false)

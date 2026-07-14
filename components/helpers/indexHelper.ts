@@ -1,6 +1,6 @@
 /**
- * Flatten nested index.json into searchable entries.
- * Each file may include `_title` and `_keywords` (from generate-index.py) for searchText.
+ * Flatten nested files-catalog trees into searchable entries.
+ * Each file may include `_title` and `_keywords` (from Relay QUERY rows) for searchText.
  */
 
 export type IndexedPathEntry = {
@@ -53,7 +53,7 @@ type TimelineEventsJson = {
   entries?: unknown[]
 }
 
-/** Walk timeline data/events.json tree; paths are timeline/<id> for site routes */
+/** Walk timeline events-catalog tree; paths are timeline/<id> for site routes */
 export function flattenTimelineEntriesForSearch(data: TimelineEventsJson | null): IndexedPathEntry[] {
   const out: IndexedPathEntry[] = []
   function walk(nodes: unknown[]) {
