@@ -20,27 +20,34 @@ export function FolderGrid({ folders }: FolderGridProps) {
                     {folders.length}
                 </span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {folders.map(folder => (
-                    <PtLink
-                        key={folder}
-                        href={`/${folder}`}
-                        className="group relative p-5 bg-slate-50 dark:bg-slate-900/50 hover:bg-blue-600 dark:hover:bg-blue-600 rounded-2xl transition-all duration-300 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-blue-500/20"
-                    >
-                        <div className="flex items-center justify-between">
-                            <div className="flex flex-col min-w-0">
-                                <span className="text-xs font-bold text-slate-400 group-hover:text-blue-200 uppercase tracking-widest mb-1">Folder</span>
-                                <span className="font-bold text-slate-800 dark:text-slate-200 group-hover:text-white truncate text-lg">
-                                    {folder.split('/').pop()?.replace(/_/g, ' ')}
-                                </span>
-                                <span className="text-[10px] text-slate-400 group-hover:text-white/60 truncate mt-1">
-                                    {folder}
-                                </span>
+            <div
+                className="max-h-[min(65vh,44rem)] overflow-y-auto overscroll-contain pr-2 pb-2 custom-scrollbar"
+                role="region"
+                aria-label="Directory search results"
+                tabIndex={0}
+            >
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {folders.map(folder => (
+                        <PtLink
+                            key={folder}
+                            href={`/${folder}`}
+                            className="group relative p-5 bg-slate-50 dark:bg-slate-900/50 hover:bg-blue-600 dark:hover:bg-blue-600 rounded-2xl transition-all duration-300 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-blue-500/20"
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="flex flex-col min-w-0">
+                                    <span className="text-xs font-bold text-slate-400 group-hover:text-blue-200 uppercase tracking-widest mb-1">Folder</span>
+                                    <span className="font-bold text-slate-800 dark:text-slate-200 group-hover:text-white truncate text-lg">
+                                        {folder.split('/').pop()?.replace(/_/g, ' ')}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 group-hover:text-white/60 truncate mt-1">
+                                        {folder}
+                                    </span>
+                                </div>
+                                <Folder className="text-slate-300 dark:text-slate-700 group-hover:text-white/40 transition-colors" size={32} />
                             </div>
-                            <Folder className="text-slate-300 dark:text-slate-700 group-hover:text-white/40 transition-colors" size={32} />
-                        </div>
-                    </PtLink>
-                ))}
+                        </PtLink>
+                    ))}
+                </div>
             </div>
         </div>
     )

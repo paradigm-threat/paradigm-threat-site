@@ -36,6 +36,10 @@ export const SearchHeader = memo(function SearchHeader({
     const prevInitial = useRef(resolvedInitial)
     const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
     const urlTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const searchAnchor = useRef<HTMLDivElement | null>(null)
+    const floatingRef = useRef(false)
+    const [floating, setFloating] = useState(false)
+    const [floatingBounds, setFloatingBounds] = useState({ left: 0, top: 0, width: 0 })
 
     useEffect(() => {
         if (process.env.NODE_ENV === 'production') return
@@ -65,6 +69,45 @@ export const SearchHeader = memo(function SearchHeader({
         },
         []
     )
+
+    useEffect(() => {
+        let frame = 0
+        const updateFloating = () => {
+            cancelAnimationFrame(frame)
+            frame = requestAnimationFrame(() => {
+                const anchor = searchAnchor.current
+                if (!anchor) return
+                const navbarBottom =
+                    document.querySelector<HTMLElement>('[data-site-navbar]')?.getBoundingClientRect().bottom ?? 0
+                const rect = anchor.getBoundingClientRect()
+                const nextFloating = rect.top <= navbarBottom
+                if (nextFloating !== floatingRef.current) {
+                    floatingRef.current = nextFloating
+                    setFloating(nextFloating)
+                }
+                if (nextFloating) {
+                    setFloatingBounds((prev) => {
+                        const next = {
+                            left: Math.round(rect.left),
+                            top: Math.round(navbarBottom),
+                            width: Math.round(rect.width),
+                        }
+                        return prev.left === next.left && prev.top === next.top && prev.width === next.width
+                            ? prev
+                            : next
+                    })
+                }
+            })
+        }
+        updateFloating()
+        window.addEventListener('scroll', updateFloating, { passive: true })
+        window.addEventListener('resize', updateFloating)
+        return () => {
+            cancelAnimationFrame(frame)
+            window.removeEventListener('scroll', updateFloating)
+            window.removeEventListener('resize', updateFloating)
+        }
+    }, [])
 
     const onInputChange = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -96,8 +139,8 @@ export const SearchHeader = memo(function SearchHeader({
     const showShortHint = local.length > 0 && trimmed.length < 2
 
     return (
-        <div className="max-w-3xl mx-auto space-y-8">
-            <div className="text-center space-y-4">
+        <>
+            <div className="mx-auto w-full max-w-3xl space-y-4 text-center">
                 <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">
                     Search Repository
                 </h1>
@@ -106,43 +149,57 @@ export const SearchHeader = memo(function SearchHeader({
                 </p>
             </div>
 
-            <div className="relative group">
-                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={28} />
-                <input
-                    type="search"
-                    autoFocus={!disabled}
-                    enterKeyHint="search"
-                    value={local}
-                    onChange={onInputChange}
-                    onKeyDown={(e) => {
-                        if (e.key !== 'Enter' || !nlMode || !onNlSearchSubmit) return
-                        e.preventDefault()
-                        onNlSearchSubmit(local.trim())
-                    }}
-                    disabled={disabled}
-                    readOnly={disabled}
-                    placeholder={nlMode
-                        ? "Ask in natural language (Enter opens AI chat)…"
-                        : "Type keywords (e.g. '911 physics', 'mars water')..."}
-                    className="w-full pl-16 pr-6 py-6 bg-slate-100 dark:bg-slate-900/50 border-2 border-slate-200 dark:border-slate-800 rounded-3xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-semibold text-xl shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
-                />
-                {nlMode && (
-                    <span className="absolute -bottom-6 left-0 text-xs text-violet-600 dark:text-violet-400 font-medium">
-                        Natural language mode — Enter opens AI chat
-                    </span>
-                )}
-                {loading && (
-                    <div className="absolute right-6 top-1/2 -translate-y-1/2">
-                        <Loader2 className="animate-spin text-blue-500" size={24} />
-                    </div>
-                )}
+            <div
+                ref={searchAnchor}
+                className={`mx-auto w-full max-w-3xl ${nlMode ? 'h-32' : 'h-[104px]'}`}
+            >
+                <div
+                    data-search-sticky
+                    data-floating={floating ? 'true' : 'false'}
+                    className={`z-[90] bg-white/95 py-3 backdrop-blur-md dark:bg-slate-950/95 ${
+                        floating ? 'fixed' : 'relative w-full'
+                    }`}
+                    style={floating ? floatingBounds : undefined}
+                >
+                  <div className="relative group">
+                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={28} />
+                    <input
+                        type="search"
+                        autoFocus={!disabled}
+                        enterKeyHint="search"
+                        value={local}
+                        onChange={onInputChange}
+                        onKeyDown={(e) => {
+                            if (e.key !== 'Enter' || !nlMode || !onNlSearchSubmit) return
+                            e.preventDefault()
+                            onNlSearchSubmit(local.trim())
+                        }}
+                        disabled={disabled}
+                        readOnly={disabled}
+                        placeholder={nlMode
+                            ? "Ask in natural language (Enter opens AI chat)…"
+                            : "Type keywords (e.g. '911 physics', 'mars water')..."}
+                        className="w-full pl-16 pr-6 py-6 bg-slate-100 dark:bg-slate-900/50 border-2 border-slate-200 dark:border-slate-800 rounded-3xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-semibold text-xl shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
+                    />
+                    {nlMode && (
+                        <span className="absolute -bottom-6 left-0 text-xs text-violet-600 dark:text-violet-400 font-medium">
+                            Natural language mode — Enter opens AI chat
+                        </span>
+                    )}
+                    {loading && (
+                        <div className="absolute right-6 top-1/2 -translate-y-1/2">
+                            <Loader2 className="animate-spin text-blue-500" size={24} />
+                        </div>
+                    )}
+                  </div>
+                </div>
             </div>
 
             {showShortHint && (
-                <div className="text-center text-slate-400 text-sm">
+                <div className="mx-auto w-full max-w-3xl text-center text-slate-400 text-sm">
                     Please enter at least 2 characters to search...
                 </div>
             )}
-        </div>
+        </>
     )
 })

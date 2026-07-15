@@ -23,7 +23,14 @@ export function SearchSuggestedSection ({ entries }: SearchSuggestedSectionProps
       <p className="text-sm text-slate-500 dark:text-slate-400 max-w-2xl">
         Ranked by relevance — may include strong matches worth reading even when keyword order differs.
       </p>
-      <SearchResultLinks entries={entries} maxItems={entries.length} />
+      <div
+        className="max-h-[min(65vh,44rem)] overflow-y-auto overscroll-contain pr-2 pb-2 custom-scrollbar"
+        role="region"
+        aria-label="Suggested search results"
+        tabIndex={0}
+      >
+        <SearchResultLinks entries={entries} maxItems={entries.length} />
+      </div>
     </div>
   )
 }

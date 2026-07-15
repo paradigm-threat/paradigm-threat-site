@@ -93,7 +93,12 @@ export function ArticleStack ({ entries }: ArticleStackProps) {
           {entries.length}
         </span>
       </div>
-      <div className="space-y-6">
+      <div
+        className="max-h-[min(70vh,52rem)] space-y-6 overflow-y-auto overscroll-contain pr-2 pb-2 custom-scrollbar"
+        role="region"
+        aria-label={`${sectionTitle} results`}
+        tabIndex={0}
+      >
         {entries.map((entry) => {
           const path = entry.path
           const href = searchEntryHref(path)

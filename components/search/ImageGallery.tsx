@@ -21,24 +21,31 @@ export function ImageGallery({ images }: ImageGalleryProps) {
                     {images.length}
                 </span>
             </div>
-            <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-6 gap-4 space-y-4">
-                {images.slice(0, 48).map(img => (
-                    <div key={img} className="break-inside-avoid">
-                        <div className="group relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all duration-300 bg-slate-50 dark:bg-slate-900/50">
-                            <PopImage
-                                src={img.split('/').pop()!}
-                                basePath={img.split('/').slice(0, -1).join('/')}
-                                w={600}
-                                className="w-full h-auto block transition-transform duration-500 group-hover:scale-[1.02] clear-none m-0 shadow-none ring-0 rounded-none"
-                            />
-                            <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                <span className="text-[10px] text-white truncate w-full font-mono">
-                                    {img.split('/').pop()}
-                                </span>
+            <div
+                className="max-h-[min(70vh,52rem)] overflow-y-auto overscroll-contain pr-2 pb-2 custom-scrollbar"
+                role="region"
+                aria-label="Image search results"
+                tabIndex={0}
+            >
+                <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-6 gap-4 space-y-4">
+                    {images.slice(0, 48).map(img => (
+                        <div key={img} className="break-inside-avoid">
+                            <div className="group relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all duration-300 bg-slate-50 dark:bg-slate-900/50">
+                                <PopImage
+                                    src={img.split('/').pop()!}
+                                    basePath={img.split('/').slice(0, -1).join('/')}
+                                    w={600}
+                                    className="w-full h-auto block transition-transform duration-500 group-hover:scale-[1.02] clear-none m-0 shadow-none ring-0 rounded-none"
+                                />
+                                <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                    <span className="text-[10px] text-white truncate w-full font-mono">
+                                        {img.split('/').pop()}
+                                    </span>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ))}
+                    ))}
+                </div>
             </div>
             {images.length > 48 && (
                 <div className="text-center py-8">

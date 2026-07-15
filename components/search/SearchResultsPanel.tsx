@@ -94,7 +94,14 @@ export function SearchResultsPanel ({
                   {timelineResults.length}
                 </span>
               </div>
-              <SearchResultLinks entries={timelineResults} maxItems={12} />
+              <div
+                className="max-h-[min(65vh,44rem)] overflow-y-auto overscroll-contain pr-2 pb-2 custom-scrollbar"
+                role="region"
+                aria-label="Timeline search results"
+                tabIndex={0}
+              >
+                <SearchResultLinks entries={timelineResults} />
+              </div>
             </div>
           )}
 
