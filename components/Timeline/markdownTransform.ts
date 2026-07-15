@@ -24,6 +24,7 @@
  */
 
 import { parseImageJsonProps } from '@/lib/parseImageJsonProps'
+import { normalizeParadigmMarkdown } from '@/lib/md2ast-react/normalizeParadigmMarkdown'
 
 /**
  * Parse `{.class1 .class2 #id}` after a markdown image (Pandoc / Kramdown style).
@@ -95,6 +96,7 @@ function stripMarkdown(text: string): string {
  */
 export function transformImageCaptions (md: string): string {
   if (typeof md !== 'string') return ''
+  const normalized = normalizeParadigmMarkdown(md)
 
   // Optional Pandoc attribute block after `)`; must be consumed so it is not rendered as plain text.
   const pandocAttrs = '(\\{[^}]+\\})?'
@@ -114,7 +116,7 @@ export function transformImageCaptions (md: string): string {
     'g'
   )
 
-  let result = md.replace(imageWithCaption, (match, _alt, url, jsonSingle, jsonDouble, attrs, caption) => {
+  let result = normalized.replace(imageWithCaption, (match, _alt, url, jsonSingle, jsonDouble, attrs, caption) => {
     const captionPlain = escapeJsxAttrValue(stripMarkdown(caption))
     const safeUrl = typeof url === 'string' ? url : ''
     const extra = extraAttrsFromImageParts(jsonSingle || jsonDouble, attrs)

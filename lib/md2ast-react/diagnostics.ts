@@ -111,7 +111,7 @@ export function validateMarkdownSource (
     const lineNo = i + 1
     const line = lines[i]
 
-    const fence = line.match(/^(```+|~~~+)/)
+    const fence = line.match(/^\s*(```+|~~~+)/)
     if (fence) {
       inFencedCode = !inFencedCode
       continue
