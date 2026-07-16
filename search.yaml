@@ -6,4 +6,4 @@ collections:
         root: .relay/chat/channels
         mode: replace
     idFields: [path]
-    ftsFields: [path, title, _title, body]
+    ftsFields: [path, title, _title, body, author, channel, id]
