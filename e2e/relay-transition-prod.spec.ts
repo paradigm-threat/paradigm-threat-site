@@ -80,7 +80,9 @@ test.describe('Relay transition (production)', () => {
     const timelineJson = await request.get(`${BASE}/api/timeline-json`)
     expect(timelineJson.status()).toBe(503)
     const chat = await request.get(`${BASE}/api/chat/getChannels`)
-    expect(chat.status()).toBe(404)
+    const chatCt = (chat.headers()['content-type'] || '').toLowerCase()
+    // Catch-all [[...slug]] may serve SPA HTML for removed API paths.
+    expect(chat.ok && chatCt.includes('application/json')).toBe(false)
   })
 
   test('Feeling Lucky uses client index not API', async ({ page }) => {

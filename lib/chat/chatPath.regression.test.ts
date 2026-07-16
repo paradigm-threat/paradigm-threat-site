@@ -11,6 +11,7 @@ import {
   serializeChatComment,
 } from './chatMarkdown.ts'
 import { chatRelayOriginFromFilesOrigin, CHAT_RELAY_BRANCH } from './chatRelayOrigin.ts'
+import { channelFtsQuery } from './relayChatClient.ts'
 
 describe('chatPath', () => {
   it('encodes slash in channel names', () => {
@@ -72,5 +73,12 @@ describe('chatRelayOrigin', () => {
     const origin = chatRelayOriginFromFilesOrigin('https://paradigm-threat-files.dfw1.relaygateway.net')
     assert.equal(origin, 'https://paradigm-threat-site.dfw1.relaygateway.net')
     assert.equal(CHAT_RELAY_BRANCH, 'chat/public')
+  })
+})
+
+describe('channelFtsQuery', () => {
+  it('splits nested channel names into FTS terms', () => {
+    assert.equal(channelFtsQuery('cosmos/mars'), 'cosmos mars')
+    assert.equal(channelFtsQuery('general'), 'general')
   })
 })

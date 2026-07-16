@@ -26,6 +26,14 @@ const TIMELINE_MIRROR = firstOrigin(
   process.env.SMOKE_TIMELINE_MIRROR || process.env.NEXT_PUBLIC_TIMELINE_BASE_URL,
   'https://paradigm-threat-timeline.dfw1.relaygateway.net',
 )
+const CHAT_MIRROR = firstOrigin(
+  process.env.SMOKE_CHAT_MIRROR ||
+    process.env.NEXT_PUBLIC_CHAT_RELAY_ORIGIN ||
+    (FILES_MIRROR.includes('paradigm-threat-files.')
+      ? FILES_MIRROR.replace('paradigm-threat-files.', 'paradigm-threat-site.')
+      : ''),
+  'https://paradigm-threat-site.dfw1.relaygateway.net',
+)
 
 function piperBases () {
   const raw =
@@ -129,6 +137,63 @@ async function main () {
     }
     console.log(`smoke-production: QUERY ${label} OK docCount=${qJson.docCount}`)
   }
+
+  // Relay-backed chat index (chat/public branch)
+  {
+    const chatOrigin = CHAT_MIRROR.replace(/\/$/, '')
+    const chatRes = await fetch(`${chatOrigin}/`, {
+      method: 'QUERY',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json',
+        'x-relay-branch': 'chat/public',
+      },
+      body: JSON.stringify({ collection: 'chat', query: 'general', limit: 5 }),
+    })
+    if (!chatRes.ok) {
+      fail(`QUERY chat ${chatOrigin} — expected HTTP 200, got ${chatRes.status}`)
+    }
+    const chatJson = await chatRes.json()
+    if (chatJson.status === 'not_indexed' || !(chatJson.docCount > 0)) {
+      fail(
+        `QUERY chat ${chatOrigin} — expected indexed docs, got status=${chatJson.status} docCount=${chatJson.docCount}`,
+      )
+    }
+    if (!(chatJson.tookMs < 2000)) {
+      fail(`QUERY chat ${chatOrigin} — expected tookMs < 2000 (fresh index), got ${chatJson.tookMs}`)
+    }
+    console.log(
+      `smoke-production: QUERY chat OK docCount=${chatJson.docCount} tookMs=${chatJson.tookMs}`,
+    )
+
+    const channelsRes = await fetch(`${chatOrigin}/.relay/chat/channels.json`, {
+      headers: { 'x-relay-branch': 'chat/public' },
+    })
+    if (!channelsRes.ok) {
+      fail(`${chatOrigin}/.relay/chat/channels.json — expected 200, got ${channelsRes.status}`)
+    }
+
+    const chatPage = await fetch(`${BASE}/chat`)
+    if (!chatPage.ok) {
+      fail(`${BASE}/chat — expected HTTP 200, got ${chatPage.status}`)
+    }
+    const chatHtml = await chatPage.text()
+    if (!/Relay public chat|Channel:\s*general|Write a message/i.test(chatHtml)) {
+      fail(`${BASE}/chat — expected Relay chat UI markers in HTML`)
+    }
+
+    const legacyChat = await fetch(`${BASE}/api/chat/getChannels`)
+    const legacyCt = (legacyChat.headers.get('content-type') || '').toLowerCase()
+    if (legacyChat.ok && legacyCt.includes('application/json')) {
+      fail(
+        `${BASE}/api/chat/getChannels — legacy JSON chat API still live (expected 404 or SPA HTML catch-all)`,
+      )
+    }
+    console.log(
+      `smoke-production: legacy /api/chat gone (status=${legacyChat.status}, content-type=${legacyCt.split(';')[0] || 'n/a'})`,
+    )
+  }
+
   await expectHead(
     `${FILES_MIRROR}/events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation.png?w=400`,
     { contentTypeIncludes: 'image/' },
@@ -253,8 +318,9 @@ async function main () {
       fail(`${BASE}/api/timeline-json — expected HTTP 503 (client timeline), got ${timelineJsonRes.status}`)
     }
     const chatRes = await fetch(`${BASE}/api/chat/getChannels`)
-    if (chatRes.status !== 404) {
-      fail(`${BASE}/api/chat/getChannels — legacy chat API removed (expected 404), got ${chatRes.status}`)
+    const chatCt = (chatRes.headers.get('content-type') || '').toLowerCase()
+    if (chatRes.ok && chatCt.includes('application/json')) {
+      fail(`${BASE}/api/chat/getChannels — legacy JSON chat API still live`)
     }
     const searchPage = await fetch(`${BASE}/search`)
     if (!searchPage.ok) {

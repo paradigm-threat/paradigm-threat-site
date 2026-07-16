@@ -23,6 +23,8 @@ const FETCH_TIMEOUT_MS = 60_000
 /** Oversample FTS hits then filter by channel path prefix. */
 const CHANNEL_QUERY_OVERSAMPLE = 4
 const CHANNEL_QUERY_MIN = 200
+/** Cap parallel markdown GETs to avoid browser connection storms. */
+const FETCH_CONCURRENCY = 8
 
 export type ChatLoadStage =
   | 'connecting'
@@ -161,7 +163,7 @@ async function relayPutText (origin: string, path: string, body: string): Promis
 }
 
 /** FTS terms from channel name (`cosmos/mars` → `cosmos mars`). */
-function channelFtsQuery (channel: string): string {
+export function channelFtsQuery (channel: string): string {
   return channel
     .trim()
     .split(/[/\s]+/)
@@ -225,6 +227,30 @@ export function resetChatRelayCaches (): void {
   pathListCache = null
 }
 
+async function mapPool<T, R> (
+  items: T[],
+  concurrency: number,
+  fn: (item: T, index: number) => Promise<R>,
+  onStep?: (done: number, total: number) => void,
+): Promise<R[]> {
+  const total = items.length
+  const out = new Array<R>(total)
+  let next = 0
+  let done = 0
+  async function worker (): Promise<void> {
+    while (true) {
+      const i = next++
+      if (i >= total) return
+      out[i] = await fn(items[i], i)
+      done += 1
+      onStep?.(done, total)
+    }
+  }
+  const n = Math.min(concurrency, Math.max(total, 1))
+  await Promise.all(Array.from({ length: n }, () => worker()))
+  return out
+}
+
 async function loadCommentsForPaths (
   origin: string,
   paths: string[],
@@ -237,22 +263,24 @@ async function loadCommentsForPaths (
     loaded: 0,
     total,
   })
-  let loaded = 0
-  const results = await Promise.all(
-    paths.map(async (path) => {
+  const results = await mapPool(
+    paths,
+    FETCH_CONCURRENCY,
+    async (path) => {
       const raw = await relayGetText(origin, path)
-      loaded += 1
-      if (loaded === total || loaded % 5 === 0) {
-        report(opts, {
-          stage: 'fetching',
-          detail: `Fetched ${loaded}/${total} messages…`,
-          loaded,
-          total,
-        })
-      }
       if (!raw) return null
       return parseChatMarkdown(raw, path)
-    }),
+    },
+    (loaded, tot) => {
+      if (loaded === tot || loaded % 5 === 0) {
+        report(opts, {
+          stage: 'fetching',
+          detail: `Fetched ${loaded}/${tot} messages…`,
+          loaded,
+          total: tot,
+        })
+      }
+    },
   )
   return results.filter((c): c is ChatComment => c != null)
 }

@@ -1,5 +1,5 @@
 import React from 'react'
-import { MessageSquare, WifiOff } from 'lucide-react'
+import { WifiOff } from 'lucide-react'
 
 /** Shown when Relay chat mirrors are unreachable. */
 export function ChatRelayUnavailableNotice ({ message }: { message?: string }) {
