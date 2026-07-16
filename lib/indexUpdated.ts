@@ -22,6 +22,22 @@ export function formatIndexDateTiny(iso: unknown): string | null {
   })
 }
 
+/**
+ * Article “Last updated” line: calendar date + hour:minute in the
+ * viewer’s local timezone (`undefined` locale → browser default).
+ */
+export function formatIndexDateWithLocalTime(iso: unknown): string | null {
+  const d = parseIndexUpdated(iso)
+  if (!d) return null
+  return d.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
 export interface IndexDateBlogParts {
   weekday: string
   day: string

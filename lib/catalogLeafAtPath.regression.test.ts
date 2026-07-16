@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { catalogLeafAtPath, shortCommitTitle } from './catalogLeafAtPath.ts'
-import { formatIndexDateTiny } from './indexUpdated.ts'
+import { formatIndexDateTiny, formatIndexDateWithLocalTime } from './indexUpdated.ts'
 
 describe('catalogLeafAtPath', () => {
   const tree = {
@@ -62,7 +62,7 @@ describe('shortCommitTitle', () => {
 })
 
 describe('article updated header date source', () => {
-  it('formats catalog _updated for display', () => {
+  it('formats catalog _updated with local date and time', () => {
     const leaf = catalogLeafAtPath(
       {
         a: {
@@ -71,10 +71,19 @@ describe('article updated header date source', () => {
       },
       'a/page.md',
     )
-    const tiny = formatIndexDateTiny(leaf?._updated)
+    const label = formatIndexDateWithLocalTime(leaf?._updated)
+    assert.ok(label)
+    assert.match(label, /2026/)
+    // Hour:minute present (locale-dependent separators / am-pm)
+    assert.match(label, /\d{1,2}:\d{2}/)
+    assert.equal(shortCommitTitle(leaf?._commit), 'Commit aabbccd')
+  })
+
+  it('keeps compact index dates date-only', () => {
+    const tiny = formatIndexDateTiny('2026-07-16T14:15:00Z')
     assert.ok(tiny)
     assert.match(tiny, /2026/)
-    assert.equal(shortCommitTitle(leaf?._commit), 'Commit aabbccd')
+    assert.doesNotMatch(tiny, /\d{1,2}:\d{2}/)
   })
 
   it('omits commit title when only _updated is present', () => {
@@ -82,7 +91,7 @@ describe('article updated header date source', () => {
       { 'solo.md': { _updated: '2026-01-01T00:00:00Z' } },
       'solo.md',
     )
-    assert.ok(formatIndexDateTiny(leaf?._updated))
+    assert.ok(formatIndexDateWithLocalTime(leaf?._updated))
     assert.equal(shortCommitTitle(leaf?._commit), null)
   })
 })
