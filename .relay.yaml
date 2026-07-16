@@ -29,4 +29,4 @@ server:
       path: hooks/server/query.cs
       branches: [chat/public]
   search:
-    plugin: sqlite
+    plugin: chat

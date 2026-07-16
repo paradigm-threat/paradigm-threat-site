@@ -1,9 +1,2 @@
-plugin: sqlite
-collections:
-  chat:
-    sources:
-      - type: path_tree
-        root: .relay/chat/channels
-        mode: replace
-    idFields: [path]
-    ftsFields: [path, title, _title, body, author, channel, id]
+plugin: chat
+root: .relay/chat/channels

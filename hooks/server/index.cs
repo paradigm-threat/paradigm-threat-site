@@ -1,4 +1,6 @@
-// Index hook: Rust builds path_tree into SQLite; CS stays thin.
+import { index } from '@relay/search/chat';
+
+// Thin router — Rust chat plugin owns ingest / chat_comments.
 export default function run(ctx) {
-  return null;
+  return index(ctx);
 }
