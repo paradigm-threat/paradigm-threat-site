@@ -12,8 +12,8 @@ import {
   queryRecentPosts,
   queryUserPosts,
   putComment,
-  resetChatRelayCaches,
   type ChatChannelInfo,
+  type ChatLoadProgress,
   type ChatPostEntry,
 } from '@/lib/chat/relayChatClient'
 import { checkChatSubmitRateLimit } from '@/lib/chatSubmission/rateLimit'
@@ -61,6 +61,7 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
     const [channelContent, setChannelContent] = useState<ChannelContent | null>(null)
     const [channelList, setChannelList] = useState<ChatChannelInfo[]>([])
     const [loading, setLoading] = useState(true)
+    const [loadStatus, setLoadStatus] = useState<string>('Connecting to Relay…')
     const [submitting, setSubmitting] = useState(false)
     const [relayUnavailable, setRelayUnavailable] = useState<string | null>(null)
     const [postCount, setPostCount] = useState<number>(0)
@@ -102,12 +103,20 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
         if (username) setCurrentUserName(username)
     }, [])
 
+    const onLoadProgress = useCallback((p: ChatLoadProgress) => {
+        const count =
+            p.total != null && p.loaded != null && p.total > 0
+                ? ` (${p.loaded}/${p.total})`
+                : ''
+        setLoadStatus(`${p.detail}${count}`)
+    }, [])
+
     const fetchPosts = useCallback(() => {
         if (!currentChannelName) return
         setLoading(true)
         setRelayUnavailable(null)
-        resetChatRelayCaches()
-        queryPosts(currentChannelName, 50)
+        setLoadStatus(`Loading #${currentChannelName}…`)
+        queryPosts(currentChannelName, 50, { onProgress: onLoadProgress })
             .then((data) => setChannelContent(data))
             .catch((error: Error) => {
                 console.error(error)
@@ -115,7 +124,7 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
                 addError(error.message)
             })
             .finally(() => setLoading(false))
-    }, [currentChannelName, addError])
+    }, [currentChannelName, addError, onLoadProgress])
 
     useEffect(() => { fetchPosts() }, [fetchPosts, postCount])
 
@@ -128,8 +137,8 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
 
     useEffect(() => {
         if (mode === 'full') {
-            setLoading(true)
-            queryChannels()
+            setLoadStatus('Loading channels…')
+            queryChannels({ onProgress: onLoadProgress })
                 .then((channels) => {
                     setChannelList(channels)
                     if (channels.length > 0) {
@@ -147,9 +156,8 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
                     setRelayUnavailable(error.message)
                     addError(error.message)
                 })
-                .finally(() => setLoading(false))
         }
-    }, [mode, channelFromPath, addError])
+    }, [mode, channelFromPath, addError, onLoadProgress])
 
     const goToChannel = useCallback((name: string) => {
         setView('channel')
@@ -161,11 +169,12 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
         setView('recent')
         setRecentLoading(true)
         setRecentError(null)
-        queryRecentPosts(50)
+        setLoadStatus('Loading recent messages…')
+        queryRecentPosts(50, { onProgress: onLoadProgress })
             .then((json) => setRecentPosts(json.posts || []))
             .catch((err: Error) => setRecentError(err.message))
             .finally(() => setRecentLoading(false))
-    }, [])
+    }, [onLoadProgress])
 
     const showUser = useCallback((author: string) => {
         if (!author || author === 'anonymous' || author === 'system') return
@@ -174,7 +183,8 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
         setUserLoading(true)
         setUserError(null)
         setUserPosts([])
-        queryUserPosts(author, 20)
+        setLoadStatus(`Loading posts by @${author}…`)
+        queryUserPosts(author, 20, { onProgress: onLoadProgress })
             .then((json) => {
                 setUserPosts(json.recentPosts.map((p) => ({
                     id: p.id,
@@ -189,7 +199,7 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
             })
             .catch((err: Error) => setUserError(err.message))
             .finally(() => setUserLoading(false))
-    }, [])
+    }, [onLoadProgress])
 
     const backToChannel = useCallback(() => {
         setView('channel')
@@ -329,7 +339,18 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
                             {loading && !channelContent && (
                                 <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-400">
                                     <SuspenseLoader />
-                                    <p className="animate-pulse">Loading messages...</p>
+                                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                                        {loadStatus}
+                                    </p>
+                                    <p className="text-xs text-slate-400 max-w-sm text-center">
+                                        Chat reads from Relay QUERY on branch chat/public.
+                                        First load after an index rebuild can take longer.
+                                    </p>
+                                </div>
+                            )}
+                            {loading && channelContent && (
+                                <div className="text-xs text-slate-400 pb-2 border-b border-slate-100 dark:border-slate-800">
+                                    {loadStatus}
                                 </div>
                             )}
 
@@ -377,7 +398,9 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
                             {recentLoading && recentPosts.length === 0 && (
                                 <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-400">
                                     <SuspenseLoader />
-                                    <p className="animate-pulse">Loading messages...</p>
+                                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                                        {loadStatus}
+                                    </p>
                                 </div>
                             )}
                             {recentError && (
@@ -431,7 +454,9 @@ export default function ChatRoom({ channel: channelProp, title, className, mode 
                             {userLoading && userPosts.length === 0 && (
                                 <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-400">
                                     <SuspenseLoader />
-                                    <p className="animate-pulse">Loading user...</p>
+                                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                                        {loadStatus}
+                                    </p>
                                 </div>
                             )}
                             {userError && (

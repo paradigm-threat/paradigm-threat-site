@@ -20,7 +20,26 @@ import {
 } from '@/lib/chat/chatMarkdown'
 
 const FETCH_TIMEOUT_MS = 60_000
-const QUERY_LIMIT = 5000
+/** Oversample FTS hits then filter by channel path prefix. */
+const CHANNEL_QUERY_OVERSAMPLE = 4
+const CHANNEL_QUERY_MIN = 200
+
+export type ChatLoadStage =
+  | 'connecting'
+  | 'listing'
+  | 'fetching'
+  | 'done'
+
+export type ChatLoadProgress = {
+  stage: ChatLoadStage
+  detail: string
+  loaded?: number
+  total?: number
+}
+
+export type ChatLoadOptions = {
+  onProgress?: (p: ChatLoadProgress) => void
+}
 
 export type ChatChannelInfo = {
   id: number
@@ -77,6 +96,10 @@ function chatRelayHeaders (extra?: HeadersInit): Headers {
   return h
 }
 
+function report (opts: ChatLoadOptions | undefined, progress: ChatLoadProgress): void {
+  opts?.onProgress?.(progress)
+}
+
 async function fetchWithTimeout (url: string, init?: RequestInit): Promise<Response> {
   const signal = AbortSignal.timeout(FETCH_TIMEOUT_MS)
   const headers = chatRelayHeaders(init?.headers)
@@ -85,14 +108,26 @@ async function fetchWithTimeout (url: string, init?: RequestInit): Promise<Respo
 
 async function withChatOrigins<T> (
   fn: (origin: string) => Promise<T | null>,
+  opts?: ChatLoadOptions,
 ): Promise<T> {
   const origins = getChatRelayOriginList()
   if (!origins.length) {
     throw new Error('Chat Relay origin not configured (set NEXT_PUBLIC_CHAT_RELAY_ORIGIN or NEXT_PUBLIC_FILES_BASE_URL)')
   }
+  report(opts, {
+    stage: 'connecting',
+    detail: `Connecting to Relay (${origins.length} host${origins.length === 1 ? '' : 's'})…`,
+  })
   let lastErr: unknown
-  for (const origin of origins) {
+  for (let i = 0; i < origins.length; i++) {
+    const origin = origins[i]
     try {
+      if (i > 0) {
+        report(opts, {
+          stage: 'connecting',
+          detail: `Trying failover host ${i + 1}/${origins.length}…`,
+        })
+      }
       const result = await fn(origin)
       if (result != null) return result
     } catch (e) {
@@ -125,22 +160,65 @@ async function relayPutText (origin: string, path: string, body: string): Promis
   return res.json() as Promise<{ commit?: string }>
 }
 
-async function listChatPaths (origin: string): Promise<string[]> {
+/** FTS terms from channel name (`cosmos/mars` → `cosmos mars`). */
+function channelFtsQuery (channel: string): string {
+  return channel
+    .trim()
+    .split(/[/\s]+/)
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .join(' ')
+}
+
+async function listChannelPaths (
+  origin: string,
+  channel: string,
+  limit: number,
+  opts?: ChatLoadOptions,
+): Promise<string[]> {
+  const prefix = channelPathPrefix(channel)
+  report(opts, {
+    stage: 'listing',
+    detail: `Querying index for #${channel}…`,
+  })
+  const env = await queryRelayOrigin(origin, {
+    collection: 'chat',
+    query: channelFtsQuery(channel),
+    limit: Math.max(limit * CHANNEL_QUERY_OVERSAMPLE, CHANNEL_QUERY_MIN),
+    branch: CHAT_RELAY_BRANCH,
+  })
+  const paths = env.results
+    .map((r) => (typeof r.path === 'string' ? r.path : ''))
+    .filter((p) => p.startsWith(prefix) && p.endsWith('.md'))
+  // Server orders by path DESC (ISO timestamps); keep that order.
+  return paths.slice(0, limit)
+}
+
+async function listRecentPaths (
+  origin: string,
+  limit: number,
+  opts?: ChatLoadOptions,
+): Promise<string[]> {
   const now = Date.now()
   if (pathListCache && now - pathListCache.at < PATH_CACHE_MS) {
-    return pathListCache.paths
+    report(opts, { stage: 'listing', detail: 'Using cached path list…' })
+    return pathListCache.paths.slice(0, limit)
   }
+  report(opts, {
+    stage: 'listing',
+    detail: 'Querying recent chat index…',
+  })
   const env = await queryRelayOrigin(origin, {
     collection: 'chat',
     query: '',
-    limit: QUERY_LIMIT,
+    limit,
     branch: CHAT_RELAY_BRANCH,
   })
   const paths = env.results
     .map((r) => (typeof r.path === 'string' ? r.path : ''))
     .filter((p) => p.startsWith(CHAT_CHANNELS_ROOT) && p.endsWith('.md'))
   pathListCache = { at: now, paths }
-  return paths
+  return paths.slice(0, limit)
 }
 
 export function resetChatRelayCaches (): void {
@@ -150,11 +228,28 @@ export function resetChatRelayCaches (): void {
 async function loadCommentsForPaths (
   origin: string,
   paths: string[],
+  opts?: ChatLoadOptions,
 ): Promise<ChatComment[]> {
-  const limited = paths.slice(0, QUERY_LIMIT)
+  const total = paths.length
+  report(opts, {
+    stage: 'fetching',
+    detail: total === 0 ? 'No messages to fetch.' : `Fetching ${total} message${total === 1 ? '' : 's'}…`,
+    loaded: 0,
+    total,
+  })
+  let loaded = 0
   const results = await Promise.all(
-    limited.map(async (path) => {
+    paths.map(async (path) => {
       const raw = await relayGetText(origin, path)
+      loaded += 1
+      if (loaded === total || loaded % 5 === 0) {
+        report(opts, {
+          stage: 'fetching',
+          detail: `Fetched ${loaded}/${total} messages…`,
+          loaded,
+          total,
+        })
+      }
       if (!raw) return null
       return parseChatMarkdown(raw, path)
     }),
@@ -170,52 +265,83 @@ function sortCommentsDesc (comments: ChatComment[]): ChatComment[] {
   })
 }
 
-export async function queryChannels (): Promise<ChatChannelInfo[]> {
+export async function queryChannels (opts?: ChatLoadOptions): Promise<ChatChannelInfo[]> {
   return withChatOrigins(async (origin) => {
+    report(opts, { stage: 'listing', detail: 'Loading channel list…' })
     const raw = await relayGetText(origin, CHAT_CHANNELS_JSON)
     if (!raw) return null
     const data = JSON.parse(raw) as ChannelsJson
     const channels = data.channels ?? []
+    report(opts, {
+      stage: 'done',
+      detail: `Loaded ${channels.length} channels.`,
+    })
     return channels.map((c, i) => ({
       id: i + 1,
       name: c.name,
       description: c.description ?? '',
     }))
-  })
+  }, opts)
 }
 
-export async function queryPosts (channel: string, limit = 50): Promise<{ channel: string; posts: ChatPostEntry[] }> {
-  const prefix = channelPathPrefix(channel)
+export async function queryPosts (
+  channel: string,
+  limit = 50,
+  opts?: ChatLoadOptions,
+): Promise<{ channel: string; posts: ChatPostEntry[] }> {
   return withChatOrigins(async (origin) => {
-    const paths = (await listChatPaths(origin)).filter((p) => p.startsWith(prefix))
-    paths.sort().reverse()
-    const comments = sortCommentsDesc(await loadCommentsForPaths(origin, paths.slice(0, limit)))
+    const paths = await listChannelPaths(origin, channel, limit, opts)
+    const comments = sortCommentsDesc(await loadCommentsForPaths(origin, paths, opts))
+    report(opts, {
+      stage: 'done',
+      detail: `Loaded ${comments.length} message${comments.length === 1 ? '' : 's'}.`,
+      loaded: comments.length,
+      total: comments.length,
+    })
     return {
       channel,
       posts: comments.map(chatPostFromComment),
     }
-  })
+  }, opts)
 }
 
-export async function queryRecentPosts (limit = 50): Promise<{ posts: ChatPostEntry[] }> {
+export async function queryRecentPosts (
+  limit = 50,
+  opts?: ChatLoadOptions,
+): Promise<{ posts: ChatPostEntry[] }> {
   return withChatOrigins(async (origin) => {
-    const paths = await listChatPaths(origin)
-    paths.sort().reverse()
-    const comments = sortCommentsDesc(await loadCommentsForPaths(origin, paths.slice(0, Math.min(limit * 2, 200))))
-    return {
-      posts: comments.slice(0, limit).map(chatPostFromComment),
-    }
-  })
+    const paths = await listRecentPaths(origin, Math.min(limit * 2, 200), opts)
+    const comments = sortCommentsDesc(await loadCommentsForPaths(origin, paths, opts))
+    const posts = comments.slice(0, limit).map(chatPostFromComment)
+    report(opts, {
+      stage: 'done',
+      detail: `Loaded ${posts.length} recent message${posts.length === 1 ? '' : 's'}.`,
+    })
+    return { posts }
+  }, opts)
 }
 
-export async function queryUserPosts (author: string, limit = 20): Promise<ChatUserProfile> {
+export async function queryUserPosts (
+  author: string,
+  limit = 20,
+  opts?: ChatLoadOptions,
+): Promise<ChatUserProfile> {
   const name = author.trim()
   return withChatOrigins(async (origin) => {
-    const paths = await listChatPaths(origin)
-    const comments = sortCommentsDesc(await loadCommentsForPaths(origin, paths))
+    // User search still needs a wider path scan; keep recent-sized window.
+    const paths = await listRecentPaths(origin, 500, opts)
+    report(opts, {
+      stage: 'fetching',
+      detail: `Scanning recent messages for @${name}…`,
+    })
+    const comments = sortCommentsDesc(await loadCommentsForPaths(origin, paths, opts))
     const mine = comments.filter((c) => {
       if (c.anonymous) return false
       return (c.author || '').toLowerCase() === name.toLowerCase()
+    })
+    report(opts, {
+      stage: 'done',
+      detail: `Found ${Math.min(mine.length, limit)} post${mine.length === 1 ? '' : 's'} by @${name}.`,
     })
     return {
       user: { username: name },
@@ -226,7 +352,7 @@ export async function queryUserPosts (author: string, limit = 20): Promise<ChatU
         content: c.content,
       })),
     }
-  })
+  }, opts)
 }
 
 export type PutCommentInput = {
