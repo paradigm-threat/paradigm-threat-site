@@ -14,6 +14,7 @@ import { SuspenseLoader } from '@client'
 import { formatIndexDateTiny } from '@/lib/indexUpdated'
 import { shouldPersistVisit } from '@/lib/visitResumeStorage'
 import { ShareLinks, ShareLinksFloating, TextLeafClientShell } from '@/components'
+import { ArticleUpdatedHeader } from '@/components/ArticleUpdatedHeader'
 import { useMobileHubTtsChrome } from '@/lib/hooks/useMobileHubTtsChrome'
 import { resolveOgImageUrl } from '@/lib/share/resolveOgImageUrl'
 import { isNonArticlePath } from '@/lib/isNonArticlePath'
@@ -546,6 +547,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
                     />
                   </div>
                 ) : null}
+                <ArticleUpdatedHeader articleMdPath={articleMdRelPath} />
                 {content ? (
                   <RelayMarkdown key={path ?? ''} content={content} basePath={basePath} sourcePath={path || undefined} />
                 ) : (

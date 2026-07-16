@@ -6,6 +6,7 @@ import { ArticleTTSProvider } from '@/components/ArticleTTS/ArticleTTSProvider'
 import { ArticleTTSOverlay } from '@/components/ArticleTTS/ArticleTTSOverlay'
 import { stripMarkdownForTTS, buildParagraphStarts } from '@/components/Timeline/ttsHelpers'
 import { ArticleNav, ShareLinks, ShareLinksFloating } from '@/components'
+import { ArticleUpdatedHeader } from '@/components/ArticleUpdatedHeader'
 import type { ShareExtractResult } from '@/lib/share'
 import { shouldPersistVisit } from '@/lib/visitResumeStorage'
 import { useMobileHubTtsChrome } from '@/lib/hooks/useMobileHubTtsChrome'
@@ -142,6 +143,7 @@ export function ArticleClientShell ({
                   />
                 </div>
               ) : null}
+              <ArticleUpdatedHeader articleMdPath={articleMdPath} />
               {children}
               {articlePath && (
                 <ShareLinks

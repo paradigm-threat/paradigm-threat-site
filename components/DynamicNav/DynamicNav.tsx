@@ -19,7 +19,7 @@ type NavFileLeaf = {
     href: string
 }
 
-const META_KEYS = new Set(['_count', '_version', '_title', '_updated', '_keywords', '_lqip', '_width', '_height'])
+const META_KEYS = new Set(['_count', '_version', '_title', '_updated', '_commit', '_keywords', '_lqip', '_width', '_height'])
 const FILE_LIST_CAP = 12
 
 function isExcludedNavFile (name: string): boolean {

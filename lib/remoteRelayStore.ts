@@ -390,7 +390,15 @@ class RemoteRelayStore {
           signal,
         }),
       ])
-      filesOk = rf.ok
+      if (rf.ok) {
+        try {
+          const { catalogEnvelopeHasPaths } = await import('@/lib/filesCatalogCache')
+          const body = (await rf.json()) as { results?: unknown[]; docCount?: unknown }
+          filesOk = catalogEnvelopeHasPaths(body)
+        } catch {
+          filesOk = false
+        }
+      }
       timelineOk = rt.ok
     } catch {
       /* leave flags false */
@@ -617,6 +625,7 @@ class RemoteRelayStore {
     return loadFilesCatalogCached(filesOrigin, async () => {
       // Prefer the warmed origin first, then normal failover order.
       const { queryRelayOrigin } = await import('@/lib/relayQuery')
+      const { catalogEnvelopeHasPaths } = await import('@/lib/filesCatalogCache')
       this.ensurePairs()
       const order = this.pairFailoverOrder()
       const preferred = order.find((p) => p.files === filesOrigin)
@@ -631,6 +640,11 @@ class RemoteRelayStore {
             limit: 10_000,
             signal,
           })
+          // Empty-but-OK catalogs (reindex lag / wiped sqlite) must not block failover.
+          if (!catalogEnvelopeHasPaths(data)) {
+            lastErr = new Error(`QUERY empty catalog ${p.files}`)
+            continue
+          }
           if (p.files !== this.filesOrigin || p.timeline !== this.timelineOrigin) {
             this.switchToPair(p, 'index_failover')
           }

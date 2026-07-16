@@ -56,4 +56,16 @@ describe('filesCatalogCache', () => {
     assert.deepEqual(a, b)
     assert.deepEqual(getCachedFilesCatalogTree(origin), a)
   })
+
+  it('rejects empty envelopes via catalogEnvelopeHasPaths', async () => {
+    const { catalogEnvelopeHasPaths } = await import('./filesCatalogCache.ts')
+    assert.equal(catalogEnvelopeHasPaths(env([])), false)
+    assert.equal(catalogEnvelopeHasPaths({ results: [], docCount: 0, collection: 'index', query: '', count: 0, status: 'ok' }), false)
+    assert.equal(catalogEnvelopeHasPaths({ results: [{ title: 'no-path' }], docCount: 0, collection: 'index', query: '', count: 1, status: 'ok' }), false)
+    assert.equal(catalogEnvelopeHasPaths(env([{ path: 'a.md' }])), true)
+    assert.equal(
+      catalogEnvelopeHasPaths({ results: [], docCount: 2339, collection: 'index', query: '', count: 0, status: 'ok' }),
+      true,
+    )
+  })
 })

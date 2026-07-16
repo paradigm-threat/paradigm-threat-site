@@ -53,8 +53,7 @@ export function rememberFilesCatalogFromEnvelope (
   origin: string,
   env: RelayQueryEnvelope,
 ): Record<string, unknown> | null {
-  if (!Array.isArray(env.results) || env.results.length === 0) return null
-  if (!env.results.some((r) => typeof r.path === 'string' && r.path.length > 0)) return null
+  if (!catalogEnvelopeHasPaths(env)) return null
   const tree = rebuildFilesIndexTree(env.results)
   entry = {
     origin: originKey(origin),
@@ -64,6 +63,20 @@ export function rememberFilesCatalogFromEnvelope (
     fetchedAt: Date.now(),
   }
   return tree
+}
+
+/** True when a QUERY envelope has at least one path document (usable files catalog). */
+export function catalogEnvelopeHasPaths (env: {
+  results?: unknown
+  docCount?: unknown
+} | null | undefined): boolean {
+  if (!env) return false
+  if (typeof env.docCount === 'number' && env.docCount > 0) return true
+  if (!Array.isArray(env.results) || env.results.length === 0) return false
+  return env.results.some(
+    (r) => r && typeof r === 'object' && typeof (r as { path?: unknown }).path === 'string' &&
+      String((r as { path: string }).path).length > 0,
+  )
 }
 
 /**
