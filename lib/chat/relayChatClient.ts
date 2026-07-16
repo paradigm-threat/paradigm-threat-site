@@ -1,30 +1,27 @@
 /**
  * Pure Relay chat client — QUERY reads + PUT writes on `chat/public` branch host.
+ *
+ * Message bodies come from the chat search plugin (`chat_comments`); the browser
+ * does not issue one CORS-preflighted GET per comment.
  */
 
 import { queryRelayOrigin } from '@/lib/relayQuery'
 import {
   CHAT_CHANNELS_JSON,
   CHAT_CHANNELS_ROOT,
-  channelPathPrefix,
   commentFilePath,
   newCommentId,
 } from '@/lib/chat/chatPath'
 import { CHAT_RELAY_BRANCH, getChatRelayOriginList } from '@/lib/chat/chatRelayOrigin'
 import {
+  CHAT_SCHEMA,
   displayUsername,
-  parseChatMarkdown,
   serializeChatComment,
   type ChatComment,
   type ChatCommentSource,
 } from '@/lib/chat/chatMarkdown'
 
 const FETCH_TIMEOUT_MS = 60_000
-/** Oversample FTS hits then filter by channel path prefix. */
-const CHANNEL_QUERY_OVERSAMPLE = 4
-const CHANNEL_QUERY_MIN = 200
-/** Cap parallel markdown GETs to avoid browser connection storms. */
-const FETCH_CONCURRENCY = 8
 
 export type ChatLoadStage =
   | 'connecting'
@@ -75,8 +72,8 @@ type ChannelsJson = {
   channels?: Array<{ name: string; description?: string }>
 }
 
-let pathListCache: { at: number; paths: string[] } | null = null
-const PATH_CACHE_MS = 30_000
+let recentCache: { at: number; posts: ChatPostEntry[] } | null = null
+const RECENT_CACHE_MS = 30_000
 
 function chatPostFromComment (c: ChatComment): ChatPostEntry {
   return {
@@ -162,7 +159,7 @@ async function relayPutText (origin: string, path: string, body: string): Promis
   return res.json() as Promise<{ commit?: string }>
 }
 
-/** FTS terms from channel name (`cosmos/mars` → `cosmos mars`). */
+/** FTS terms from channel name (`cosmos/mars` → `cosmos mars`). Kept for tests / free-text search. */
 export function channelFtsQuery (channel: string): string {
   return channel
     .trim()
@@ -172,117 +169,42 @@ export function channelFtsQuery (channel: string): string {
     .join(' ')
 }
 
-async function listChannelPaths (
-  origin: string,
-  channel: string,
-  limit: number,
-  opts?: ChatLoadOptions,
-): Promise<string[]> {
-  const prefix = channelPathPrefix(channel)
-  report(opts, {
-    stage: 'listing',
-    detail: `Querying index for #${channel}…`,
-  })
-  const env = await queryRelayOrigin(origin, {
-    collection: 'chat',
-    query: channelFtsQuery(channel),
-    limit: Math.max(limit * CHANNEL_QUERY_OVERSAMPLE, CHANNEL_QUERY_MIN),
-    branch: CHAT_RELAY_BRANCH,
-  })
-  const paths = env.results
-    .map((r) => (typeof r.path === 'string' ? r.path : ''))
-    .filter((p) => p.startsWith(prefix) && p.endsWith('.md'))
-  // Server orders by path DESC (ISO timestamps); keep that order.
-  return paths.slice(0, limit)
+function strField (row: Record<string, unknown>, key: string): string {
+  const v = row[key]
+  if (typeof v === 'string') return v
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v)
+  return ''
 }
 
-async function listRecentPaths (
-  origin: string,
-  limit: number,
-  opts?: ChatLoadOptions,
-): Promise<string[]> {
-  const now = Date.now()
-  if (pathListCache && now - pathListCache.at < PATH_CACHE_MS) {
-    report(opts, { stage: 'listing', detail: 'Using cached path list…' })
-    return pathListCache.paths.slice(0, limit)
+/** Hydrate a chat comment from an indexed QUERY row (body + frontmatter fields). */
+export function commentFromQueryRow (
+  row: Record<string, unknown>,
+): ChatComment | null {
+  const path = strField(row, 'path')
+  if (!path.startsWith(CHAT_CHANNELS_ROOT) || !path.endsWith('.md')) return null
+  const schema = strField(row, 'schema') || CHAT_SCHEMA
+  if (schema !== CHAT_SCHEMA) return null
+  const body = strField(row, 'body')
+  if (!body) return null
+  const channel = strField(row, 'channel')
+  const id = strField(row, 'id')
+  const created = strField(row, 'created')
+  if (!channel || !id || !created) return null
+  const anonymous = row.anonymous !== false
+  const author = typeof row.author === 'string' ? row.author : undefined
+  const source = (strField(row, 'source') || 'web') as ChatCommentSource
+  return {
+    schema: CHAT_SCHEMA,
+    id,
+    channel,
+    author: anonymous ? undefined : author,
+    anonymous,
+    created,
+    source,
+    signed: row.signed === true,
+    content: body.trim(),
+    path,
   }
-  report(opts, {
-    stage: 'listing',
-    detail: 'Querying recent chat index…',
-  })
-  const env = await queryRelayOrigin(origin, {
-    collection: 'chat',
-    query: '',
-    limit,
-    branch: CHAT_RELAY_BRANCH,
-  })
-  const paths = env.results
-    .map((r) => (typeof r.path === 'string' ? r.path : ''))
-    .filter((p) => p.startsWith(CHAT_CHANNELS_ROOT) && p.endsWith('.md'))
-  pathListCache = { at: now, paths }
-  return paths.slice(0, limit)
-}
-
-export function resetChatRelayCaches (): void {
-  pathListCache = null
-}
-
-async function mapPool<T, R> (
-  items: T[],
-  concurrency: number,
-  fn: (item: T, index: number) => Promise<R>,
-  onStep?: (done: number, total: number) => void,
-): Promise<R[]> {
-  const total = items.length
-  const out = new Array<R>(total)
-  let next = 0
-  let done = 0
-  async function worker (): Promise<void> {
-    while (true) {
-      const i = next++
-      if (i >= total) return
-      out[i] = await fn(items[i], i)
-      done += 1
-      onStep?.(done, total)
-    }
-  }
-  const n = Math.min(concurrency, Math.max(total, 1))
-  await Promise.all(Array.from({ length: n }, () => worker()))
-  return out
-}
-
-async function loadCommentsForPaths (
-  origin: string,
-  paths: string[],
-  opts?: ChatLoadOptions,
-): Promise<ChatComment[]> {
-  const total = paths.length
-  report(opts, {
-    stage: 'fetching',
-    detail: total === 0 ? 'No messages to fetch.' : `Fetching ${total} message${total === 1 ? '' : 's'}…`,
-    loaded: 0,
-    total,
-  })
-  const results = await mapPool(
-    paths,
-    FETCH_CONCURRENCY,
-    async (path) => {
-      const raw = await relayGetText(origin, path)
-      if (!raw) return null
-      return parseChatMarkdown(raw, path)
-    },
-    (loaded, tot) => {
-      if (loaded === tot || loaded % 5 === 0) {
-        report(opts, {
-          stage: 'fetching',
-          detail: `Fetched ${loaded}/${tot} messages…`,
-          loaded,
-          total: tot,
-        })
-      }
-    },
-  )
-  return results.filter((c): c is ChatComment => c != null)
 }
 
 function sortCommentsDesc (comments: ChatComment[]): ChatComment[] {
@@ -291,6 +213,24 @@ function sortCommentsDesc (comments: ChatComment[]): ChatComment[] {
     if (byCreated !== 0) return byCreated
     return (b.path || '').localeCompare(a.path || '')
   })
+}
+
+async function queryChatRows (
+  origin: string,
+  query: string | Record<string, unknown>,
+  limit: number,
+): Promise<Record<string, unknown>[]> {
+  const env = await queryRelayOrigin(origin, {
+    collection: 'chat',
+    query,
+    limit,
+    branch: CHAT_RELAY_BRANCH,
+  })
+  return env.results
+}
+
+export function resetChatRelayCaches (): void {
+  recentCache = null
 }
 
 export async function queryChannels (opts?: ChatLoadOptions): Promise<ChatChannelInfo[]> {
@@ -318,8 +258,20 @@ export async function queryPosts (
   opts?: ChatLoadOptions,
 ): Promise<{ channel: string; posts: ChatPostEntry[] }> {
   return withChatOrigins(async (origin) => {
-    const paths = await listChannelPaths(origin, channel, limit, opts)
-    const comments = sortCommentsDesc(await loadCommentsForPaths(origin, paths, opts))
+    report(opts, {
+      stage: 'listing',
+      detail: `Querying index for #${channel}…`,
+    })
+    const rows = await queryChatRows(origin, { channel }, limit)
+    report(opts, {
+      stage: 'fetching',
+      detail: 'Hydrating messages from index…',
+      loaded: 0,
+      total: rows.length,
+    })
+    const comments = sortCommentsDesc(
+      rows.map(commentFromQueryRow).filter((c): c is ChatComment => c != null),
+    ).slice(0, limit)
     report(opts, {
       stage: 'done',
       detail: `Loaded ${comments.length} message${comments.length === 1 ? '' : 's'}.`,
@@ -338,9 +290,21 @@ export async function queryRecentPosts (
   opts?: ChatLoadOptions,
 ): Promise<{ posts: ChatPostEntry[] }> {
   return withChatOrigins(async (origin) => {
-    const paths = await listRecentPaths(origin, Math.min(limit * 2, 200), opts)
-    const comments = sortCommentsDesc(await loadCommentsForPaths(origin, paths, opts))
+    const now = Date.now()
+    if (recentCache && now - recentCache.at < RECENT_CACHE_MS) {
+      report(opts, { stage: 'listing', detail: 'Using cached recent posts…' })
+      return { posts: recentCache.posts.slice(0, limit) }
+    }
+    report(opts, {
+      stage: 'listing',
+      detail: 'Querying recent chat index…',
+    })
+    const rows = await queryChatRows(origin, '', limit)
+    const comments = sortCommentsDesc(
+      rows.map(commentFromQueryRow).filter((c): c is ChatComment => c != null),
+    )
     const posts = comments.slice(0, limit).map(chatPostFromComment)
+    recentCache = { at: now, posts }
     report(opts, {
       stage: 'done',
       detail: `Loaded ${posts.length} recent message${posts.length === 1 ? '' : 's'}.`,
@@ -356,24 +320,21 @@ export async function queryUserPosts (
 ): Promise<ChatUserProfile> {
   const name = author.trim()
   return withChatOrigins(async (origin) => {
-    // User search still needs a wider path scan; keep recent-sized window.
-    const paths = await listRecentPaths(origin, 500, opts)
     report(opts, {
-      stage: 'fetching',
-      detail: `Scanning recent messages for @${name}…`,
+      stage: 'listing',
+      detail: `Searching index for @${name}…`,
     })
-    const comments = sortCommentsDesc(await loadCommentsForPaths(origin, paths, opts))
-    const mine = comments.filter((c) => {
-      if (c.anonymous) return false
-      return (c.author || '').toLowerCase() === name.toLowerCase()
-    })
+    const rows = await queryChatRows(origin, { author: name }, limit)
+    const comments = sortCommentsDesc(
+      rows.map(commentFromQueryRow).filter((c): c is ChatComment => c != null),
+    )
     report(opts, {
       stage: 'done',
-      detail: `Found ${Math.min(mine.length, limit)} post${mine.length === 1 ? '' : 's'} by @${name}.`,
+      detail: `Found ${Math.min(comments.length, limit)} post${comments.length === 1 ? '' : 's'} by @${name}.`,
     })
     return {
       user: { username: name },
-      recentPosts: mine.slice(0, limit).map((c) => ({
+      recentPosts: comments.slice(0, limit).map((c) => ({
         id: c.id,
         channel_name: c.channel,
         created: c.created,
@@ -415,7 +376,7 @@ export async function putComment (input: PutCommentInput): Promise<ChatPostEntry
 
   await withChatOrigins(async (origin) => {
     await relayPutText(origin, path, markdown)
-    pathListCache = null
+    recentCache = null
     return true
   })
 

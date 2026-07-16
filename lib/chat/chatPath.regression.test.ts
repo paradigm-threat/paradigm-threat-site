@@ -82,3 +82,38 @@ describe('channelFtsQuery', () => {
     assert.equal(channelFtsQuery('general'), 'general')
   })
 })
+
+describe('commentFromQueryRow', () => {
+  it('hydrates a chat post from an indexed QUERY row', async () => {
+    const { commentFromQueryRow } = await import('./relayChatClient.ts')
+    const c = commentFromQueryRow({
+      path: '.relay/chat/channels/general/2026-07-13T14-00-00-000Z_00000001_SEED.md',
+      schema: 'paradigm.chat.v1',
+      id: 'SEED',
+      channel: 'general',
+      author: 'ari',
+      anonymous: false,
+      created: '2026-07-13T14:00:00.000Z',
+      source: 'web',
+      signed: false,
+      body: 'Hello from index',
+    })
+    assert.ok(c)
+    assert.equal(c.content, 'Hello from index')
+    assert.equal(c.author, 'ari')
+  })
+
+  it('rejects rows without body', async () => {
+    const { commentFromQueryRow } = await import('./relayChatClient.ts')
+    assert.equal(
+      commentFromQueryRow({
+        path: '.relay/chat/channels/general/x.md',
+        schema: 'paradigm.chat.v1',
+        id: 'x',
+        channel: 'general',
+        created: '2026-07-13T14:00:00.000Z',
+      }),
+      null,
+    )
+  })
+})
