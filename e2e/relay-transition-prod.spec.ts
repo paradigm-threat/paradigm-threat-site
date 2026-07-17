@@ -72,11 +72,11 @@ test.describe('Relay transition (production)', () => {
     expect(page.url()).not.toMatch(/relaygateway\.net/)
   })
 
-  test('legacy server APIs return 503 (client uses Relay)', async ({ request }) => {
+  test('legacy server APIs return 503/404 (client uses Relay)', async ({ request }) => {
     const search = await request.get(`${BASE}/api/search-index`)
     expect(search.status()).toBe(503)
     const lucky = await request.get(`${BASE}/api/feeling-lucky`)
-    expect(lucky.status()).toBe(503)
+    expect(lucky.status()).toBe(404)
     const timelineJson = await request.get(`${BASE}/api/timeline-json`)
     expect(timelineJson.status()).toBe(503)
     const chat = await request.get(`${BASE}/api/chat/getChannels`)

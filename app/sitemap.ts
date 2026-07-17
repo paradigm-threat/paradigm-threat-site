@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { CANONICAL_SITE_ORIGIN } from '@/lib/canonicalPublicSite'
-import { queryFilesIndexTree } from '@/lib/queryCatalogFetch'
+import { queryFilesCatalogTree } from '@/lib/queryCatalogFetch'
 import { isServerRelayFetchDisabled } from '@/lib/siteOpsFeature'
 
 /** Keep in sync with lib/edgeDocumentCache.ts */
@@ -28,7 +28,7 @@ function collectPaths (node: IndexNode, prefix: string, out: Set<string>): void 
 }
 
 async function loadIndex (): Promise<IndexNode | null> {
-  return queryFilesIndexTree()
+  return queryFilesCatalogTree()
 }
 
 function staticSitemapEntries (): MetadataRoute.Sitemap {

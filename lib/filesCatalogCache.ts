@@ -3,7 +3,7 @@
  * Dedupes concurrent full-catalog fetches across FilesContext, search, and failover.
  */
 
-import { filesRowsToIndexedEntries, rebuildFilesIndexTree } from '@/lib/queryCatalog'
+import { filesRowsToIndexedEntries, rebuildFilesCatalogTree } from '@/lib/queryCatalog'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
 import type { RelayQueryEnvelope } from '@/lib/relayQuery'
 
@@ -54,7 +54,7 @@ export function rememberFilesCatalogFromEnvelope (
   env: RelayQueryEnvelope,
 ): Record<string, unknown> | null {
   if (!catalogEnvelopeHasPaths(env)) return null
-  const tree = rebuildFilesIndexTree(env.results)
+  const tree = rebuildFilesCatalogTree(env.results)
   entry = {
     origin: originKey(origin),
     results: env.results,

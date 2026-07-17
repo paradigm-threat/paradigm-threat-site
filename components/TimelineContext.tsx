@@ -26,6 +26,8 @@ export interface TimelineEntry {
   title: string
   type?: 'article' | 'event'
   md_path: string
+  /** Stable source order from the content XX.YY.ZZ filename. */
+  sort_key?: string
   dates: TimelineDate[]
   children: TimelineEntry[]
   timeline_sources?: string[]

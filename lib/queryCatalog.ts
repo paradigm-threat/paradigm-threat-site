@@ -3,8 +3,8 @@ import type { TimelineData, TimelineEntry, IntroArticle } from '@/components/Tim
 
 type Row = Record<string, unknown>
 
-/** Rebuild nested files index.json tree with `_count` from flat QUERY path rows. */
-export function rebuildFilesIndexTree (rows: Row[]): Record<string, unknown> {
+/** Rebuild nested files catalog tree with `_count` from flat QUERY path rows. */
+export function rebuildFilesCatalogTree (rows: Row[]): Record<string, unknown> {
   const root: Record<string, unknown> = {}
 
   for (const r of rows) {
@@ -57,6 +57,28 @@ function collectChildIds (node: Row, into: Set<string>) {
   }
 }
 
+type TimelineOrderFields = {
+  sort_key?: unknown
+  md_path?: unknown
+  id?: unknown
+}
+
+function timelineSortKey (row: TimelineOrderFields): string {
+  if (typeof row.sort_key === 'string' && row.sort_key) return `0:${row.sort_key}`
+  if (typeof row.md_path === 'string' && row.md_path) return `1:${row.md_path}`
+  return `2:${typeof row.id === 'string' ? row.id : ''}`
+}
+
+function orderedTimelineEntry (row: Row): TimelineEntry {
+  const children = Array.isArray(row.children)
+    ? row.children
+      .filter((child): child is Row => Boolean(child) && typeof child === 'object')
+      .map(orderedTimelineEntry)
+      .sort((a, b) => timelineSortKey(a).localeCompare(timelineSortKey(b)))
+    : []
+  return { ...row, children } as unknown as TimelineEntry
+}
+
 /** Rebuild timeline { entries, introArticles } from QUERY events rows. */
 export function eventsRowsToTimelineData (rows: Row[]): TimelineData {
   const manifestIntro = rows.find((r) => r.id === '__introArticles__')
@@ -73,7 +95,8 @@ export function eventsRowsToTimelineData (rows: Row[]): TimelineData {
 
   const entries = eventRows
     .filter((r) => typeof r.id === 'string' && !childIds.has(r.id))
-    .map((r) => r as unknown as TimelineEntry)
+    .map(orderedTimelineEntry)
+    .sort((a, b) => timelineSortKey(a).localeCompare(timelineSortKey(b)))
 
   let introArticles: IntroArticle[] = []
   if (manifestIntro && Array.isArray(manifestIntro.introArticles)) {

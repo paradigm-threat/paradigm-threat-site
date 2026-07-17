@@ -310,8 +310,8 @@ async function main () {
       fail(`${BASE}/api/search-index — expected HTTP 503 (client-side search), got ${searchRes.status}`)
     }
     const luckyRes = await fetch(`${BASE}/api/feeling-lucky`)
-    if (luckyRes.status !== 503) {
-      fail(`${BASE}/api/feeling-lucky — expected HTTP 503 (client-side lucky), got ${luckyRes.status}`)
+    if (luckyRes.status !== 404) {
+      fail(`${BASE}/api/feeling-lucky — expected HTTP 404 (route removed; client QUERY), got ${luckyRes.status}`)
     }
     const timelineJsonRes = await fetch(`${BASE}/api/timeline-json`)
     if (timelineJsonRes.status !== 503) {

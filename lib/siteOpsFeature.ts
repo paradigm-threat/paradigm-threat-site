@@ -8,7 +8,7 @@ export function isServerRelayFetchDisabled (): boolean {
   return process.env.NEXT_PUBLIC_SERVER_RELAY_FETCH !== '1'
 }
 
-/** Blocks /api/search-index and /api/feeling-lucky only (not the /search UI). */
+/** Blocks /api/search-index only (not the /search UI). Feeling Lucky is client QUERY. */
 export function isSearchServerApiDisabled (): boolean {
   return process.env.NEXT_PUBLIC_SEARCH_DISABLED === '1'
 }

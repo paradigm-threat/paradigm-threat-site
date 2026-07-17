@@ -1,7 +1,7 @@
 import { queryTimelineEventsData } from '@/lib/queryCatalogFetch'
 import { getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
 
-/** QUERY timeline events catalog (no GET of data/events.json). */
+/** QUERY timeline events catalog. */
 export async function fetchTimelineEventsResponse (
   _init?: { next?: { revalidate?: number | false } },
 ): Promise<Response | null> {

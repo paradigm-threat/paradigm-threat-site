@@ -1,5 +1,5 @@
 /**
- * Walk a nested Relay files catalog tree (`rebuildFilesIndexTree` shape) to a leaf.
+ * Walk a nested Relay files catalog tree (`rebuildFilesCatalogTree` shape) to a leaf.
  * Directory nodes carry `_count`; file leaves do not.
  */
 export function catalogLeafAtPath (

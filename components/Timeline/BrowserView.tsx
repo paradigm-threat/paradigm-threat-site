@@ -45,10 +45,15 @@ function displayName(filename: string): string {
   return filename.replace(/\.md$/, '')
 }
 
-/** Build a tree of dirs and .md files from the nested files-catalog tree */
+/** Build a tree of dirs and .md files from the nested files-catalog tree.
+ * Keys are sorted numerically so `NN.`-prefixed chapter dirs/files keep source order
+ * regardless of QUERY row / object insertion order. */
 function buildTree(node: IndexNode, parentPath: string): TreeItem[] {
   const items: TreeItem[] = []
-  for (const key of Object.keys(node)) {
+  const keys = Object.keys(node).sort((a, b) =>
+    a.localeCompare(b, undefined, { numeric: true }),
+  )
+  for (const key of keys) {
     if (key.startsWith('_')) continue
     const child = node[key]
     if (typeof child !== 'object' || child == null) continue
@@ -197,7 +202,7 @@ export function BrowserView({ initialPath }: BrowserViewProps) {
   const [loadingContent, setLoadingContent] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
 
-  // QUERY timeline file-tree catalog (never GET index.json)
+  // QUERY timeline file-tree catalog
   useEffect(() => {
     let cancelled = false
     queueMicrotask(() => setLoadingIndex(true))

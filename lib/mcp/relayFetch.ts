@@ -100,6 +100,7 @@ async function loadTimelineMdPathMapServer (): Promise<Map<string, string>> {
       collection: 'events',
       query: '',
       limit: 10_000,
+      order: 'sort_key',
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     })
     const { entries } = eventsRowsToTimelineData(env.results)

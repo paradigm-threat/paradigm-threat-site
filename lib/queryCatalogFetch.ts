@@ -1,12 +1,12 @@
 /**
- * Shared QUERY-only catalog loaders (no GET of index.json / events.json).
+ * Shared QUERY-only catalog loaders (files path tree + timeline events).
  */
 
 import {
   eventRowsToIndexedEntries,
   eventsRowsToTimelineData,
   filesRowsToIndexedEntries,
-  rebuildFilesIndexTree,
+  rebuildFilesCatalogTree,
 } from '@/lib/queryCatalog'
 import { queryRelayOrigin, type RelayQueryEnvelope } from '@/lib/relayQuery'
 import { getPrimaryFilesBaseUrl, getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
@@ -28,7 +28,7 @@ function isEventsCatalog (env: RelayQueryEnvelope | null): boolean {
 }
 
 /** Files-repo path catalog → nested tree with `_count`. */
-export async function queryFilesIndexTree (
+export async function queryFilesCatalogTree (
   origin = getPrimaryFilesBaseUrl(),
   signal?: AbortSignal,
 ): Promise<Record<string, unknown> | null> {
@@ -53,7 +53,6 @@ export async function queryFilesIndexTree (
 /**
  * Timeline markdown file-tree catalog (BrowserView / carousel).
  * Prefers collection `files`; if absent (pre-migration fleet), uses `index` only when rows are path docs.
- * Never GETs index.json.
  */
 export async function queryTimelineFilesTree (
   queryTimeline: (opts: {
@@ -71,7 +70,7 @@ export async function queryTimelineFilesTree (
     signal,
   })
   if (isPathCatalog(filesEnv)) {
-    return rebuildFilesIndexTree(filesEnv!.results)
+    return rebuildFilesCatalogTree(filesEnv!.results)
   }
   const indexEnv = await queryTimeline({
     collection: 'index',
@@ -80,7 +79,7 @@ export async function queryTimelineFilesTree (
     signal,
   })
   if (isPathCatalog(indexEnv)) {
-    return rebuildFilesIndexTree(indexEnv!.results)
+    return rebuildFilesCatalogTree(indexEnv!.results)
   }
   return null
 }
@@ -95,6 +94,7 @@ export async function queryTimelineEventsData (
       collection: 'events',
       query: '',
       limit: 10_000,
+      order: 'sort_key',
       signal,
     })
     if (!isEventsCatalog(env)) {
@@ -102,6 +102,7 @@ export async function queryTimelineEventsData (
         collection: 'index',
         query: '',
         limit: 10_000,
+        order: 'sort_key',
         signal,
       })
     }

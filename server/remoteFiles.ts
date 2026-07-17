@@ -1,11 +1,11 @@
 import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
-import { queryFilesIndexTree, queryMergedSearchIndex } from '@/lib/queryCatalogFetch'
+import { queryFilesCatalogTree, queryMergedSearchIndex } from '@/lib/queryCatalogFetch'
 
 const FILES_BASE_URL = getPrimaryFilesBaseUrl()
 
 export async function getFilesIndex () {
-  return (await queryFilesIndexTree(FILES_BASE_URL)) ?? {}
+  return (await queryFilesCatalogTree(FILES_BASE_URL)) ?? {}
 }
 
 /** Files + timeline catalogs via QUERY. Returns null if files QUERY fails. */

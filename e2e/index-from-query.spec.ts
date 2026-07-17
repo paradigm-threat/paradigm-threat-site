@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { flattenFilesIndex } from '../components/helpers/indexHelper'
 import { isNonArticlePath } from '../lib/isNonArticlePath'
-import { rebuildFilesIndexTree } from '../lib/queryCatalog'
+import { rebuildFilesCatalogTree } from '../lib/queryCatalog'
 
 function filesBaseUrl (): string {
   return (
@@ -69,7 +69,7 @@ async function loadCrawlUrlsFromQuery (): Promise<string[]> {
   if (!results.some((r) => typeof r.path === 'string')) {
     throw new Error(`QUERY ${origin} returned no path catalog rows`)
   }
-  const tree = rebuildFilesIndexTree(results)
+  const tree = rebuildFilesCatalogTree(results)
   return applyLimitOffsetSample(buildUrlsFromIndex(tree))
 }
 

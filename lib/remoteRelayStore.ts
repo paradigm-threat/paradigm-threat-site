@@ -486,7 +486,7 @@ class RemoteRelayStore {
   /** Kick off full files catalog QUERY in parallel with probes (deduped via filesCatalogCache). */
   private warmFilesCatalog (filesOrigin: string): void {
     if (typeof window === 'undefined' || !filesOrigin) return
-    void this.fetchIndexJsonForOrigin(filesOrigin, AbortSignal.timeout(INDEX_FETCH_TIMEOUT_MS))
+    void this.fetchFilesCatalogForOrigin(filesOrigin, AbortSignal.timeout(INDEX_FETCH_TIMEOUT_MS))
   }
 
   private async runBootstrap(): Promise<void> {
@@ -533,6 +533,7 @@ class RemoteRelayStore {
       collection?: string
       query?: string | Record<string, unknown>
       limit?: number
+      order?: import('@/lib/relayQuery').RelayQueryOrder
       signal?: AbortSignal
     } = {},
   ): Promise<import('@/lib/relayQuery').RelayQueryEnvelope | null> {
@@ -549,6 +550,7 @@ class RemoteRelayStore {
           collection: opts.collection ?? 'index',
           query: opts.query ?? '',
           limit: opts.limit ?? 10_000,
+          order: opts.order,
           signal,
         })
         if (p.files !== this.filesOrigin || p.timeline !== this.timelineOrigin) {
@@ -571,6 +573,7 @@ class RemoteRelayStore {
       collection?: string
       query?: string | Record<string, unknown>
       limit?: number
+      order?: import('@/lib/relayQuery').RelayQueryOrder
       signal?: AbortSignal
     } = {},
   ): Promise<import('@/lib/relayQuery').RelayQueryEnvelope | null> {
@@ -587,6 +590,7 @@ class RemoteRelayStore {
           collection: opts.collection ?? 'events',
           query: opts.query ?? '',
           limit: opts.limit ?? 10_000,
+          order: opts.order ?? 'sort_key',
           signal,
         })
         if (p.files !== this.filesOrigin || p.timeline !== this.timelineOrigin) {
@@ -602,15 +606,15 @@ class RemoteRelayStore {
   }
 
   /**
-   * Load files catalog via QUERY and rebuild nested tree (replaces GET index.json).
+   * Load files catalog via QUERY and rebuild nested tree.
    * Uses session cache + inflight dedupe shared with search.
    */
-  async fetchIndexJson (externalAbort: AbortSignal): Promise<unknown | null> {
+  async fetchFilesCatalog (externalAbort: AbortSignal): Promise<unknown | null> {
     await this.bootstrap()
-    return this.fetchIndexJsonForOrigin(this.filesOrigin, externalAbort)
+    return this.fetchFilesCatalogForOrigin(this.filesOrigin, externalAbort)
   }
 
-  private async fetchIndexJsonForOrigin (
+  private async fetchFilesCatalogForOrigin (
     filesOrigin: string,
     externalAbort: AbortSignal,
   ): Promise<unknown | null> {
@@ -656,7 +660,7 @@ class RemoteRelayStore {
           lastErr = e instanceof Error ? e : new Error(String(e))
         }
       }
-      if (lastErr) console.warn('[remoteRelay] fetchIndexJsonForOrigin:', lastErr.message)
+      if (lastErr) console.warn('[remoteRelay] fetchFilesCatalogForOrigin:', lastErr.message)
       return null
     })
   }

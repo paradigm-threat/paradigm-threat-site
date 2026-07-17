@@ -3,10 +3,7 @@
 import React, { useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Dices } from 'lucide-react'
-import {
-  fetchMergedSearchIndexClient,
-  pickRandomFeelingLuckyHref,
-} from '@/lib/clientMergedSearchIndex'
+import { queryRandomFeelingLuckyHref } from '@/lib/clientMergedSearchIndex'
 
 interface FeelingLuckyButtonProps {
   className?: string
@@ -21,14 +18,9 @@ export function FeelingLuckyButton ({ className = '' }: FeelingLuckyButtonProps)
     setError(null)
     setPending(true)
     try {
-      const entries = await fetchMergedSearchIndexClient()
-      if (!entries?.length) {
-        setError('Could not load search index from Relay')
-        return
-      }
-      const href = pickRandomFeelingLuckyHref(entries)
+      const href = await queryRandomFeelingLuckyHref()
       if (!href) {
-        setError('No articles in index')
+        setError('Could not pick a random page from Relay')
         return
       }
       router.push(href)

@@ -15,10 +15,14 @@ export type RelayQueryEnvelope = {
   status: string
 }
 
+export type RelayQueryOrder = 'random' | 'path' | '-path' | 'sort_key' | '-sort_key'
+
 export type RelayQueryRequest = {
   collection?: string
   query?: string | Record<string, unknown>
   limit?: number
+  /** Server-side sort; `random` is capped at limit 100 on the gateway. */
+  order?: RelayQueryOrder
   signal?: AbortSignal
   /** Auxiliary branch (e.g. `chat/public`) until Host `--branch-slug` routing ships. */
   branch?: string
@@ -36,14 +40,18 @@ export async function queryRelayOrigin (
   if (req.branch?.trim()) {
     headers['X-Relay-Branch'] = req.branch.trim()
   }
+  const body: Record<string, unknown> = {
+    collection: req.collection ?? 'index',
+    query: req.query ?? '',
+    limit: req.limit ?? 50,
+  }
+  if (req.order) {
+    body.order = req.order
+  }
   const res = await fetch(base + '/', {
     method: 'QUERY',
     headers,
-    body: JSON.stringify({
-      collection: req.collection ?? 'index',
-      query: req.query ?? '',
-      limit: req.limit ?? 50,
-    }),
+    body: JSON.stringify(body),
     signal: req.signal,
     cache: 'no-store',
   })

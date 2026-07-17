@@ -51,7 +51,7 @@ export function FilesProvider({ children }: { children: ReactNode }) {
       setLoading(true)
       setError(null)
       try {
-        const data = await remoteRelay.fetchIndexJson(abortController.signal)
+        const data = await remoteRelay.fetchFilesCatalog(abortController.signal)
         if (!isMounted) return
         void prefetchSiteClaims(abortController.signal)
         if (data == null) {
@@ -65,7 +65,7 @@ export function FilesProvider({ children }: { children: ReactNode }) {
           sendClientTelemetry({
             kind: 'mirror_index_failed',
             mirrorPhase: 'index_json',
-            message: 'fetchIndexJson returned null (all relay pairs failed or non-OK)',
+            message: 'fetchFilesCatalog returned null (all relay pairs failed or non-OK)',
             attemptedHostCount: getFilesBaseUrlList().length,
             attemptedHostsSummary: snap.serverLabel || snap.filesHostLabel || undefined,
           })
@@ -113,7 +113,7 @@ export function FilesProvider({ children }: { children: ReactNode }) {
     const abortController = new AbortController()
     void (async () => {
       try {
-        const data = await remoteRelay.fetchIndexJson(abortController.signal)
+        const data = await remoteRelay.fetchFilesCatalog(abortController.signal)
         if (!isMounted || data == null) return
         setFileList(data)
         loadedOriginRef.current = remoteRelay.getSnapshot().filesBaseUrl
