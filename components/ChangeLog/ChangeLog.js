@@ -165,13 +165,9 @@ export default function ChangeLog ({ target = '_self' }) {
     || RECENT_CONTENT_LOAD_MESSAGES[loadStep]
     || RECENT_CONTENT_LOAD_MESSAGES.connecting
 
-  const panelItems = activeTab === 'articles'
-    ? contentByTab.articles
-    : activeTab === 'investigations'
-      ? contentByTab.investigations
-      : activeTab === 'blog'
-        ? contentByTab.blog
-        : []
+  const panelClass = (tabId) => (
+    `${styles.tabPanel}${activeTab === tabId ? '' : ` ${styles.tabPanelHidden}`}`
+  )
 
   return (
     <div className={`not-prose w-full min-w-0 max-w-none ${wrapClass}`} data-toc-ignore>
@@ -212,35 +208,71 @@ export default function ChangeLog ({ target = '_self' }) {
             </button>
           </div>
         </div>
-      ) : activeTab === 'changelog' ? (
-        <div
-          role="tabpanel"
-          id="changelog-panel-changelog"
-          aria-labelledby="changelog-tab-changelog"
-          className={styles.tabPanel}
-        >
-          <ChangeLogFeed
-            changeLog={feedLog}
-            target={target}
-            fullscreen={fullscreen}
-            openGallery={openGallery}
-          />
-        </div>
       ) : (
-        <div
-          role="tabpanel"
-          id={`changelog-panel-${activeTab}`}
-          aria-labelledby={`changelog-tab-${activeTab}`}
-          className={styles.tabPanel}
-        >
-          <ChangeLogContentList
-            items={panelItems}
-            tabKind={activeTab}
-            target={target}
-            fullscreen={fullscreen}
-            catalogMeta={catalogMeta}
-          />
-        </div>
+        <>
+          <div
+            role="tabpanel"
+            id="changelog-panel-articles"
+            aria-labelledby="changelog-tab-articles"
+            hidden={activeTab !== 'articles'}
+            className={panelClass('articles')}
+          >
+            <ChangeLogContentList
+              items={contentByTab.articles}
+              tabKind="articles"
+              target={target}
+              fullscreen={fullscreen}
+              catalogMeta={catalogMeta}
+              active={activeTab === 'articles'}
+            />
+          </div>
+          <div
+            role="tabpanel"
+            id="changelog-panel-investigations"
+            aria-labelledby="changelog-tab-investigations"
+            hidden={activeTab !== 'investigations'}
+            className={panelClass('investigations')}
+          >
+            <ChangeLogContentList
+              items={contentByTab.investigations}
+              tabKind="investigations"
+              target={target}
+              fullscreen={fullscreen}
+              catalogMeta={catalogMeta}
+              active={activeTab === 'investigations'}
+            />
+          </div>
+          <div
+            role="tabpanel"
+            id="changelog-panel-blog"
+            aria-labelledby="changelog-tab-blog"
+            hidden={activeTab !== 'blog'}
+            className={panelClass('blog')}
+          >
+            <ChangeLogContentList
+              items={contentByTab.blog}
+              tabKind="blog"
+              target={target}
+              fullscreen={fullscreen}
+              catalogMeta={catalogMeta}
+              active={activeTab === 'blog'}
+            />
+          </div>
+          <div
+            role="tabpanel"
+            id="changelog-panel-changelog"
+            aria-labelledby="changelog-tab-changelog"
+            hidden={activeTab !== 'changelog'}
+            className={panelClass('changelog')}
+          >
+            <ChangeLogFeed
+              changeLog={feedLog}
+              target={target}
+              fullscreen={fullscreen}
+              openGallery={openGallery}
+            />
+          </div>
+        </>
       )}
     </div>
   )
