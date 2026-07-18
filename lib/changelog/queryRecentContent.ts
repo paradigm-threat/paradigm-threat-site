@@ -175,8 +175,15 @@ export const RECENT_CONTENT_LOAD_MESSAGES: Record<RecentContentLoadStep, string>
   error: 'Could not load recent content',
 }
 
+const EMPTY_RECENT: RecentContentResult = {
+  contentByTab: { articles: [], investigations: [], blog: [] },
+  feed: [],
+}
+
+const QUERY_TIMEOUT_MS = 12_000
+
 export async function queryRecentFilesContent (
-  origin = getPrimaryFilesBaseUrl(),
+  origin?: string,
   options?: {
     signal?: AbortSignal
     onProgress?: (step: RecentContentLoadStep) => void
@@ -189,9 +196,23 @@ export async function queryRecentFilesContent (
     const {
       getCachedFilesCatalogResults,
       loadFilesCatalogCached,
+      rememberFilesCatalogFromEnvelope,
     } = await import('@/lib/filesCatalogCache')
 
-    const cached = getCachedFilesCatalogResults(origin)
+    // Prefer the race-selected mirror (not env list order). Primary was lon1 and hung QUERY.
+    let resolvedOrigin = (origin ?? '').replace(/\/+$/, '')
+    if (typeof window !== 'undefined') {
+      const { remoteRelay } = await import('@/lib/remoteRelayStore')
+      await remoteRelay.bootstrap()
+      if (!resolvedOrigin) {
+        resolvedOrigin = remoteRelay.getSnapshot().filesBaseUrl.replace(/\/+$/, '')
+      }
+    }
+    if (!resolvedOrigin) {
+      resolvedOrigin = getPrimaryFilesBaseUrl().replace(/\/+$/, '')
+    }
+
+    const cached = getCachedFilesCatalogResults(resolvedOrigin)
     if (cached?.length) {
       onProgress?.('organizing')
       const result = buildRecentContentFromRows(cached)
@@ -200,27 +221,45 @@ export async function queryRecentFilesContent (
     }
 
     onProgress?.('fetching')
-    // Share the full-catalog QUERY with search/nav via filesCatalogCache (one round-trip).
-    await loadFilesCatalogCached(origin, async () => {
-      const env = await queryRelayOrigin(origin, {
+
+    if (typeof window !== 'undefined') {
+      const { remoteRelay } = await import('@/lib/remoteRelayStore')
+      // Failover + per-origin timeout (avoids stuck "Fetching…" when first env host is dead).
+      const env = await remoteRelay.queryFiles({
         collection: 'index',
         query: '',
         limit: 10_000,
         signal,
       })
-      return env
+      if (!env) {
+        onProgress?.('error')
+        return EMPTY_RECENT
+      }
+      const active = remoteRelay.getSnapshot().filesBaseUrl.replace(/\/+$/, '')
+      rememberFilesCatalogFromEnvelope(active || resolvedOrigin, env)
+      onProgress?.('organizing')
+      const result = buildRecentContentFromRows(env.results)
+      onProgress?.('done')
+      return result
+    }
+
+    // SSR / non-browser: single origin with hard timeout.
+    await loadFilesCatalogCached(resolvedOrigin, async () => {
+      return queryRelayOrigin(resolvedOrigin, {
+        collection: 'index',
+        query: '',
+        limit: 10_000,
+        signal: signal ?? AbortSignal.timeout(QUERY_TIMEOUT_MS),
+      })
     })
 
-    const rows = getCachedFilesCatalogResults(origin) ?? []
+    const rows = getCachedFilesCatalogResults(resolvedOrigin) ?? []
     onProgress?.('organizing')
     const result = buildRecentContentFromRows(rows)
     onProgress?.('done')
     return result
   } catch {
     onProgress?.('error')
-    return {
-      contentByTab: { articles: [], investigations: [], blog: [] },
-      feed: [],
-    }
+    return EMPTY_RECENT
   }
 }
