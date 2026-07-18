@@ -536,12 +536,15 @@ class RemoteRelayStore {
       order?: import('@/lib/relayQuery').RelayQueryOrder
       signal?: AbortSignal
     } = {},
-  ): Promise<import('@/lib/relayQuery').RelayQueryEnvelope | null> {
+  ): Promise<import('@/lib/relayQuery').RelayQueryEnvelope> {
     const { queryRelayOrigin } = await import('@/lib/relayQuery')
     this.ensurePairs()
     const order = this.pairFailoverOrder()
-    let lastErr: Error | null = null
+    const failures: string[] = []
     for (const p of order) {
+      if (opts.signal?.aborted) {
+        throw new DOMException('The operation was aborted.', 'AbortError')
+      }
       const signal = opts.signal
         ? mergeAbort(opts.signal, INDEX_FETCH_TIMEOUT_MS)
         : AbortSignal.timeout(INDEX_FETCH_TIMEOUT_MS)
@@ -558,11 +561,22 @@ class RemoteRelayStore {
         }
         return data
       } catch (e) {
-        lastErr = e instanceof Error ? e : new Error(String(e))
+        if (opts.signal?.aborted) {
+          throw e instanceof Error ? e : new DOMException('The operation was aborted.', 'AbortError')
+        }
+        const msg = e instanceof Error ? e.message : String(e)
+        const name = e instanceof Error ? e.name : ''
+        const detail = name === 'TimeoutError' || /timed? ?out/i.test(msg)
+          ? `timeout after ${INDEX_FETCH_TIMEOUT_MS / 1000}s`
+          : msg
+        failures.push(`${p.files} (${detail})`)
       }
     }
-    if (lastErr) console.warn('[remoteRelay] queryFiles:', lastErr.message)
-    return null
+    const summary = failures.length
+      ? `All files mirrors failed: ${failures.join('; ')}`
+      : 'All files mirrors failed'
+    console.warn('[remoteRelay] queryFiles:', summary)
+    throw new Error(summary)
   }
 
   /**

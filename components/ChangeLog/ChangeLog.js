@@ -41,7 +41,9 @@ export default function ChangeLog ({ target = '_self' }) {
   const [contentByTab, setContentByTab] = useState(emptyContentByTab)
   const [loading, setLoading] = useState(true)
   const [loadStep, setLoadStep] = useState('connecting')
-  const [loadError, setLoadError] = useState(false)
+  const [loadErrorMessage, setLoadErrorMessage] = useState(null)
+  const [catalogMeta, setCatalogMeta] = useState(null)
+  const [retryNonce, setRetryNonce] = useState(0)
   const [fullscreen, setFullscreen] = useState(false)
   const [activeTab, setActiveTab] = useState(readStoredTab)
   const { openGallery, isOpen: galleryOpen } = useImageGallery()
@@ -57,6 +59,10 @@ export default function ChangeLog ({ target = '_self' }) {
 
   const toggleFullscreen = useCallback(() => {
     setFullscreen((v) => !v)
+  }, [])
+
+  const retryLoad = useCallback(() => {
+    setRetryNonce((n) => n + 1)
   }, [])
 
   useEffect(() => {
@@ -80,7 +86,7 @@ export default function ChangeLog ({ target = '_self' }) {
 
     const fetchChangeLog = async () => {
       setLoading(true)
-      setLoadError(false)
+      setLoadErrorMessage(null)
       setLoadStep('connecting')
 
       const result = await queryRecentFilesContent(undefined, {
@@ -88,7 +94,6 @@ export default function ChangeLog ({ target = '_self' }) {
         onProgress: (step) => {
           if (!controller.signal.aborted) {
             setLoadStep(step)
-            if (step === 'error') setLoadError(true)
           }
         },
       })
@@ -97,19 +102,31 @@ export default function ChangeLog ({ target = '_self' }) {
 
       setFeedLog(result.feed)
       setContentByTab(result.contentByTab)
+      setCatalogMeta(
+        typeof result.catalogRowCount === 'number' || result.origin
+          ? { catalogRowCount: result.catalogRowCount ?? 0, origin: result.origin || '' }
+          : null,
+      )
+      if (result.error) {
+        setLoadErrorMessage(result.error.message)
+        setLoadStep('error')
+      } else {
+        setLoadErrorMessage(null)
+      }
       setLoading(false)
     }
 
     fetchChangeLog().catch((e) => {
       if (controller.signal.aborted) return
       console.error('Failed to fetch recent content from QUERY', e)
-      setLoadError(true)
+      const msg = e instanceof Error ? e.message : String(e)
+      setLoadErrorMessage(msg || RECENT_CONTENT_LOAD_MESSAGES.error)
       setLoadStep('error')
       setLoading(false)
     })
 
     return () => controller.abort()
-  }, [])
+  }, [retryNonce])
 
   useEffect(() => {
     if (feedLog.length === 0) return undefined
@@ -144,9 +161,9 @@ export default function ChangeLog ({ target = '_self' }) {
   }, [feedLog, openGallery])
 
   const wrapClass = fullscreen ? styles.wrapFullscreen : styles.wrap
-  const statusMessage = loadError
-    ? RECENT_CONTENT_LOAD_MESSAGES.error
-    : RECENT_CONTENT_LOAD_MESSAGES[loadStep] ?? RECENT_CONTENT_LOAD_MESSAGES.connecting
+  const statusMessage = loadErrorMessage
+    || RECENT_CONTENT_LOAD_MESSAGES[loadStep]
+    || RECENT_CONTENT_LOAD_MESSAGES.connecting
 
   const panelItems = activeTab === 'articles'
     ? contentByTab.articles
@@ -181,6 +198,20 @@ export default function ChangeLog ({ target = '_self' }) {
         >
           <ChangeLogLoading statusMessage={statusMessage} fullscreen={fullscreen} />
         </div>
+      ) : loadErrorMessage ? (
+        <div
+          role="tabpanel"
+          id={`changelog-panel-${activeTab}`}
+          aria-labelledby={`changelog-tab-${activeTab}`}
+          className={styles.tabPanel}
+        >
+          <div className={styles.errorPanel} role="alert">
+            <p className={styles.error}>{loadErrorMessage}</p>
+            <button type="button" className={styles.retryBtn} onClick={retryLoad}>
+              Retry
+            </button>
+          </div>
+        </div>
       ) : activeTab === 'changelog' ? (
         <div
           role="tabpanel"
@@ -207,6 +238,7 @@ export default function ChangeLog ({ target = '_self' }) {
             tabKind={activeTab}
             target={target}
             fullscreen={fullscreen}
+            catalogMeta={catalogMeta}
           />
         </div>
       )}

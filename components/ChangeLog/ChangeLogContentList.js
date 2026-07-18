@@ -36,6 +36,7 @@ export default function ChangeLogContentList ({
   tabKind,
   target = '_self',
   fullscreen = false,
+  catalogMeta = null,
 }) {
   const [metaByPath, setMetaByPath] = useState({})
   const [loadingMeta, setLoadingMeta] = useState(false)
@@ -99,8 +100,13 @@ export default function ChangeLogContentList ({
   }, [itemsKey])
 
   if (!visibleItems.length) {
+    const originNote = catalogMeta?.origin
+      ? ` Index: ${catalogMeta.catalogRowCount ?? 0} docs from ${catalogMeta.origin}.`
+      : ''
     return (
-      <p className={styles.contentEmpty}>{EMPTY_COPY[tabKind] || 'No items yet.'}</p>
+      <p className={styles.contentEmpty}>
+        {(EMPTY_COPY[tabKind] || 'No items yet.') + originNote}
+      </p>
     )
   }
 

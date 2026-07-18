@@ -9,9 +9,77 @@ const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg)$/i
 
 type QueryRow = Record<string, unknown>
 
+export type RecentContentErrorKind =
+  | 'timeout'
+  | 'aborted'
+  | 'network'
+  | 'empty_index'
+  | 'unknown'
+
+export interface RecentContentError {
+  kind: RecentContentErrorKind
+  message: string
+  origin?: string
+}
+
 export interface RecentContentResult {
   contentByTab: ContentItemsByTab
   feed: RecentFeedEntry[]
+  /** Present when the catalog QUERY failed or returned an unusable index. */
+  error?: RecentContentError
+  /** Raw QUERY row count before the 30-day filter (diagnostics). */
+  catalogRowCount?: number
+  origin?: string
+}
+
+export function classifyRecentContentError (
+  err: unknown,
+  origin?: string,
+): RecentContentError {
+  const name = err instanceof Error ? err.name : ''
+  const raw = err instanceof Error ? err.message : String(err ?? 'Unknown error')
+  const originSuffix = origin ? ` (${origin})` : ''
+
+  if (name === 'AbortError' || /operation was aborted/i.test(raw)) {
+    return {
+      kind: 'aborted',
+      message: `Content index request was aborted${originSuffix}.`,
+      origin,
+    }
+  }
+  if (
+    name === 'TimeoutError'
+    || /timed? ?out/i.test(raw)
+    || /timeout after \d+s/i.test(raw)
+  ) {
+    return {
+      kind: 'timeout',
+      message: `Timed out loading the content index${originSuffix}. Tried each Relay mirror; check network or switch server.`,
+      origin,
+    }
+  }
+  if (/Failed to fetch|NetworkError|CORS|LOAD_FAILED/i.test(raw)) {
+    return {
+      kind: 'network',
+      message: `Network error loading the content index${originSuffix}: ${raw}`,
+      origin,
+    }
+  }
+  if (/All files mirrors failed/i.test(raw)) {
+    const timedOut = /timeout after \d+s/i.test(raw)
+    return {
+      kind: timedOut ? 'timeout' : 'network',
+      message: timedOut
+        ? `Timed out on every Relay files mirror${originSuffix}. ${raw}`
+        : raw,
+      origin,
+    }
+  }
+  return {
+    kind: 'unknown',
+    message: `Could not load recent content${originSuffix}: ${raw}`,
+    origin,
+  }
 }
 
 function contentHref (path: string): string {
@@ -182,6 +250,31 @@ const EMPTY_RECENT: RecentContentResult = {
 
 const QUERY_TIMEOUT_MS = 12_000
 
+function withCatalogMeta (
+  result: RecentContentResult,
+  rows: QueryRow[],
+  origin: string,
+): RecentContentResult {
+  const catalogRowCount = rows.length
+  if (catalogRowCount === 0) {
+    return {
+      ...result,
+      catalogRowCount: 0,
+      origin,
+      error: {
+        kind: 'empty_index',
+        message: `Content index at ${origin} returned 0 documents.`,
+        origin,
+      },
+    }
+  }
+  return {
+    ...result,
+    catalogRowCount,
+    origin,
+  }
+}
+
 export async function queryRecentFilesContent (
   origin?: string,
   options?: {
@@ -190,6 +283,7 @@ export async function queryRecentFilesContent (
   },
 ): Promise<RecentContentResult> {
   const { signal, onProgress } = options ?? {}
+  let resolvedOrigin = (origin ?? '').replace(/\/+$/, '')
   try {
     onProgress?.('connecting')
 
@@ -200,7 +294,6 @@ export async function queryRecentFilesContent (
     } = await import('@/lib/filesCatalogCache')
 
     // Prefer the race-selected mirror (not env list order). Primary was lon1 and hung QUERY.
-    let resolvedOrigin = (origin ?? '').replace(/\/+$/, '')
     if (typeof window !== 'undefined') {
       const { remoteRelay } = await import('@/lib/remoteRelayStore')
       await remoteRelay.bootstrap()
@@ -215,8 +308,13 @@ export async function queryRecentFilesContent (
     const cached = getCachedFilesCatalogResults(resolvedOrigin)
     if (cached?.length) {
       onProgress?.('organizing')
-      const result = buildRecentContentFromRows(cached)
-      onProgress?.('done')
+      const result = withCatalogMeta(
+        buildRecentContentFromRows(cached),
+        cached,
+        resolvedOrigin,
+      )
+      if (result.error) onProgress?.('error')
+      else onProgress?.('done')
       return result
     }
 
@@ -231,15 +329,17 @@ export async function queryRecentFilesContent (
         limit: 10_000,
         signal,
       })
-      if (!env) {
-        onProgress?.('error')
-        return EMPTY_RECENT
-      }
       const active = remoteRelay.getSnapshot().filesBaseUrl.replace(/\/+$/, '')
-      rememberFilesCatalogFromEnvelope(active || resolvedOrigin, env)
+      const usedOrigin = active || resolvedOrigin
+      rememberFilesCatalogFromEnvelope(usedOrigin, env)
       onProgress?.('organizing')
-      const result = buildRecentContentFromRows(env.results)
-      onProgress?.('done')
+      const result = withCatalogMeta(
+        buildRecentContentFromRows(env.results),
+        env.results,
+        usedOrigin,
+      )
+      if (result.error) onProgress?.('error')
+      else onProgress?.('done')
       return result
     }
 
@@ -255,11 +355,24 @@ export async function queryRecentFilesContent (
 
     const rows = getCachedFilesCatalogResults(resolvedOrigin) ?? []
     onProgress?.('organizing')
-    const result = buildRecentContentFromRows(rows)
-    onProgress?.('done')
+    const result = withCatalogMeta(
+      buildRecentContentFromRows(rows),
+      rows,
+      resolvedOrigin,
+    )
+    if (result.error) onProgress?.('error')
+    else onProgress?.('done')
     return result
-  } catch {
+  } catch (err) {
+    // Unmount / navigation abort — do not surface as a user-facing failure.
+    if (signal?.aborted) {
+      return { ...EMPTY_RECENT, origin: resolvedOrigin || undefined }
+    }
     onProgress?.('error')
-    return EMPTY_RECENT
+    return {
+      ...EMPTY_RECENT,
+      origin: resolvedOrigin || undefined,
+      error: classifyRecentContentError(err, resolvedOrigin || undefined),
+    }
   }
 }

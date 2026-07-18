@@ -233,11 +233,54 @@
 }
 
 .error {
-    display: inline-block;
+    display: block;
+    margin: 0;
     color: #D8000C;
     background-color: #FFD2D2;
     padding: 0.5em 1em;
     border-radius: 4px;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+:global(.dark) .error {
+    color: #fecaca;
+    background-color: rgb(127 29 29 / 45%);
+    border: 1px solid rgb(248 113 113 / 40%);
+}
+
+.errorPanel {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+}
+
+.retryBtn {
+    padding: 0.35rem 0.75rem;
+    border-radius: 0.375rem;
+    border: 1px solid rgb(203 213 225);
+    background: rgb(248 250 252);
+    color: rgb(51 65 85);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.retryBtn:hover {
+    background: rgb(241 245 249);
+}
+
+:global(.dark) .retryBtn {
+    border-color: rgb(71 85 105);
+    background: rgb(30 41 59);
+    color: rgb(226 232 240);
+}
+
+:global(.dark) .retryBtn:hover {
+    background: rgb(51 65 85);
 }
 
 .tabBar {
