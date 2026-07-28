@@ -59,9 +59,23 @@ interface LayoutProps {
   params: Promise<{ slug?: string | string[] }>
 }
 
+function isRobotsDisallowedPath (path: string): boolean {
+  const first = path.split('/').filter(Boolean)[0] ?? ''
+  return first === 'docs' || first === 'api'
+}
+
 export async function generateMetadata ({ params }: Pick<LayoutProps, 'params'>): Promise<Metadata> {
   const resolved = await params
   const path = getPathFromParams(resolved)
+
+  // Keep Search Console clean: paths Disallow'd in robots.txt must also be noindex.
+  if (isRobotsDisallowedPath(path)) {
+    const label = path.split('/').filter(Boolean).pop()?.replace(/-/g, ' ') ?? path
+    return {
+      title: `${label} | Paradigm Threat`,
+      robots: { index: false, follow: false, googleBot: { index: false, follow: false } },
+    }
+  }
 
   if (isServerRelayFetchDisabled()) {
     return staticMetadataForPath(path)
