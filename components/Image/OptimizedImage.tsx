@@ -133,8 +133,6 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
 
     const imgClassName = `relative z-[1] block w-full max-w-full h-auto transition-opacity duration-700 ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0'}`
     const displaySrc = isVisible && finalProps.src ? (finalProps.src as string) : EMPTY_SRC_PLACEHOLDER
-    const displayPortraitSrc =
-        isVisible && hasPortraitSibling ? (activePortraitSrc as string) : EMPTY_SRC_PLACEHOLDER
     const mediaQuery =
         typeof portraitMedia === 'string' && portraitMedia.length > 0
             ? portraitMedia
@@ -189,7 +187,8 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
                 {/* Art direction: landscape in MD; optional foo-portrait.* at narrow viewports */}
                 {hasPortraitSibling ? (
                     <picture>
-                        <source media={mediaQuery} srcSet={displayPortraitSrc} />
+                        {/* Always emit real portrait URL so media selection works before IntersectionObserver */}
+                        <source media={mediaQuery} srcSet={activePortraitSrc as string} />
                         {rasterImg}
                     </picture>
                 ) : (
