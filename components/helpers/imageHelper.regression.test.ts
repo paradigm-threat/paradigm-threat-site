@@ -63,4 +63,29 @@ describe('processImageProps (Relay mirrors, never /api/image)', () => {
     )
     assert.doesNotMatch(String(out.optimizedSrc), /\/api\/image/)
   })
+
+  it('emits -portrait sibling URLs for raster art direction', async () => {
+    const { processImageProps, portraitSiblingPath, PORTRAIT_MEDIA_QUERY } = await import(
+      './imageHelper.ts'
+    )
+    assert.equal(
+      portraitSiblingPath('/governance/war/presidential-alignment-scorecard-au046.png'),
+      '/governance/war/presidential-alignment-scorecard-au046-portrait.png',
+    )
+    assert.equal(
+      portraitSiblingPath('/governance/war/presidential-alignment-scorecard-au046-portrait.png'),
+      null,
+    )
+    const out = processImageProps({
+      src: '/governance/war/presidential-alignment-scorecard-au046.png',
+      w: 800,
+    })
+    assert.equal(
+      out.portraitOptimizedSrc,
+      'https://paradigm-threat-files.dfw1.relaygateway.net/governance/war/presidential-alignment-scorecard-au046-portrait.png?w=800',
+    )
+    assert.equal(out.portraitMedia, PORTRAIT_MEDIA_QUERY)
+    assert.match(String(out.optimizedSrc), /presidential-alignment-scorecard-au046\.png\?w=800/)
+    assert.doesNotMatch(String(out.optimizedSrc), /-portrait/)
+  })
 })

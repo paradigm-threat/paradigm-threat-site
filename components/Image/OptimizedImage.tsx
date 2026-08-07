@@ -1,6 +1,6 @@
 'use client'
 
-import { processImageProps } from '@/components/helpers/imageHelper'
+import { PORTRAIT_MEDIA_QUERY, processImageProps } from '@/components/helpers/imageHelper'
 import React, { useState, useEffect, useRef } from "react";
 
 interface OptimizedImageProps {
@@ -32,6 +32,9 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
         lqipOptimizedSrc,
         highResSrc,
         mirrorSrcs,
+        portraitOptimizedSrc,
+        portraitMirrorSrcs,
+        portraitMedia,
         basePath,
         className: processedClassName,
         ...rest
@@ -80,9 +83,13 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
     }, [priority])
 
     const mirrorList = Array.isArray(mirrorSrcs) ? (mirrorSrcs as string[]) : []
+    const portraitMirrorList = Array.isArray(portraitMirrorSrcs) ? (portraitMirrorSrcs as string[]) : []
     const activeSrc =
         mirrorList[mirrorIndex] ||
         (typeof optimizedSrc === 'string' ? optimizedSrc : undefined)
+    const activePortraitSrc =
+        portraitMirrorList[mirrorIndex] ||
+        (typeof portraitOptimizedSrc === 'string' ? portraitOptimizedSrc : undefined)
 
     if (activeSrc) {
         finalProps['data-original-src'] = finalProps.src;
@@ -92,7 +99,8 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
     // Wide book diagrams often have index/API dimensions that do not match the decoded bitmap;
     // a forced aspect-ratio box then leaves a large empty band above the caption (especially on mobile).
     const isBookIllustration = /\bbook-illustration\b/.test(processedClassName || '')
-    const imageIntrinsicKey = `${String(optimizedSrc ?? '')}:${String(lqipOptimizedSrc ?? '')}`
+    const hasPortraitSibling = typeof activePortraitSrc === 'string' && activePortraitSrc.length > 0
+    const imageIntrinsicKey = `${String(optimizedSrc ?? '')}:${String(lqipOptimizedSrc ?? '')}:${String(activePortraitSrc ?? '')}`
     const useRelayLqipUnderlay =
         typeof lqipOptimizedSrc === 'string' &&
         lqipOptimizedSrc.length > 0 &&
@@ -106,7 +114,8 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
             containerStyle.backgroundPosition = 'center top'
             containerStyle.backgroundRepeat = 'no-repeat'
         }
-    } else if (finalProps.width && finalProps.height) {
+    } else if (!hasPortraitSibling && finalProps.width && finalProps.height) {
+        // Skip locked ratio when -portrait sibling may swap aspect at PORTRAIT_MEDIA_QUERY
         containerStyle.aspectRatio = `${finalProps.width}/${finalProps.height}`
         if (blurDataURL) {
             containerStyle.backgroundImage = `url('${blurDataURL}')`
@@ -121,6 +130,34 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
             containerStyle.backgroundPosition = 'center'
         }
     }
+
+    const imgClassName = `relative z-[1] block w-full max-w-full h-auto transition-opacity duration-700 ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0'}`
+    const displaySrc = isVisible && finalProps.src ? (finalProps.src as string) : EMPTY_SRC_PLACEHOLDER
+    const displayPortraitSrc =
+        isVisible && hasPortraitSibling ? (activePortraitSrc as string) : EMPTY_SRC_PLACEHOLDER
+    const mediaQuery =
+        typeof portraitMedia === 'string' && portraitMedia.length > 0
+            ? portraitMedia
+            : PORTRAIT_MEDIA_QUERY
+
+    const rasterImg = (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+            loading='lazy'
+            alt={alt}
+            className={imgClassName}
+            {...finalProps}
+            src={displaySrc}
+            onLoad={() => {
+                setLqipDismissed(true)
+            }}
+            onError={() => {
+                if (mirrorIndex + 1 < mirrorList.length) {
+                    setMirrorIndex((i) => i + 1)
+                }
+            }}
+        />
+    )
 
     return (
         <figure
@@ -149,23 +186,15 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
                         }`}
                     />
                 ) : null}
-                {/* next/image not used: dynamic src/placeholder and aspect ratio from props */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                    loading='lazy'
-                    alt={alt}
-                    className={`relative z-[1] block w-full max-w-full h-auto transition-opacity duration-700 ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0'}`}
-                    {...finalProps}
-                    src={isVisible && finalProps.src ? (finalProps.src as string) : EMPTY_SRC_PLACEHOLDER}
-                    onLoad={() => {
-                        setLqipDismissed(true)
-                    }}
-                    onError={() => {
-                        if (mirrorIndex + 1 < mirrorList.length) {
-                            setMirrorIndex((i) => i + 1)
-                        }
-                    }}
-                />
+                {/* Art direction: landscape in MD; optional foo-portrait.* at narrow viewports */}
+                {hasPortraitSibling ? (
+                    <picture>
+                        <source media={mediaQuery} srcSet={displayPortraitSrc} />
+                        {rasterImg}
+                    </picture>
+                ) : (
+                    rasterImg
+                )}
             </div>
             {children
                 ? <figcaption className="mt-2 text-xs text-slate-500 dark:text-slate-400 italic text-justify px-2">{children}</figcaption>

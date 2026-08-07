@@ -1,3 +1,4 @@
+import { PORTRAIT_MEDIA_QUERY, portraitSiblingPath } from '@/components/helpers/imageHelper'
 import { canonicalSiteAssetToMirrorUrl } from '@/lib/canonicalSiteAssetUrl'
 import { joinRepoRelativePath } from '@/lib/repoRelativePath'
 import { buildOptimizedAssetUrl } from '@/lib/relayOptimizedAssetUrl'
@@ -18,6 +19,15 @@ function widthFromSrc (src: string): number | undefined {
   return Number.isFinite(n) && n > 0 ? n : undefined
 }
 
+/** Wrap optimized landscape <img> with optional foo-portrait sibling <source>. */
+function wrapPortraitPicture (imgTag: string, landscapePathOrUrl: string, w: number | undefined): string {
+  const portraitRel = portraitSiblingPath(landscapePathOrUrl)
+  if (!portraitRel) return imgTag
+  const portraitUrl = buildOptimizedAssetUrl(portraitRel, w)
+  if (!portraitUrl) return imgTag
+  return `<picture><source media="${PORTRAIT_MEDIA_QUERY}" srcset="${portraitUrl}" />${imgTag}</picture>`
+}
+
 /** Rewrite relay `<img>` JSON title props to HTML `class` and optimize raster `src`. */
 export function rewriteSeoHtmlRasterImages (html: string, basePath: string): string {
   const withClasses = html.replace(
@@ -36,14 +46,23 @@ export function rewriteSeoHtmlRasterImages (html: string, basePath: string): str
       const lower = src.split('?')[0].toLowerCase()
       if (lower.endsWith('.svg')) return match
       const w = widthFromSrc(src)
+      let imgTag: string
+      let landscapeForSibling = src
       if (/^https?:\/\//i.test(src) && !src.includes('relaygateway.net')) {
         const mirrored = canonicalSiteAssetToMirrorUrl(src, w)
-        if (mirrored) return `<img${pre} src="${mirrored}"${post}>`
-        return match
+        if (mirrored) {
+          imgTag = `<img${pre} src="${mirrored}"${post}>`
+          landscapeForSibling = mirrored
+        } else {
+          return match
+        }
+      } else {
+        const rel = repoRelativePath(src, basePath)
+        const optimized = buildOptimizedAssetUrl(rel, w)
+        imgTag = `<img${pre} src="${optimized}"${post}>`
+        landscapeForSibling = rel
       }
-      const rel = repoRelativePath(src, basePath)
-      const optimized = buildOptimizedAssetUrl(rel, w)
-      return `<img${pre} src="${optimized}"${post}>`
+      return wrapPortraitPicture(imgTag, landscapeForSibling, w)
     },
   )
 }

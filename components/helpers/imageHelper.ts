@@ -2,15 +2,13 @@
  * Client article images (PopImage / OptimizedImage): sole builder for display <img> URLs.
  * Always emits Relay mirror URLs via relayOptimizedAssetUrl (no local image proxy).
  *
+ * Portrait swap: landscape `foo.png` in markdown; optional sibling `foo-portrait.png`
+ * is selected via <picture> at PORTRAIT_MEDIA (never named in article MD).
+ *
  * Other pipelines (do not duplicate URL logic here):
  * - SEO HTML: markdownToSeoHtml, rewriteSeoHtmlRasterImages
  * - Legacy path GETs: middleware.ts → buildOptimizedAssetUrl redirect
  */
-
-interface ImagePropsFormatted {
-    src: string,
-    [key: string]: any
-}
 
 import { normalizePathForMirror } from '@/lib/canonicalSiteAssetUrl'
 import {
@@ -20,6 +18,41 @@ import {
 } from '@/lib/relayOptimizedAssetUrl'
 import { queryFilesPathExists } from '@/lib/queryCatalogFetch'
 import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
+
+interface ImagePropsFormatted {
+    src: string,
+    [key: string]: any
+}
+
+/** Match navbar-style art direction: narrow viewports prefer `-portrait` sibling. */
+export const PORTRAIT_MEDIA_QUERY = '(max-width: 768px)'
+
+/**
+ * Derive `foo-portrait.ext` from `foo.ext` (path or URL path). Returns null if
+ * already a portrait stem, SVG, or unparseable.
+ */
+export function portraitSiblingPath(pathOrUrl: string): string | null {
+    if (typeof pathOrUrl !== 'string' || !pathOrUrl) return null
+    let pathOnly = pathOrUrl.split('?')[0]
+    if (pathOnly.startsWith('http')) {
+        try {
+            pathOnly = new URL(pathOnly).pathname
+        } catch {
+            return null
+        }
+    }
+    const lower = pathOnly.toLowerCase()
+    if (lower.endsWith('.svg')) return null
+    const lastSlash = pathOnly.lastIndexOf('/')
+    const dir = lastSlash >= 0 ? pathOnly.slice(0, lastSlash + 1) : ''
+    const file = lastSlash >= 0 ? pathOnly.slice(lastSlash + 1) : pathOnly
+    const dot = file.lastIndexOf('.')
+    if (dot <= 0) return null
+    const stem = file.slice(0, dot)
+    const ext = file.slice(dot)
+    if (/-portrait$/i.test(stem)) return null
+    return `${dir}${stem}-portrait${ext}`
+}
 
 /** Fullscreen / gallery popout raster width on Relay mirrors. */
 const HIGH_RES_DISPLAY_W = 2400
@@ -233,10 +266,25 @@ export function processImageProps(props: any, basePath?: string, filesRootUrl?: 
         if (!isSvg) {
             const lqip = buildLqipOptimizedAssetUrl(mirrorPath, displayW)
             if (lqip) finalProps.lqipOptimizedSrc = lqip
+
+            // Art-direction sibling: foo.png → foo-portrait.png (MD stays landscape-only)
+            const portraitRel = portraitSiblingPath(mirrorPath)
+            if (portraitRel) {
+                const portraitUrls = listOptimizedAssetUrls(portraitRel, displayW)
+                finalProps.portraitOptimizedSrc = portraitUrls[0]
+                finalProps.portraitMirrorSrcs = portraitUrls
+                finalProps.portraitMedia = PORTRAIT_MEDIA_QUERY
+            }
         }
 
-        // Reserve correct aspect ratio for LQIP placeholder when intrinsic dimensions available
-        if (intrinsicWidth && intrinsicHeight && intrinsicWidth > 0 && intrinsicHeight > 0) {
+        // Reserve aspect ratio for LQIP when known — skip when portrait sibling may swap ratio
+        if (
+            !finalProps.portraitOptimizedSrc &&
+            intrinsicWidth &&
+            intrinsicHeight &&
+            intrinsicWidth > 0 &&
+            intrinsicHeight > 0
+        ) {
             finalProps.height = Math.round(finalProps.width * (intrinsicHeight / intrinsicWidth))
         }
 
