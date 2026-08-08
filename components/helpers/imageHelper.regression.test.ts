@@ -64,10 +64,13 @@ describe('processImageProps (Relay mirrors, never /api/image)', () => {
     assert.doesNotMatch(String(out.optimizedSrc), /\/api\/image/)
   })
 
-  it('emits -portrait sibling URLs for raster art direction', async () => {
-    const { processImageProps, portraitSiblingPath, PORTRAIT_MEDIA_QUERY } = await import(
-      './imageHelper.ts'
-    )
+  it('emits candidate -portrait URLs (OptimizedImage tip-gates before <picture>)', async () => {
+    const {
+      processImageProps,
+      portraitSiblingPath,
+      portraitSiblingPresentInCatalog,
+      PORTRAIT_MEDIA_QUERY,
+    } = await import('./imageHelper.ts')
     assert.equal(
       portraitSiblingPath('/governance/war/presidential-alignment-scorecard-au046.png'),
       '/governance/war/presidential-alignment-scorecard-au046-portrait.png',
@@ -84,8 +87,35 @@ describe('processImageProps (Relay mirrors, never /api/image)', () => {
       out.portraitOptimizedSrc,
       'https://paradigm-threat-files.dfw1.relaygateway.net/governance/war/presidential-alignment-scorecard-au046-portrait.png?w=800',
     )
+    assert.equal(
+      out.portraitRepoRel,
+      'governance/war/presidential-alignment-scorecard-au046-portrait.png',
+    )
     assert.equal(out.portraitMedia, PORTRAIT_MEDIA_QUERY)
     assert.match(String(out.optimizedSrc), /presidential-alignment-scorecard-au046\.png\?w=800/)
     assert.doesNotMatch(String(out.optimizedSrc), /-portrait/)
+
+    const tree = {
+      governance: {
+        war: {
+          'presidential-alignment-scorecard-au046-portrait.png': { _blob: true },
+        },
+      },
+    }
+    assert.equal(
+      portraitSiblingPresentInCatalog(
+        tree,
+        '/governance/war/presidential-alignment-scorecard-au046.png',
+      ),
+      true,
+    )
+    assert.equal(
+      portraitSiblingPresentInCatalog(tree, '/governance/war/the-great-depression-was-planned.png'),
+      false,
+    )
+    assert.equal(
+      portraitSiblingPresentInCatalog(null, '/governance/war/the-great-depression-was-planned.png'),
+      null,
+    )
   })
 })

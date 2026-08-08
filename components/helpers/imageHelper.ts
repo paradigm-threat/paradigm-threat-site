@@ -3,7 +3,8 @@
  * Always emits Relay mirror URLs via relayOptimizedAssetUrl (no local image proxy).
  *
  * Portrait swap: landscape `foo.png` in markdown; optional sibling `foo-portrait.png`
- * is selected via <picture> at PORTRAIT_MEDIA (never named in article MD).
+ * may be selected via <picture> at PORTRAIT_MEDIA only when the tip catalog (or
+ * QUERY path check) says the sibling exists — never invent broken portrait URLs.
  *
  * Other pipelines (do not duplicate URL logic here):
  * - SEO HTML: markdownToSeoHtml, rewriteSeoHtmlRasterImages
@@ -11,6 +12,7 @@
  */
 
 import { normalizePathForMirror } from '@/lib/canonicalSiteAssetUrl'
+import { catalogLeafAtPath } from '@/lib/catalogLeafAtPath'
 import {
     buildLqipOptimizedAssetUrl,
     buildOptimizedAssetUrl,
@@ -52,6 +54,22 @@ export function portraitSiblingPath(pathOrUrl: string): string | null {
     const ext = file.slice(dot)
     if (/-portrait$/i.test(stem)) return null
     return `${dir}${stem}-portrait${ext}`
+}
+
+/**
+ * Tip-gate helper: whether the invented `-portrait` sibling is in the files catalog.
+ * `null` = catalog not loaded yet (caller should async-check or wait).
+ * Never invent `<picture>` when this is `false`.
+ */
+export function portraitSiblingPresentInCatalog(
+    fileList: Record<string, unknown> | null | undefined,
+    landscapePathOrUrl: string,
+): boolean | null {
+    if (!fileList) return null
+    const portrait = portraitSiblingPath(landscapePathOrUrl)
+    if (!portrait) return false
+    const rel = portrait.replace(/^\//, '')
+    return catalogLeafAtPath(fileList, rel) != null
 }
 
 /** Fullscreen / gallery popout raster width on Relay mirrors. */
@@ -267,13 +285,14 @@ export function processImageProps(props: any, basePath?: string, filesRootUrl?: 
             const lqip = buildLqipOptimizedAssetUrl(mirrorPath, displayW)
             if (lqip) finalProps.lqipOptimizedSrc = lqip
 
-            // Art-direction sibling: foo.png → foo-portrait.png (MD stays landscape-only)
+            // Candidate art-direction sibling URLs (OptimizedImage tip-gates before <picture>).
             const portraitRel = portraitSiblingPath(mirrorPath)
             if (portraitRel) {
                 const portraitUrls = listOptimizedAssetUrls(portraitRel, displayW)
                 finalProps.portraitOptimizedSrc = portraitUrls[0]
                 finalProps.portraitMirrorSrcs = portraitUrls
                 finalProps.portraitMedia = PORTRAIT_MEDIA_QUERY
+                finalProps.portraitRepoRel = portraitRel.replace(/^\//, '')
             }
         }
 

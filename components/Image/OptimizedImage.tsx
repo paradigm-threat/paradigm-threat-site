@@ -1,27 +1,50 @@
 'use client'
 
-import { PORTRAIT_MEDIA_QUERY, processImageProps } from '@/components/helpers/imageHelper'
-import React, { useState, useEffect, useRef } from "react";
+import {
+    PORTRAIT_MEDIA_QUERY,
+    checkFileExists,
+    processImageProps,
+} from '@/components/helpers/imageHelper'
+import { useFiles } from '@/components/FilesContext'
+import { catalogLeafAtPath } from '@/lib/catalogLeafAtPath'
+import React, { useState, useEffect, useRef } from 'react'
 
 interface OptimizedImageProps {
-    children?: React.ReactNode,
-    className?: string,
+    children?: React.ReactNode
+    className?: string
 
     [key: string]: any
 }
 
 /** DOM-safe subset of props to pass to <img> (exclude custom/React-only props). */
-const IMG_ATTRS = new Set(['src', 'alt', 'width', 'height', 'loading', 'title', 'style', 'referrerPolicy', 'sizes', 'crossOrigin', 'decoding', 'fetchPriority'])
+const IMG_ATTRS = new Set([
+    'src',
+    'alt',
+    'width',
+    'height',
+    'loading',
+    'title',
+    'style',
+    'referrerPolicy',
+    'sizes',
+    'crossOrigin',
+    'decoding',
+    'fetchPriority',
+])
 
 /** 1x1 transparent GIF — use instead of empty string to avoid browser "download whole page" warning */
-const EMPTY_SRC_PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+const EMPTY_SRC_PLACEHOLDER =
+    'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
 export default function OptimizedImage({ children, className, ...props }: OptimizedImageProps) {
     const srcProps: OptimizedImageProps = processImageProps({ ...props, className }, props.basePath)
+    const { fileList } = useFiles()
     const [isVisible, setIsVisible] = useState(false)
     const [mirrorIndex, setMirrorIndex] = useState(0)
     /** Full-size decode finished — hide Relay LQIP underlay */
     const [lqipDismissed, setLqipDismissed] = useState(false)
+    /** QUERY fallback only while files catalog is still loading. */
+    const [asyncPortraitOk, setAsyncPortraitOk] = useState(false)
     const containerRef = useRef<HTMLDivElement>(null)
 
     const {
@@ -35,6 +58,7 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
         portraitOptimizedSrc,
         portraitMirrorSrcs,
         portraitMedia,
+        portraitRepoRel,
         basePath,
         className: processedClassName,
         ...rest
@@ -72,7 +96,7 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
                     observer.disconnect()
                 }
             },
-            { rootMargin: '200px' }
+            { rootMargin: '200px' },
         )
 
         observer.observe(el)
@@ -82,17 +106,40 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
         return () => observer.disconnect()
     }, [priority])
 
+    const portraitRel =
+        typeof portraitRepoRel === 'string' && portraitRepoRel.length > 0 ? portraitRepoRel : null
+
+    /** `null` = catalog not ready yet; boolean = tip presence. */
+    const catalogPortrait: boolean | null = !portraitRel
+        ? false
+        : fileList
+          ? catalogLeafAtPath(fileList, portraitRel) != null
+          : null
+
+    useEffect(() => {
+        if (catalogPortrait !== null || !portraitRel) return
+        let cancelled = false
+        checkFileExists(portraitRel).then((ok) => {
+            if (!cancelled) setAsyncPortraitOk(ok)
+        })
+        return () => {
+            cancelled = true
+        }
+    }, [catalogPortrait, portraitRel])
+
+    const portraitConfirmed = catalogPortrait === true || (catalogPortrait === null && asyncPortraitOk)
+
     const mirrorList = Array.isArray(mirrorSrcs) ? (mirrorSrcs as string[]) : []
     const portraitMirrorList = Array.isArray(portraitMirrorSrcs) ? (portraitMirrorSrcs as string[]) : []
     const activeSrc =
-        mirrorList[mirrorIndex] ||
-        (typeof optimizedSrc === 'string' ? optimizedSrc : undefined)
-    const activePortraitSrc =
-        portraitMirrorList[mirrorIndex] ||
-        (typeof portraitOptimizedSrc === 'string' ? portraitOptimizedSrc : undefined)
+        mirrorList[mirrorIndex] || (typeof optimizedSrc === 'string' ? optimizedSrc : undefined)
+    const activePortraitSrc = portraitConfirmed
+        ? portraitMirrorList[mirrorIndex] ||
+          (typeof portraitOptimizedSrc === 'string' ? portraitOptimizedSrc : undefined)
+        : undefined
 
     if (activeSrc) {
-        finalProps['data-original-src'] = finalProps.src;
+        finalProps['data-original-src'] = finalProps.src
         finalProps.src = activeSrc
     }
 
@@ -102,9 +149,7 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
     const hasPortraitSibling = typeof activePortraitSrc === 'string' && activePortraitSrc.length > 0
     const imageIntrinsicKey = `${String(optimizedSrc ?? '')}:${String(lqipOptimizedSrc ?? '')}:${String(activePortraitSrc ?? '')}`
     const useRelayLqipUnderlay =
-        typeof lqipOptimizedSrc === 'string' &&
-        lqipOptimizedSrc.length > 0 &&
-        !blurDataURL
+        typeof lqipOptimizedSrc === 'string' && lqipOptimizedSrc.length > 0 && !blurDataURL
 
     const containerStyle: React.CSSProperties = {}
     if (isBookIllustration) {
@@ -141,7 +186,7 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
     const rasterImg = (
         /* eslint-disable-next-line @next/next/no-img-element */
         <img
-            loading='lazy'
+            loading="lazy"
             alt={alt}
             className={imgClassName}
             {...finalProps}
@@ -184,10 +229,9 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
                         }`}
                     />
                 ) : null}
-                {/* Art direction: landscape in MD; optional foo-portrait.* at narrow viewports */}
+                {/* Art direction only when tip catalog / QUERY confirms -portrait sibling */}
                 {hasPortraitSibling ? (
                     <picture>
-                        {/* Always emit real portrait URL so media selection works before IntersectionObserver */}
                         <source media={mediaQuery} srcSet={activePortraitSrc as string} />
                         {rasterImg}
                     </picture>
@@ -195,10 +239,15 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
                     rasterImg
                 )}
             </div>
-            {children
-                ? <figcaption className="mt-2 text-xs text-slate-500 dark:text-slate-400 italic text-justify px-2">{children}</figcaption>
-                : alt ? <figcaption className="mt-2 text-xs text-slate-500 dark:text-slate-400 italic text-justify px-2">{alt}</figcaption> : null
-            }
+            {children ? (
+                <figcaption className="mt-2 text-xs text-slate-500 dark:text-slate-400 italic text-justify px-2">
+                    {children}
+                </figcaption>
+            ) : alt ? (
+                <figcaption className="mt-2 text-xs text-slate-500 dark:text-slate-400 italic text-justify px-2">
+                    {alt}
+                </figcaption>
+            ) : null}
         </figure>
     )
 }
