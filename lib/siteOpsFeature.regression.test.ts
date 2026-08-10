@@ -23,6 +23,7 @@ describe('siteOpsFeature flags', () => {
     search: process.env.NEXT_PUBLIC_SEARCH_DISABLED,
     chat: process.env.NEXT_PUBLIC_CHAT_DISABLED,
     ssr: process.env.NEXT_PUBLIC_SSR_MIRROR_REDIRECT,
+    ssrServer: process.env.SSR_MIRROR_REDIRECT,
     relay: process.env.NEXT_PUBLIC_SERVER_RELAY_FETCH,
     spa: process.env.NEXT_PUBLIC_SPA_DOCUMENT_ROUTES,
     webmcp: process.env.NEXT_PUBLIC_WEBMCP_ENABLED,
@@ -38,6 +39,8 @@ describe('siteOpsFeature flags', () => {
     else process.env.NEXT_PUBLIC_CHAT_DISABLED = prev.chat
     if (prev.ssr === undefined) delete process.env.NEXT_PUBLIC_SSR_MIRROR_REDIRECT
     else process.env.NEXT_PUBLIC_SSR_MIRROR_REDIRECT = prev.ssr
+    if (prev.ssrServer === undefined) delete process.env.SSR_MIRROR_REDIRECT
+    else process.env.SSR_MIRROR_REDIRECT = prev.ssrServer
     if (prev.relay === undefined) delete process.env.NEXT_PUBLIC_SERVER_RELAY_FETCH
     else process.env.NEXT_PUBLIC_SERVER_RELAY_FETCH = prev.relay
     if (prev.spa === undefined) delete process.env.NEXT_PUBLIC_SPA_DOCUMENT_ROUTES
@@ -56,6 +59,7 @@ describe('siteOpsFeature flags', () => {
     delete process.env.NEXT_PUBLIC_SEARCH_DISABLED
     delete process.env.NEXT_PUBLIC_CHAT_DISABLED
     delete process.env.NEXT_PUBLIC_SSR_MIRROR_REDIRECT
+    delete process.env.SSR_MIRROR_REDIRECT
     delete process.env.NEXT_PUBLIC_SERVER_RELAY_FETCH
     delete process.env.NEXT_PUBLIC_SPA_DOCUMENT_ROUTES
     delete process.env.NEXT_PUBLIC_WEBMCP_ENABLED
@@ -91,7 +95,7 @@ describe('siteOpsFeature flags', () => {
   it('flags on when env is 1', () => {
     process.env.NEXT_PUBLIC_SEARCH_DISABLED = '1'
     process.env.NEXT_PUBLIC_CHAT_DISABLED = '1'
-    process.env.NEXT_PUBLIC_SSR_MIRROR_REDIRECT = '1'
+    process.env.SSR_MIRROR_REDIRECT = '1'
     assert.equal(isSearchServerApiDisabled(), true)
     assert.equal(isSearchDisabled(), true)
     assert.equal(isChatDisabled(), true)

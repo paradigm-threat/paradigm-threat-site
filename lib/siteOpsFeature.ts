@@ -63,11 +63,14 @@ export function isMcpServerEnabled (): boolean {
 
 /**
  * Relay-hosted HTML + SEO for crawlers: middleware 307 to files mirror.
- * Set `NEXT_PUBLIC_SSR_MIRROR_REDIRECT=1` after Relay SSR head tags are live.
+ * Set `SSR_MIRROR_REDIRECT=1` (Edge/server) after Relay SSR head tags are live.
  * Humans stay on the Next app shell (bot User-Agent gate in middleware).
  */
 export function isSsrMirrorRedirectEnabled (): boolean {
-  return process.env.NEXT_PUBLIC_SSR_MIRROR_REDIRECT === '1'
+  return (
+    process.env.SSR_MIRROR_REDIRECT === '1' ||
+    process.env.NEXT_PUBLIC_SSR_MIRROR_REDIRECT === '1'
+  )
 }
 
 /**
