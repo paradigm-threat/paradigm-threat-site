@@ -73,8 +73,9 @@ export function middleware (request: NextRequest) {
   }
 
   // Bot-only: send crawlers to Relay SSR HTML (per-article OG) when flag is on.
+  // Include HEAD — many crawlers probe with HEAD before GET (curl -I too).
   if (
-    request.method === 'GET' &&
+    (request.method === 'GET' || request.method === 'HEAD') &&
     isSsrMirrorRedirectEnabled() &&
     isSeoCrawlerUserAgent(request.headers.get('user-agent')) &&
     shouldRedirectPathToFilesMirror(pathname)
