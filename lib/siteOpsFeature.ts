@@ -62,11 +62,12 @@ export function isMcpServerEnabled (): boolean {
 }
 
 /**
- * Reserved for a future Relay-hosted HTML + SEO phase. Must stay off while articles
- * use the Next app shell — redirecting to mirror md2ast HTML breaks client components.
+ * Relay-hosted HTML + SEO for crawlers: middleware 307 to files mirror.
+ * Set `NEXT_PUBLIC_SSR_MIRROR_REDIRECT=1` after Relay SSR head tags are live.
+ * Humans stay on the Next app shell (bot User-Agent gate in middleware).
  */
 export function isSsrMirrorRedirectEnabled (): boolean {
-  return false
+  return process.env.NEXT_PUBLIC_SSR_MIRROR_REDIRECT === '1'
 }
 
 /**

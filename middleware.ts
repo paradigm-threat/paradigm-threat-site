@@ -4,6 +4,13 @@ import { buildOptimizedAssetUrl } from '@/lib/relayOptimizedAssetUrl'
 import { relPathFromCanonicalSiteUrl } from '@/lib/canonicalSiteAssetUrl'
 import { edgeDocumentCacheControlHeader, vercelCdnCacheControlHeader } from '@/lib/edgeDocumentCache'
 import { shouldCacheDocumentPath } from '@/lib/middlewareDocumentCache'
+import { getPrimaryFilesBaseUrl } from '@/lib/urlListEnv'
+import { isSsrMirrorRedirectEnabled } from '@/lib/siteOpsFeature'
+import {
+  isSeoCrawlerUserAgent,
+  shouldRedirectPathToFilesMirror,
+  sitePathToMirrorHtmlRel,
+} from '@/lib/ssrMirrorRedirect'
 
 const RASTER_EXT = /\.(apng|png|jpe?g|gif|webp|avif|bmp|ico|svg)$/i
 
@@ -63,6 +70,19 @@ export function middleware (request: NextRequest) {
       const dest = buildOptimizedAssetUrl(`/${rel}`, width)
       return NextResponse.redirect(dest, 307)
     }
+  }
+
+  // Bot-only: send crawlers to Relay SSR HTML (per-article OG) when flag is on.
+  if (
+    request.method === 'GET' &&
+    isSsrMirrorRedirectEnabled() &&
+    isSeoCrawlerUserAgent(request.headers.get('user-agent')) &&
+    shouldRedirectPathToFilesMirror(pathname)
+  ) {
+    const rel = sitePathToMirrorHtmlRel(pathname)
+    const base = getPrimaryFilesBaseUrl().replace(/\/$/, '')
+    const dest = `${base}/${rel}`
+    return NextResponse.redirect(dest, 307)
   }
 
   if (request.method === 'GET' && shouldCacheDocument(pathname)) {

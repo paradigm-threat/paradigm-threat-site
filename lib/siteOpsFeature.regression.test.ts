@@ -95,7 +95,7 @@ describe('siteOpsFeature flags', () => {
     assert.equal(isSearchServerApiDisabled(), true)
     assert.equal(isSearchDisabled(), true)
     assert.equal(isChatDisabled(), true)
-    assert.equal(isSsrMirrorRedirectEnabled(), false)
+    assert.equal(isSsrMirrorRedirectEnabled(), true)
   })
 
   it('webmcp flags on when env is 1', () => {
