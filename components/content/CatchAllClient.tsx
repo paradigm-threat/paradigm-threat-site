@@ -109,6 +109,8 @@ export const CatchAllClient = memo(function CatchAllClient() {
   const contentRef = useRef<string | null>(null)
   const basePathRef = useRef('')
   const articleRef = useRef<HTMLElement>(null)
+  /** Last retry key that ran a full load — gallery-only early return must not swallow retries. */
+  const retrySeenRef = useRef(0)
 
   useEffect(() => {
     contentRef.current = content
@@ -125,7 +127,11 @@ export const CatchAllClient = memo(function CatchAllClient() {
     const vParam = version ? `?v=${version}` : ''
 
     const requestPath = path
-    const pathChanged = loadingPathRef.current !== requestPath || articlePathRef.current !== requestPath
+    const isRetry = articleRetryKey !== retrySeenRef.current
+    // Route change only — "article not stamped yet" must not count as pathChanged
+    // (catalog/fileList updates mid-load used to wipe and flash the full-screen loader).
+    const prevLoadingPath = loadingPathRef.current
+    const pathChanged = prevLoadingPath !== null && prevLoadingPath !== requestPath
     loadingPathRef.current = requestPath
     let isMounted = true
     const abortController = new AbortController()
@@ -134,8 +140,15 @@ export const CatchAllClient = memo(function CatchAllClient() {
       let articleLoaded = false
       let waitingForIndex = false
       try {
-        // Catalog arrived after article already painted — only fill gallery unused images.
-        if (!pathChanged && articlePathRef.current === requestPath && tree) {
+        // Catalog / mirror origin arrived after article already painted — only fill gallery.
+        // Explicit retry must still run a full load.
+        if (
+          !pathChanged &&
+          !isRetry &&
+          articlePathRef.current === requestPath &&
+          contentRef.current &&
+          tree
+        ) {
           const calcBasePath = basePathRef.current
           const articleBody = contentRef.current
           let current = tree
@@ -160,8 +173,20 @@ export const CatchAllClient = memo(function CatchAllClient() {
           return
         }
 
+        // Same path, article already on screen, deps churned (filesBaseUrl / fileList) without
+        // a usable tree yet — keep paint; do not flash full-screen loader.
+        if (
+          !pathChanged &&
+          !isRetry &&
+          contentRef.current &&
+          articlePathRef.current === requestPath
+        ) {
+          return
+        }
+
+        retrySeenRef.current = articleRetryKey
         setLoading(true)
-        if (pathChanged) {
+        if (pathChanged || isRetry) {
           setContent(null)
           setArticleMeta(null)
           setArticleTitle('')
@@ -433,7 +458,9 @@ export const CatchAllClient = memo(function CatchAllClient() {
     loadPage()
     return () => {
       isMounted = false
-      loadingPathRef.current = null
+      // Abort in-flight work only. Do NOT null loadingPathRef — that made the next
+      // run (catalog / filesBaseUrl / indexLoading) look like a path change, wipe
+      // painted article content, and flash the full-screen SuspenseLoader.
       abortController.abort()
     }
   }, [path, pathname, pathSegments, fileList, indexLoading, articleRetryKey, filesBaseUrl])

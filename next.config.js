@@ -11,6 +11,9 @@ const withPWA = require('@ducanh2912/next-pwa').default({
   disable: process.env.NODE_ENV === 'development',
   register: true,
   skipWaiting: true,
+  // Live repro (2026-08-11): CDP Offline→Online on paradigmthreat.net fired
+  // performance navigation type=reload and wiped the SPA session. Default true.
+  reloadOnOnline: false,
   cacheOnFrontEndNav: true,
   publicExcludes: ['**/*.pdf'],
   workboxOptions: {

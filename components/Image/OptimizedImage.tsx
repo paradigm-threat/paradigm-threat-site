@@ -36,6 +36,9 @@ const IMG_ATTRS = new Set([
 const EMPTY_SRC_PLACEHOLDER =
     'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
+/** Hung Relay mirrors never fire onError — advance after this. */
+const LOAD_TIMEOUT_MS = 12000
+
 export default function OptimizedImage({ children, className, ...props }: OptimizedImageProps) {
     const srcProps: OptimizedImageProps = processImageProps({ ...props, className }, props.basePath)
     const { fileList } = useFiles()
@@ -45,7 +48,12 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
     const [lqipDismissed, setLqipDismissed] = useState(false)
     /** QUERY fallback only while files catalog is still loading. */
     const [asyncPortraitOk, setAsyncPortraitOk] = useState(false)
+    const [loadFailed, setLoadFailed] = useState(false)
+    /** Drop portrait <source> for this attempt after portrait/landscape timeout or error. */
+    const [portraitDisabled, setPortraitDisabled] = useState(false)
+    const [attempt, setAttempt] = useState(0)
     const containerRef = useRef<HTMLDivElement>(null)
+    const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     const {
         alt,
@@ -127,7 +135,9 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
         }
     }, [catalogPortrait, portraitRel])
 
-    const portraitConfirmed = catalogPortrait === true || (catalogPortrait === null && asyncPortraitOk)
+    const portraitConfirmed =
+        !portraitDisabled &&
+        (catalogPortrait === true || (catalogPortrait === null && asyncPortraitOk))
 
     const mirrorList = Array.isArray(mirrorSrcs) ? (mirrorSrcs as string[]) : []
     const portraitMirrorList = Array.isArray(portraitMirrorSrcs) ? (portraitMirrorSrcs as string[]) : []
@@ -143,13 +153,54 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
         finalProps.src = activeSrc
     }
 
+    const mirrorCount = mirrorList.length
+    const clearLoadTimer = () => {
+        if (loadTimerRef.current) {
+            clearTimeout(loadTimerRef.current)
+            loadTimerRef.current = null
+        }
+    }
+
+    const advanceMirror = () => {
+        setLqipDismissed(false)
+        if (portraitConfirmed) setPortraitDisabled(true)
+        setMirrorIndex((i) => {
+            if (i + 1 < mirrorCount) return i + 1
+            queueMicrotask(() => setLoadFailed(true))
+            return i
+        })
+    }
+
+    // Timeout-driven failover — hung gateway requests never fire onError.
+    useEffect(() => {
+        clearLoadTimer()
+        if (!isVisible || loadFailed || !activeSrc) return
+        loadTimerRef.current = setTimeout(() => {
+            advanceMirror()
+        }, LOAD_TIMEOUT_MS)
+        return clearLoadTimer
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- advance on visible src / mirror / attempt only
+    }, [isVisible, activeSrc, mirrorIndex, attempt, loadFailed, mirrorCount])
+
+    const handleRetry = () => {
+        clearLoadTimer()
+        setLoadFailed(false)
+        setPortraitDisabled(false)
+        setLqipDismissed(false)
+        setMirrorIndex(0)
+        setAttempt((a) => a + 1)
+    }
+
     // Wide book diagrams often have index/API dimensions that do not match the decoded bitmap;
     // a forced aspect-ratio box then leaves a large empty band above the caption (especially on mobile).
     const isBookIllustration = /\bbook-illustration\b/.test(processedClassName || '')
     const hasPortraitSibling = typeof activePortraitSrc === 'string' && activePortraitSrc.length > 0
-    const imageIntrinsicKey = `${String(optimizedSrc ?? '')}:${String(lqipOptimizedSrc ?? '')}:${String(activePortraitSrc ?? '')}`
+    const imageIntrinsicKey = `${String(optimizedSrc ?? '')}:${String(lqipOptimizedSrc ?? '')}:${String(activePortraitSrc ?? '')}:${attempt}:${mirrorIndex}`
     const useRelayLqipUnderlay =
-        typeof lqipOptimizedSrc === 'string' && lqipOptimizedSrc.length > 0 && !blurDataURL
+        typeof lqipOptimizedSrc === 'string' &&
+        lqipOptimizedSrc.length > 0 &&
+        !blurDataURL &&
+        !loadFailed
 
     const containerStyle: React.CSSProperties = {}
     if (isBookIllustration) {
@@ -176,8 +227,9 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
         }
     }
 
-    const imgClassName = `relative z-[1] block w-full max-w-full h-auto transition-opacity duration-700 ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0'}`
-    const displaySrc = isVisible && finalProps.src ? (finalProps.src as string) : EMPTY_SRC_PLACEHOLDER
+    const imgClassName = `relative z-[1] block w-full max-w-full h-auto transition-opacity duration-700 ease-in-out ${isVisible && !loadFailed ? 'opacity-100' : 'opacity-0'}`
+    const displaySrc =
+        isVisible && !loadFailed && finalProps.src ? (finalProps.src as string) : EMPTY_SRC_PLACEHOLDER
     const mediaQuery =
         typeof portraitMedia === 'string' && portraitMedia.length > 0
             ? portraitMedia
@@ -192,12 +244,13 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
             {...finalProps}
             src={displaySrc}
             onLoad={() => {
+                clearLoadTimer()
                 setLqipDismissed(true)
+                setLoadFailed(false)
             }}
             onError={() => {
-                if (mirrorIndex + 1 < mirrorList.length) {
-                    setMirrorIndex((i) => i + 1)
-                }
+                clearLoadTimer()
+                advanceMirror()
             }}
         />
     )
@@ -210,7 +263,7 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
             <div
                 ref={containerRef}
                 key={imageIntrinsicKey}
-                className={`relative w-full bg-slate-100 dark:bg-slate-900 overflow-hidden ${!isVisible ? 'animate-pulse' : ''} ${isBookIllustration && !isVisible ? 'min-h-12' : ''}`}
+                className={`relative w-full bg-slate-100 dark:bg-slate-900 overflow-hidden ${!isVisible && !loadFailed ? 'animate-pulse' : ''} ${isBookIllustration && !isVisible ? 'min-h-12' : ''}`}
                 style={containerStyle}
             >
                 {useRelayLqipUnderlay && isVisible ? (
@@ -230,14 +283,31 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
                     />
                 ) : null}
                 {/* Art direction only when tip catalog / QUERY confirms -portrait sibling */}
-                {hasPortraitSibling ? (
+                {!loadFailed && hasPortraitSibling ? (
                     <picture>
                         <source media={mediaQuery} srcSet={activePortraitSrc as string} />
                         {rasterImg}
                     </picture>
-                ) : (
+                ) : !loadFailed ? (
                     rasterImg
-                )}
+                ) : null}
+                {loadFailed ? (
+                    <div
+                        className="relative z-[2] flex min-h-[6rem] flex-col items-center justify-center gap-2 px-3 py-6 text-center"
+                        role="alert"
+                    >
+                        <p className="text-sm text-slate-600 dark:text-slate-300">
+                            Image failed to load from Relay mirrors.
+                        </p>
+                        <button
+                            type="button"
+                            className="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 dark:bg-slate-200 dark:text-slate-900 dark:hover:bg-white"
+                            onClick={handleRetry}
+                        >
+                            Retry
+                        </button>
+                    </div>
+                ) : null}
             </div>
             {children ? (
                 <figcaption className="mt-2 text-xs text-slate-500 dark:text-slate-400 italic text-justify px-2">
