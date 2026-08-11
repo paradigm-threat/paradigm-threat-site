@@ -14,7 +14,10 @@ const withPWA = require('@ducanh2912/next-pwa').default({
   // Live repro (2026-08-11): CDP Offline→Online on paradigmthreat.net fired
   // performance navigation type=reload and wiped the SPA session. Default true.
   reloadOnOnline: false,
-  cacheOnFrontEndNav: true,
+  // Do not patch history.pushState / re-cache documents on every soft nav or
+  // "online" event — that amplified stale shells after deploy / mirror switch.
+  cacheOnFrontEndNav: false,
+  aggressiveFrontEndNavCaching: false,
   publicExcludes: ['**/*.pdf'],
   workboxOptions: {
     disableDevLogs: true,
@@ -42,37 +45,43 @@ const withPWA = require('@ducanh2912/next-pwa').default({
       },
       {
         urlPattern: /^https:\/\/files\.paradigmthreat\.net\/index\.json(\?.*)?$/i,
-        handler: 'StaleWhileRevalidate',
+        handler: 'NetworkFirst',
         options: {
           cacheName: 'pt-index',
+          networkTimeoutSeconds: 5,
           expiration: { maxEntries: 5, maxAgeSeconds: 3600 },
           cacheableResponse: { statuses: [0, 200] },
         },
       },
       {
         urlPattern: /^https:\/\/paradigm-threat-files-69f9dc\.gitlab\.io\/index\.json(\?.*)?$/i,
-        handler: 'StaleWhileRevalidate',
+        handler: 'NetworkFirst',
         options: {
           cacheName: 'pt-index-gl',
+          networkTimeoutSeconds: 5,
           expiration: { maxEntries: 5, maxAgeSeconds: 3600 },
           cacheableResponse: { statuses: [0, 200] },
         },
       },
+      // Prefer network for article bodies so SW SWR cannot sticky-stale MD after
+      // Relay tip moves; cache still used when offline / slow.
       {
         urlPattern: /^https:\/\/files\.paradigmthreat\.net\/[^?]+\.(md|mdx)(\?.*)?$/i,
-        handler: 'StaleWhileRevalidate',
+        handler: 'NetworkFirst',
         options: {
           cacheName: 'pt-articles',
-          expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 7 },
+          networkTimeoutSeconds: 8,
+          expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
           cacheableResponse: { statuses: [0, 200] },
         },
       },
       {
         urlPattern: /^https:\/\/paradigm-threat-files-69f9dc\.gitlab\.io\/[^?]+\.(md|mdx)(\?.*)?$/i,
-        handler: 'StaleWhileRevalidate',
+        handler: 'NetworkFirst',
         options: {
           cacheName: 'pt-articles-gl',
-          expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 7 },
+          networkTimeoutSeconds: 8,
+          expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
           cacheableResponse: { statuses: [0, 200] },
         },
       },
