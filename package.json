@@ -2,6 +2,9 @@
   "name": "paradigm-threat-site",
   "version": "2.0.6",
   "private": true,
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "next dev --webpack",
     "predev": "node scripts/postinstall-md2ast.mjs && node scripts/sync-spa-document-routes.mjs",
@@ -39,7 +42,6 @@
     "@mcp-b/webmcp-types": "^3.0.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@tailwindcss/typography": "^0.5.19",
-    "@types/node": "^20.19.37",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vercel/analytics": "^1.6.1",
@@ -73,6 +75,7 @@
     "@types/babel__code-frame": "^7.27.0",
     "@types/leaflet": "^1.9.21",
     "@types/mime": "^3.0.4",
+    "@types/node": "^24.13.3",
     "@types/prop-types": "^15.7.15",
     "@types/three": "^0.183.1",
     "cypress": "^15.11.0",
