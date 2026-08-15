@@ -12,4 +12,6 @@ export const SITE_AI_EXAMPLE_QUESTIONS = [
   'Was the NSA Anthropic Mythos hack story choreography to dump commercial AI?',
   'How does DEW bypass the no-planes debate in 9/11 truth?',
   'What is the good-actor antibody theory of 9/11?',
+  'Why did the US strike Iran in 2026?',
+  'What is Rubio\'s leave-behind line about Hormuz?',
 ] as const

@@ -83,7 +83,7 @@ describe('prepareReplyContext', () => {
     assert.ok(result.matchedSiteClaims?.some((c) => c.id === 'jfk-fake-assassination'))
     assert.ok(result.siteClaimsForPrompt?.includes('jfk-fake-assassination'))
     assert.ok(result.agentInstructions.includes('read_article'))
-    assert.ok(result.seedArticles.some((a) => a.path.includes('events/jfk/agent.md')))
+    assert.ok(result.seedArticles.some((a) => a.path.includes('events/jfk/jfk-was-never-assassinated.md')))
   })
 })
 

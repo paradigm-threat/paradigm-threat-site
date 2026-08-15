@@ -33,6 +33,15 @@ export function isExcludedBySearchContentFilters(
   return false
 }
 
+/** Normalize MCP/tool `query` that a model might send as a string or string[]. */
+export function keywordQueryFromUnknown (q: unknown): string {
+  if (typeof q === 'string') return q.trim()
+  if (Array.isArray(q)) {
+    return q.filter((x): x is string => typeof x === 'string').join(' ').trim()
+  }
+  return ''
+}
+
 /** Whether a query token matches indexed text (incl. 911 ↔ 9/11 aliases). */
 export function searchTermMatchesHaystack(term: string, haystack: string): boolean {
   const t = term.toLowerCase()
@@ -43,11 +52,39 @@ export function searchTermMatchesHaystack(term: string, haystack: string): boole
   return false
 }
 
-/** AND terms for keyword search; drops stopwords when the query has other tokens. */
+/** AND terms for keyword search; drops stopwords when the query has other tokens.
+ * Morphological duplicates (`iran` + `iranian`) collapse to the shortest stem so
+ * AND search does not require both forms in the haystack.
+ */
+export function collapsePrefixRedundantTerms (terms: string[]): string[] {
+  const seen: string[] = []
+  for (const raw of terms) {
+    const t = raw.toLowerCase()
+    if (!t || seen.includes(t)) continue
+    seen.push(t)
+  }
+  const kept: string[] = []
+  for (const t of seen) {
+    if (kept.some((k) => t.startsWith(k) && t.length > k.length && k.length >= 4)) {
+      continue
+    }
+    const longerIdx = kept.findIndex(
+      (k) => k.startsWith(t) && k.length > t.length && t.length >= 4,
+    )
+    if (longerIdx >= 0) {
+      kept[longerIdx] = t
+      continue
+    }
+    kept.push(t)
+  }
+  return kept
+}
+
 export function queryTermsForAndFilter (cleanQuery: string): string[] {
   const raw = cleanQuery.trim().toLowerCase().split(/\s+/).filter(Boolean)
   const meaningful = raw.filter((t) => !REPLY_STOPWORDS.has(t))
-  return meaningful.length > 0 ? meaningful : raw
+  const terms = meaningful.length > 0 ? meaningful : raw
+  return collapsePrefixRedundantTerms(terms)
 }
 
 /** Same AND semantics as `/search`: every term must appear in searchText (lowercased). */

@@ -59,4 +59,28 @@ describe('buildResearchStatus', () => {
     assert.equal(env.coverage, 'not_in_corpus')
     assert.ok(env.gaps.some((g) => g.includes('3 characters')))
   })
+
+  it('allows repo synthesis for author-thesis cards', () => {
+    const env = buildResearchStatus({
+      question: 'Could Stalin have stopped the Holodomor?',
+      index: mockIndex,
+      claims: [
+        {
+          id: 'stalin-holodomor-agency',
+          title: 'Stalin Holodomor agency',
+          claim: 'Stalin had agency.',
+          confidence: 'author-thesis',
+          uniqueness: 'site-distinctive',
+          topics: ['stalin', 'holodomor'],
+          searchQueries: ['stalin holodomor'],
+          canonicalPaths: ['history/chronology/investigations/author-unique-theories.md'],
+          demoQuestions: ['Could Stalin have stopped the Holodomor?'],
+        },
+      ],
+      expandKeywords: false,
+    })
+    assert.equal(env.repoSynthesis?.allowed, true)
+    assert.equal(env.repoSynthesis?.tier, 'author-thesis')
+    assert.ok(env.matchedClaimIds?.includes('stalin-holodomor-agency'))
+  })
 })

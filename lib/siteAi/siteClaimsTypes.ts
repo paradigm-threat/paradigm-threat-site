@@ -5,7 +5,16 @@ export type SiteClaimUniqueness =
   | 'site-position'
 
 /** Epistemic tier — how the site presents the claim. */
-export type SiteClaimConfidence = 'project-thesis' | 'documented' | 'speculative'
+export type SiteClaimConfidence =
+  | 'project-thesis'
+  | 'documented'
+  | 'speculative'
+  | 'author-thesis'
+
+/** Curated thesis the agent may lead with (vs documented/speculative). */
+export function isSiteThesisConfidence (confidence: SiteClaimConfidence): boolean {
+  return confidence === 'project-thesis' || confidence === 'author-thesis'
+}
 
 export type SiteClaimEntry = {
   id: string

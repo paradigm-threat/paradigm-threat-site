@@ -3,7 +3,7 @@ import { expandSearchKeywords } from '@/lib/replyAssistant/expandKeywords'
 import { getProjectPerspective } from '@/lib/replyAssistant/projectPerspective'
 import { searchContentFiltersFromInput } from '@/lib/replyAssistant/searchContentFilters'
 import { matchSiteClaims } from '@/lib/siteAi/matchSiteClaims'
-import type { SiteClaimEntry } from '@/lib/siteAi/siteClaimsTypes'
+import { isSiteThesisConfidence, type SiteClaimEntry } from '@/lib/siteAi/siteClaimsTypes'
 import { searchEntryTitle } from '@/lib/searchEntryDisplay'
 import { filterAndRankSearchEntries } from '@/lib/search/searchSiteQuery'
 import { scoreSearchEntry } from '@/lib/search/searchRankScore'
@@ -172,7 +172,7 @@ export function buildResearchStatus (input: ResearchStatusInput): ResearchEnvelo
   if (coverage === 'not_in_corpus') gaps.push('No investigation or claim indexed for this exact topic')
 
   const repoSynthesisAllowed = matchedClaims.some(
-    (c) => c.uniqueness === 'site-distinctive' || c.confidence === 'project-thesis',
+    (c) => c.uniqueness === 'site-distinctive' || isSiteThesisConfidence(c.confidence),
   )
 
   const suggestedNextSteps: SuggestedStep[] = []

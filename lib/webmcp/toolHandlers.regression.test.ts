@@ -10,8 +10,11 @@ import {
   executeListIndexEntries,
   executeFormatReplyCitations,
   executeGetProjectPerspective,
+  executeGetSiteClaims,
 } from './toolHandlers.ts'
 import { setWebMcpSearchIndexOverride } from './indexStore.ts'
+import { installSiteClaimsFixture } from '../siteAi/siteClaimsTestFixtures.ts'
+import { resetSiteClaimsCache, setSiteClaimsIndexOverride } from '../siteAi/siteClaimsStore.ts'
 
 const mockEntries: IndexedPathEntry[] = [
   { path: 'science/aether.md', searchText: 'science/aether.md Aether plasma magnetism' },
@@ -22,10 +25,13 @@ const mockEntries: IndexedPathEntry[] = [
 describe('webmcp tool handlers', () => {
   beforeEach(() => {
     setWebMcpSearchIndexOverride(async () => mockEntries)
+    installSiteClaimsFixture()
   })
 
   afterEach(() => {
     setWebMcpSearchIndexOverride(null)
+    setSiteClaimsIndexOverride(null)
+    resetSiteClaimsCache()
   })
 
   it('search_site uses AND semantics', async () => {
@@ -40,6 +46,30 @@ describe('webmcp tool handlers', () => {
   it('search_site errors on short query', async () => {
     const result = await executeSearchSite({ query: 'a' })
     assert.equal(result.isError, true)
+  })
+
+  it('search_site accepts array query args', async () => {
+    const result = await executeSearchSite({ query: ['aether', 'plasma'], limit: 10 })
+    assert.notEqual(result.isError, true)
+    const text = result.content[0]?.type === 'text' ? result.content[0].text : ''
+    const parsed = JSON.parse(text) as { count: number; results: { path: string }[] }
+    assert.equal(parsed.results[0]?.path, 'science/aether.md')
+  })
+
+  it('get_site_claims requires query or id and keeps author-thesis cards', async () => {
+    const missing = await executeGetSiteClaims({})
+    assert.equal(missing.isError, true)
+    const byId = await executeGetSiteClaims({ id: 'stalin-holodomor-agency' })
+    assert.notEqual(byId.isError, true)
+    const idText = byId.content[0]?.type === 'text' ? byId.content[0].text : ''
+    const idParsed = JSON.parse(idText) as { claims: { id: string; confidence: string }[] }
+    assert.equal(idParsed.claims[0]?.id, 'stalin-holodomor-agency')
+    assert.equal(idParsed.claims[0]?.confidence, 'author-thesis')
+    const byQuery = await executeGetSiteClaims({ query: 'Could Stalin have stopped the Holodomor?' })
+    assert.notEqual(byQuery.isError, true)
+    const qText = byQuery.content[0]?.type === 'text' ? byQuery.content[0].text : ''
+    const qParsed = JSON.parse(qText) as { claims: { id: string }[] }
+    assert.ok(qParsed.claims.some((c) => c.id === 'stalin-holodomor-agency'))
   })
 
   it('list_search_filters returns defaults', () => {

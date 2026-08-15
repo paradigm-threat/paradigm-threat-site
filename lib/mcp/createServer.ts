@@ -48,7 +48,7 @@ function registerJsonTool (
 }
 
 const searchSchema = {
-  query: z.string().min(2).describe('Space-separated terms; ALL must match'),
+  query: z.string().min(2).describe('Keyword string. Prefer a short stem (iran, not iran iranian); overlapping forms collapse.'),
   limit: z.number().int().min(1).max(50).optional(),
   includeBlog: z.boolean().optional(),
   includeSectionPages: z.boolean().optional(),
@@ -58,14 +58,14 @@ const readOnly = { readOnlyHint: true as const }
 
 function registerSearchTools (server: McpServer) {
   const runSearch = (args: Record<string, unknown>) => mcpSearchSite({
-    query: String(args.query ?? ''),
+    query: args.query ?? args.q,
     limit: typeof args.limit === 'number' ? args.limit : undefined,
     includeBlog: typeof args.includeBlog === 'boolean' ? args.includeBlog : undefined,
     includeSectionPages: typeof args.includeSectionPages === 'boolean' ? args.includeSectionPages : undefined,
   })
 
   registerJsonTool(server, 'search_site', {
-    description: 'Search paradigm-threat articles and timeline events by keyword (AND filter, title-aware rank).',
+    description: 'Search paradigm-threat articles and timeline events by keyword. Prefer a short stem (iran, not iran iranian).',
     inputSchema: searchSchema,
     annotations: readOnly,
   }, runSearch)
@@ -100,7 +100,7 @@ export function createParadigmThreatMcpServer (context: McpServerContext = {}): 
   }))
 
   registerJsonTool(server, 'get_site_claims', {
-    description: 'Match a question to curated site thesis cards (site-claims.json).',
+    description: 'Match a question to curated site thesis cards (site-claims.json). Requires query or id — does not dump the catalog.',
     inputSchema: {
       query: z.string().optional(),
       id: z.string().optional(),

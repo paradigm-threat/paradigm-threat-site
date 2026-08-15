@@ -117,7 +117,7 @@ export function claimsAgentInstructions (claims: MatchedSiteClaim[]): string {
     `Matched site claim "${primary.title}" (${primary.id}).`,
     'Lead with answerOpener or claim text when present.',
     'You MUST read_article on at least one canonicalPaths entry before elaborating.',
-    'Label confidence (project thesis vs documented vs speculative).',
+    'Label confidence (project thesis vs author thesis vs documented vs speculative).',
     'Note uniqueness when relevant (site-distinctive vs broader-tradition vs site-position/debunk).',
     'Never use doNotSay phrasing.',
     'Cite article titles in prose — not raw file paths.',

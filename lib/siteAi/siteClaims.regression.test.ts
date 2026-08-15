@@ -78,4 +78,46 @@ describe('siteClaimsIndex', () => {
     assert.ok(instr.includes('read_article'))
     assert.ok(instr.includes('doNotSay'))
   })
+
+  it('parses the live files catalog including author-thesis claims', () => {
+    const claims = getSiteClaimsIndexCached()
+    assert.ok(claims.length >= 52, `expected full catalog, got ${claims.length}`)
+    const ids = claims.map((c) => c.id)
+    assert.equal(new Set(ids).size, ids.length)
+    const author = claims.filter((c) => c.confidence === 'author-thesis')
+    assert.ok(author.length >= 16, `expected author-thesis cards, got ${author.length}`)
+    assert.ok(getSiteClaimById('stalin-holodomor-agency'))
+    assert.equal(getSiteClaimById('stalin-holodomor-agency')?.confidence, 'author-thesis')
+    const known = new Set(ids)
+    for (const c of claims) {
+      for (const rel of c.relatedClaimIds ?? []) {
+        assert.ok(known.has(rel), `${c.id} relatedClaimIds references missing id ${rel}`)
+      }
+    }
+  })
+
+  it('every demoQuestion on a claim matches that claim', () => {
+    const claims = getSiteClaimsIndexCached()
+    for (const c of claims) {
+      for (const q of c.demoQuestions ?? []) {
+        const matched = matchSiteClaims(q, { maxResults: 5, claims })
+        assert.ok(
+          matched.some((m) => m.id === c.id),
+          `${c.id} did not match its demo question: ${q}`,
+        )
+      }
+    }
+  })
+
+  it('matches Iran 2026 / overlapping iran iranian query', () => {
+    const claims = getSiteClaimsIndexCached()
+    assert.ok(getSiteClaimById('iran-2026-epic-fury-leave-behind'))
+    assert.ok(getSiteClaimById('iran-hormuz-black-gate'))
+    const leave = matchSiteClaims('Why did the US strike Iran in 2026?', { claims })
+    assert.equal(leave[0]?.id, 'iran-2026-epic-fury-leave-behind')
+    const overlap = matchSiteClaims('iran iranian', { claims })
+    assert.ok(overlap.some((c) => c.id === 'iran-2026-epic-fury-leave-behind'))
+    const gate = matchSiteClaims('What is the Black Gate / Mouth of Sauron read of Hormuz?', { claims })
+    assert.equal(gate[0]?.id, 'iran-hormuz-black-gate')
+  })
 })

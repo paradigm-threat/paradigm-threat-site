@@ -940,8 +940,8 @@ Hook `build-chronology-index.py` into timeline pre-commit alongside `build-event
 - [x] Stateless transport (one per request — serverless-safe)
 - [x] `scripts/validate-mcp.mjs` + `npm run validate:mcp`
 - [x] Deploy doc: [MCP_VERCEL_DEPLOY.md](MCP_VERCEL_DEPLOY.md)
-- [ ] Set `MCP_SERVER_ENABLED=1` on Vercel production
-- [ ] Run `validate:mcp` against production after deploy
+- [x] Set `MCP_SERVER_ENABLED=1` on Vercel production (live `/api/mcp` initialize succeeds)
+- [x] Run `validate:mcp` against production after deploy
 
 **Exit criteria:** `node scripts/validate-mcp.mjs https://paradigmthreat.net` passes.
 

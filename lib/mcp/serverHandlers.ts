@@ -5,6 +5,7 @@ import { getProjectPerspective } from '@/lib/replyAssistant/projectPerspective'
 import { searchContentFiltersFromInput } from '@/lib/replyAssistant/searchContentFilters'
 import { matchSiteClaims } from '@/lib/siteAi/matchSiteClaims'
 import { getSiteClaimByIdFromList } from '@/lib/mcp/siteClaimsUtil'
+import { keywordQueryFromUnknown } from '@/lib/searchIndexFilter'
 import { searchEntryTitle } from '@/lib/searchEntryDisplay'
 import { filterAndRankSearchEntries } from '@/lib/search/searchSiteQuery'
 import { scoreSearchEntry } from '@/lib/search/searchRankScore'
@@ -58,7 +59,7 @@ export async function mcpSearchSite (args: Record<string, unknown>) {
   const index = await loadIndex()
   if (!index) return { error: 'Search index unavailable — Relay mirrors may be offline' }
 
-  const query = String(args.query ?? '').trim()
+  const query = keywordQueryFromUnknown(args.query ?? args.q)
   if (query.length < 2) return { error: 'query must be at least 2 characters' }
 
   const filters = searchContentFiltersFromInput({
@@ -91,9 +92,16 @@ export async function mcpGetSiteClaims (args: Record<string, unknown>) {
     return { claims: [one] }
   }
 
-  const query = typeof args.query === 'string' ? args.query.trim() : ''
+  const query = keywordQueryFromUnknown(args.query ?? args.q)
   if (query.length >= 3) {
-    return { claims: matchSiteClaims(query, { maxResults: 3, claims }) }
+    const matched = matchSiteClaims(query, { maxResults: 3, claims })
+    if (!matched.length) {
+      return {
+        claims: [],
+        hint: 'No thesis card matched. Use search_site with a short stem (e.g. iran, not iran iranian) then read_article.',
+      }
+    }
+    return { claims: matched }
   }
 
   return { error: 'Provide query (min 3 chars) or id' }

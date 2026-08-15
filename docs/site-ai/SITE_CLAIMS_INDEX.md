@@ -30,5 +30,6 @@ Curated **major conclusions** Paradigm Threat supports, used by Site AI and the 
 - `project-thesis` — site’s argued position (label as thesis in answers)
 - `documented` — tied to primary docs the site cites
 - `speculative` — exploratory; use sparingly
+- `author-thesis` — author lock / fiction-grammar / named AU claim; still cite canonicalPaths
 
 Agents must still call `read_article` on `canonicalPaths` before treating details as grounded.

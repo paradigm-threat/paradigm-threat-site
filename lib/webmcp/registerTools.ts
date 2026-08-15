@@ -44,10 +44,10 @@ function wrap (
 }
 
 const TOOLS: AnyTool[] = [
-  wrap('search_site', 'Search paradigm-threat articles and timeline events by keyword (AND filter, title-aware rank).', {
+  wrap('search_site', 'Search paradigm-threat articles and timeline events by keyword. Prefer a short stem (iran, not iran iranian); overlapping forms collapse.', {
     type: 'object',
     properties: {
-      query: { type: 'string', minLength: 2, description: 'Space-separated terms; ALL must match' },
+      query: { type: 'string', minLength: 2, description: 'Keyword string. Prefer a short stem; overlapping forms (iran iranian) collapse to iran.' },
       limit: { type: 'integer', minimum: 1, maximum: 50, default: 20 },
       includeBlog: { type: 'boolean', default: false },
       includeSectionPages: { type: 'boolean', default: false },
@@ -89,7 +89,7 @@ const TOOLS: AnyTool[] = [
     properties: {},
   }, () => executeGetProjectPerspective()),
 
-  wrap('get_site_claims', 'Return curated site claim/conclusion cards (summaries with canonical article paths). Pass query to match a question or id for one entry.', {
+  wrap('get_site_claims', 'Match a question to curated thesis cards. Requires query (min 3 chars) or id — does not dump the full catalog. Prefer a short stem (iran, not iran iranian).', {
     type: 'object',
     properties: {
       query: { type: 'string', description: 'Visitor question or topic keywords' },

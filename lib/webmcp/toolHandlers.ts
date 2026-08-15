@@ -25,6 +25,7 @@ import {
 import { platformModalCopyLimit } from '@/lib/share/platformLimits'
 import {
   filterIndexedEntriesByQuery,
+  keywordQueryFromUnknown,
 } from '@/lib/searchIndexFilter'
 import { filterAndRankSearchEntries } from '@/lib/search/searchSiteQuery'
 import { scoreSearchEntry } from '@/lib/search/searchRankScore'
@@ -69,7 +70,7 @@ export async function executeSearchSite (args: Record<string, unknown>): Promise
   const index = await loadIndex()
   if (!index) return indexUnavailable()
 
-  const query = String(args.query ?? '').trim()
+  const query = keywordQueryFromUnknown(args.query ?? args.q)
   if (query.length < 2) return toolErrorResult('query must be at least 2 characters')
 
   const filters = searchContentFiltersFromInput({
@@ -195,7 +196,7 @@ export async function executeExpandSearchKeywords (args: Record<string, unknown>
   const index = await loadIndex()
   if (!index) return indexUnavailable()
 
-  const query = String(args.query ?? '').trim()
+  const query = keywordQueryFromUnknown(args.query ?? args.q)
   if (query.length < 2) return toolErrorResult('query must be at least 2 characters')
 
   const filters = searchContentFiltersFromInput({
@@ -276,7 +277,7 @@ export function executeGetProjectPerspective (): CallToolResult {
 }
 
 export async function executeGetSiteClaims (args: Record<string, unknown>): Promise<CallToolResult> {
-  const query = typeof args.query === 'string' ? args.query.trim() : ''
+  const query = keywordQueryFromUnknown(args.query ?? args.q)
   const id = typeof args.id === 'string' ? args.id.trim() : ''
   const allClaims = await getSiteClaimsIndex()
 
@@ -288,13 +289,17 @@ export async function executeGetSiteClaims (args: Record<string, unknown>): Prom
 
   if (query.length >= 3) {
     const matched = matchSiteClaims(query, { maxResults: 5, claims: allClaims })
+    if (!matched.length) {
+      return toolJsonResult({
+        claims: [],
+        query,
+        hint: 'No thesis card matched. Use search_site with a short stem (e.g. iran, not iran iranian) then read_article.',
+      })
+    }
     return toolJsonResult({ claims: matched, query })
   }
 
-  return toolJsonResult({
-    claims: allClaims,
-    summary: `${allClaims.length} curated site claims — pass query or id to narrow.`,
-  })
+  return toolErrorResult('Provide query (min 3 chars) or id — will not dump the full claims catalog')
 }
 
 export async function executePrepareReplyContext (args: Record<string, unknown>): Promise<CallToolResult> {

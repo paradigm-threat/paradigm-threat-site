@@ -8,6 +8,7 @@ import {
   isBlogSearchPath,
   isExcludedBySearchContentFilters,
   isNonArticleMdPath,
+  keywordQueryFromUnknown,
   queryTermsForAndFilter,
   searchTermMatchesHaystack,
 } from './searchIndexFilter.ts'
@@ -97,6 +98,21 @@ describe('queryTermsForAndFilter', () => {
 
   it('keeps all tokens when every token is a stopword', () => {
     assert.deepEqual(queryTermsForAndFilter('the and'), ['the', 'and'])
+  })
+
+  it('collapses overlapping stems so iran iranian matches Iran-only text', () => {
+    assert.deepEqual(queryTermsForAndFilter('iran iranian'), ['iran'])
+    const entries: IndexedPathEntry[] = [
+      { path: 'governance/war/iran.md', searchText: 'governance/war/iran.md Iran war 2026 Epic Fury' },
+      { path: 'governance/war/oman.md', searchText: 'governance/war/oman.md Oman corridor' },
+    ]
+    const hits = filterIndexedEntriesByQuery(entries, 'iran iranian')
+    assert.deepEqual(hits.map((h) => h.path), ['governance/war/iran.md'])
+  })
+
+  it('joins array queries from MCP tool args', () => {
+    assert.equal(keywordQueryFromUnknown(['iran', 'iranian']), 'iran iranian')
+    assert.equal(keywordQueryFromUnknown({ iran: true }), '')
   })
 })
 

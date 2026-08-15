@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
-import { mcpSearchSite, mcpResearchStatus, mcpSubmitInvestigationIdea, mcpSubmitChatComment } from '@/lib/mcp/serverHandlers.ts'
+import { mcpSearchSite, mcpResearchStatus, mcpGetSiteClaims, mcpSubmitInvestigationIdea, mcpSubmitChatComment } from '@/lib/mcp/serverHandlers.ts'
 import { resetMcpRelayCaches } from '@/lib/mcp/relayFetch.ts'
 import { resetInvestigationSubmitRateLimitForTests } from '@/lib/investigationSubmission/rateLimit.ts'
 import { resetChatSubmitRateLimitForTests } from '@/lib/chatSubmission/rateLimit.ts'
@@ -92,6 +92,27 @@ describe('mcp serverHandlers', () => {
     assert.ok(Array.isArray(env.citableSources))
   })
 
+  it('get_site_claims requires query or id and matches iran-style stems', async () => {
+    globalThis.fetch = async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('site-claims.json')) {
+        return new Response(JSON.stringify(mockClaimsJson()), { status: 200 })
+      }
+      return new Response('not found', { status: 404 })
+    }
+
+    const missing = await mcpGetSiteClaims({})
+    assert.ok('error' in missing && String(missing.error).includes('query'))
+
+    const byId = await mcpGetSiteClaims({ id: 'mfee-mud-flood-reset' })
+    assert.ok(!('error' in byId && byId.error))
+    assert.equal((byId as { claims: { id: string }[] }).claims[0]?.id, 'mfee-mud-flood-reset')
+
+    const byQuery = await mcpGetSiteClaims({ query: ['mud', 'flood'] })
+    assert.ok(!('error' in byQuery && byQuery.error))
+    assert.ok((byQuery as { claims: { id: string }[] }).claims.some((c) => c.id === 'mfee-mud-flood-reset'))
+  })
+
   it('submit_investigation_idea rejects short description', async () => {
     const result = await mcpSubmitInvestigationIdea({
       topic: 'RFK staging',
@@ -112,6 +133,11 @@ function mockClaimsJson () {
     id: 'mfee-mud-flood-reset',
     title: 'MFEE',
     claim: 'Mud flood thesis',
-    keywords: ['mud', 'flood', 'MFEE'],
+    confidence: 'project-thesis',
+    uniqueness: 'site-distinctive',
+    topics: ['mud flood', 'mfee'],
+    searchQueries: ['mud flood MFEE'],
+    canonicalPaths: ['history/mudflood/page.md'],
+    demoQuestions: ['What is the mud flood MFEE thesis?'],
   }]
 }

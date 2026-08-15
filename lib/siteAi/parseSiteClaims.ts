@@ -4,7 +4,12 @@ import type {
   SiteClaimUniqueness,
 } from '@/lib/siteAi/siteClaimsTypes'
 
-const CONFIDENCE: SiteClaimConfidence[] = ['project-thesis', 'documented', 'speculative']
+const CONFIDENCE: SiteClaimConfidence[] = [
+  'project-thesis',
+  'documented',
+  'speculative',
+  'author-thesis',
+]
 const UNIQUENESS: SiteClaimUniqueness[] = [
   'site-distinctive',
   'broader-tradition',
