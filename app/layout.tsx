@@ -9,8 +9,7 @@ import { RelayServerToast } from "@/components/RelayServerToast";
 import { RelayFooterAttribution } from "@/components/RelayFooterAttribution";
 import { FooterSiteNav } from "@/components/FooterSiteNav";
 import PwaRedirect from "@/components/PwaRedirect";
-import { Analytics } from '@vercel/analytics/react';
-import { SpeedInsights } from "@vercel/speed-insights/react"
+import { VercelTelemetry } from '@/components/VercelTelemetry'
 import { WebMcpProvider } from "@/components/webmcp/WebMcpProvider"
 import { BrowserAiSupportProvider } from "@/components/SiteAi/BrowserAiSupportProvider"
 
@@ -81,8 +80,7 @@ function RootLayoutInner({ children }: { children: React.ReactNode }) {
                     </div>
                 </footer>
 
-                <Analytics />
-                <SpeedInsights />
+                <VercelTelemetry />
                 <RelayServerToast />
                 <WebMcpProvider />
                 </BrowserAiSupportProvider>

@@ -31,4 +31,9 @@ handler=$(sed -n "${handler_line}p" "$CFG")
 echo "$handler" | grep -q NetworkFirst \
   || fail "pt-articles rule must use NetworkFirst (got: $handler)"
 
+grep -qE "va\\\\.vercel-scripts\\\\.com" "$CFG" \
+  || fail "next.config.js must NetworkOnly-cache-bypass va.vercel-scripts.com"
+grep -qE "handler: 'NetworkOnly'" "$CFG" \
+  || fail "next.config.js must include NetworkOnly handler for Vercel telemetry"
+
 echo "OK  PWA safe flags (reloadOnOnline/cacheOnFrontEndNav/aggressiveFrontEndNavCaching + NetworkFirst articles)"

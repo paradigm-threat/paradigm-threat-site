@@ -20,5 +20,7 @@ describe('shouldCacheDocumentPath', () => {
     assert.equal(shouldCacheDocumentPath('/submit'), false)
     assert.equal(shouldCacheDocumentPath('/files/foo'), false)
     assert.equal(shouldCacheDocumentPath('/_next/data/x'), false)
+    assert.equal(shouldCacheDocumentPath('/_vercel/speed-insights/vitals'), false)
+    assert.equal(shouldCacheDocumentPath('/_vercel/insights/view'), false)
   })
 })

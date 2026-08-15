@@ -2,6 +2,7 @@
 export const EDGE_NO_CACHE_PREFIXES = [
   '/api/',
   '/_next/',
+  '/_vercel/',
   '/chat',
   '/search',
   '/timeline',

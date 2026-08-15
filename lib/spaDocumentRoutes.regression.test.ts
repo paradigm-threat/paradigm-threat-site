@@ -23,10 +23,12 @@ describe('spaDocumentRoutes', () => {
     assert.equal(shouldSpaRewriteToRoot('/search'), false)
     assert.equal(shouldSpaRewriteToRoot('/chat'), false)
     assert.equal(shouldSpaRewriteToRoot('/api/foo'), false)
+    assert.equal(shouldSpaRewriteToRoot('/_vercel/speed-insights/vitals'), false)
     assert.equal(shouldSpaRewriteToRoot('/sw.js'), false)
   })
 
   it('exports rewrite source pattern', () => {
     assert.match(SPA_REWRITE_SOURCE, /^\/\(\(\?!/)
+    assert.match(SPA_REWRITE_SOURCE, /_vercel\//)
   })
 })

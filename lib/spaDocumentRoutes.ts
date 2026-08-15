@@ -6,6 +6,7 @@
 export const SPA_REWRITE_EXCLUDE_PREFIXES = [
   'api',
   '_next',
+  '_vercel',
   'timeline',
   'search',
   'chat',
@@ -27,7 +28,7 @@ export const SPA_REWRITE_EXCLUDE_EXACT = new Set([
 
 /** Vercel / Next `rewrites` source (path must not be `/` alone). */
 export const SPA_REWRITE_SOURCE =
-  '/((?!api/|_next/|timeline(?:/|$)|search(?:/|$)|chat(?:/|$)|reply(?:/|$)|submit(?:/|$)|export(?:/|$)|files(?:/|$)|site(?:/|$)|wasm/|robots\\.txt|sitemap\\.xml|favicon\\.ico|manifest\\.json|sw\\.js|swe-worker).*)'
+  '/((?!api/|_next/|_vercel/|timeline(?:/|$)|search(?:/|$)|chat(?:/|$)|reply(?:/|$)|submit(?:/|$)|export(?:/|$)|files(?:/|$)|site(?:/|$)|wasm/|robots\\.txt|sitemap\\.xml|favicon\\.ico|manifest\\.json|sw\\.js|swe-worker).*)'
 
 export function shouldSpaRewriteToRoot (pathname: string): boolean {
   if (!pathname || pathname === '/') return false

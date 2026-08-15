@@ -22,6 +22,19 @@ const withPWA = require('@ducanh2912/next-pwa').default({
   workboxOptions: {
     disableDevLogs: true,
     runtimeCaching: [
+      // Never cache Vercel telemetry beacons/scripts (Speed Insights + Analytics).
+      {
+        urlPattern: /^https:\/\/va\.vercel-scripts\.com\/.*/i,
+        handler: 'NetworkOnly',
+      },
+      {
+        urlPattern: /^https:\/\/vitals\.vercel-insights\.com\/.*/i,
+        handler: 'NetworkOnly',
+      },
+      {
+        urlPattern: /\/_vercel\/(speed-insights|insights)(\/.*)?$/i,
+        handler: 'NetworkOnly',
+      },
       // Timeline manifest data (GitLab Pages; revalidate often)
       {
         urlPattern: /^https:\/\/paradigm-threat-timeline-a77fe2\.gitlab\.io\/data\/events\.json(\?.*)?$/i,
@@ -194,7 +207,7 @@ const nextConfig = {
     if (!SPA_DOCUMENT_ROUTES) return { beforeFiles: [] }
     // Keep in sync with lib/spaDocumentRoutes.ts SPA_REWRITE_SOURCE
     const spaRewriteSource =
-      '/((?!api/|_next/|timeline(?:/|$)|search(?:/|$)|chat(?:/|$)|reply(?:/|$)|submit(?:/|$)|export(?:/|$)|files(?:/|$)|site(?:/|$)|wasm/|robots\\.txt|sitemap\\.xml|favicon\\.ico|manifest\\.json|sw\\.js|swe-worker).*)'
+      '/((?!api/|_next/|_vercel/|timeline(?:/|$)|search(?:/|$)|chat(?:/|$)|reply(?:/|$)|submit(?:/|$)|export(?:/|$)|files(?:/|$)|site(?:/|$)|wasm/|robots\\.txt|sitemap\\.xml|favicon\\.ico|manifest\\.json|sw\\.js|swe-worker).*)'
     return {
       beforeFiles: [
         { source: spaRewriteSource, destination: '/' },
@@ -215,7 +228,7 @@ const nextConfig = {
     documentHeaderRules.push(
       {
         source:
-          '/((?!api/|_next/|chat(?:/|$)|search(?:/|$)|timeline(?:/|$)|reply(?:/|$)|submit(?:/|$)|export(?:/|$)|site(?:/|$)|robots\\.txt|sitemap\\.xml|favicon\\.ico).*)',
+          '/((?!api/|_next/|_vercel/|chat(?:/|$)|search(?:/|$)|timeline(?:/|$)|reply(?:/|$)|submit(?:/|$)|export(?:/|$)|site(?:/|$)|robots\\.txt|sitemap\\.xml|favicon\\.ico).*)',
         headers: documentCacheHeaders,
       },
     )

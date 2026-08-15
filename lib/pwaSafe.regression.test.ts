@@ -17,6 +17,9 @@ describe('PWA / PopImage hardening markers', () => {
       cfg,
       /handler:\s*'NetworkFirst'[\s\S]{0,200}cacheName:\s*'pt-articles'/,
     )
+    assert.match(cfg, /handler:\s*'NetworkOnly'/)
+    assert.match(cfg, /va\\.vercel-scripts\\.com/)
+    assert.match(cfg, /vitals\\.vercel-insights\\.com/)
   })
 
   it('OptimizedImage has load timeout + Retry exhausted UI', () => {
