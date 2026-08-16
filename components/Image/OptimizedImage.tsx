@@ -37,7 +37,7 @@ const EMPTY_SRC_PLACEHOLDER =
     'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
 /** Hung Relay mirrors never fire onError — advance after this. */
-const LOAD_TIMEOUT_MS = 12000
+const LOAD_TIMEOUT_MS = 4000
 
 export default function OptimizedImage({ children, className, ...props }: OptimizedImageProps) {
     const srcProps: OptimizedImageProps = processImageProps({ ...props, className }, props.basePath)
@@ -238,10 +238,11 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
     const rasterImg = (
         /* eslint-disable-next-line @next/next/no-img-element */
         <img
-            loading="lazy"
             alt={alt}
             className={imgClassName}
             {...finalProps}
+            loading={priority ? 'eager' : 'lazy'}
+            fetchPriority={priority ? 'high' : undefined}
             src={displaySrc}
             onLoad={() => {
                 clearLoadTimer()

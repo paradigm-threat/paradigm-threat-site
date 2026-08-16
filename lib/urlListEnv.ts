@@ -29,26 +29,74 @@ export interface RelayOriginPair {
 }
 
 /**
- * Zip files and timeline URL lists by index (relay node i). Shorter list reuses its last entry.
- * Used so one “fastest pair” probe selects both origins together.
+ * Shared node host for pairing files + timeline (e.g. dfw1.relaygateway.net).
+ * Strips the leading repo label so list order cannot zip dfw1 files with lon1 timeline.
+ */
+export function relayPairNodeKey(origin: string): string {
+  try {
+    const host = new URL(origin).hostname.toLowerCase()
+    const parts = host.split('.').filter(Boolean)
+    if (parts.length >= 3) return parts.slice(1).join('.')
+    return host
+  } catch {
+    return normalizeOrigin(origin)
+  }
+}
+
+/**
+ * Pair files and timeline origins by node hostname when both lists share a node
+ * (`dfw1` / `lon1` / `hkg1`). Unmatched leftovers zip by remaining order; a shorter
+ * leftover list reuses its last entry. Order follows the files list.
  */
 export function zipRelayPairs(files: string[], timeline: string[]): RelayOriginPair[] {
-  const nf = files.length
-  const nt = timeline.length
-  if (nf === 0 && nt === 0) {
+  const fList = files.map(normalizeOrigin).filter(Boolean)
+  const tList = timeline.map(normalizeOrigin).filter(Boolean)
+  if (fList.length === 0 && tList.length === 0) {
     return [
       { files: normalizeOrigin(DEFAULT_FILES_ORIGIN), timeline: normalizeOrigin(DEFAULT_TIMELINE_ORIGIN) },
     ]
   }
-  const n = Math.max(nf || 1, nt || 1)
-  const out: RelayOriginPair[] = []
-  for (let i = 0; i < n; i++) {
-    const fi = nf === 0 ? 0 : Math.min(i, nf - 1)
-    const ti = nt === 0 ? 0 : Math.min(i, nt - 1)
-    const f = (nf > 0 ? files[fi] : DEFAULT_FILES_ORIGIN) || DEFAULT_FILES_ORIGIN
-    const t = (nt > 0 ? timeline[ti] : DEFAULT_TIMELINE_ORIGIN) || DEFAULT_TIMELINE_ORIGIN
-    out.push({ files: normalizeOrigin(f), timeline: normalizeOrigin(t) })
+  const filesOrDefault = fList.length > 0 ? fList : [normalizeOrigin(DEFAULT_FILES_ORIGIN)]
+  const timelineOrDefault = tList.length > 0 ? tList : [normalizeOrigin(DEFAULT_TIMELINE_ORIGIN)]
+
+  const tByKey = new Map<string, string[]>()
+  for (const t of timelineOrDefault) {
+    const k = relayPairNodeKey(t)
+    const arr = tByKey.get(k) ?? []
+    arr.push(t)
+    tByKey.set(k, arr)
   }
+
+  const out: RelayOriginPair[] = []
+  const usedT = new Set<string>()
+  const unpairedF: string[] = []
+  for (const f of filesOrDefault) {
+    const k = relayPairNodeKey(f)
+    const t = (tByKey.get(k) ?? []).find((x) => !usedT.has(x))
+    if (t) {
+      usedT.add(t)
+      out.push({ files: f, timeline: t })
+    } else {
+      unpairedF.push(f)
+    }
+  }
+
+  const unpairedT = timelineOrDefault.filter((t) => !usedT.has(t))
+  if (unpairedF.length > 0 && unpairedT.length > 0) {
+    const n = Math.max(unpairedF.length, unpairedT.length)
+    for (let i = 0; i < n; i++) {
+      const f = unpairedF[Math.min(i, unpairedF.length - 1)]!
+      const t = unpairedT[Math.min(i, unpairedT.length - 1)]!
+      out.push({ files: f, timeline: t })
+    }
+  } else if (unpairedF.length > 0) {
+    const tFallback = timelineOrDefault[timelineOrDefault.length - 1]!
+    for (const f of unpairedF) out.push({ files: f, timeline: tFallback })
+  } else if (unpairedT.length > 0) {
+    const fFallback = filesOrDefault[filesOrDefault.length - 1]!
+    for (const t of unpairedT) out.push({ files: fFallback, timeline: t })
+  }
+
   return out
 }
 

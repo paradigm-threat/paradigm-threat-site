@@ -10,7 +10,7 @@ import { prepareArticleMarkdown, extractFirstHeading, resolveArticleDisplayTitle
 import { ArticleTTSProvider } from '@/components/ArticleTTS/ArticleTTSProvider'
 import { ArticleTTSOverlay } from '@/components/ArticleTTS/ArticleTTSOverlay'
 import { stripMarkdownForTTS, buildParagraphStarts } from '@/components/Timeline/ttsHelpers'
-import { SuspenseLoader } from '@client'
+import { CatchAllPageSkeleton } from '@/components/content/CatchAllPageSkeleton'
 import { formatIndexDateTiny } from '@/lib/indexUpdated'
 import { shouldPersistVisit } from '@/lib/visitResumeStorage'
 import { ShareLinks, ShareLinksFloating, TextLeafClientShell } from '@/components'
@@ -204,6 +204,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
         const skipMdArticleProbe = isNonArticlePath(requestPath)
         try {
           if (!skipMdArticleProbe) {
+          // GET page.md (and other article candidates) without waiting on full-catalog QUERY.
           const articleHit = await remoteRelay.fetchFilesMdResolved(requestPath, vParam, abortController.signal)
           articleFetchStatus = 200
           if (loadingPathRef.current !== requestPath || !isMounted) return
@@ -476,7 +477,7 @@ export const CatchAllClient = memo(function CatchAllClient() {
   if (directImageLeaf || directTextLeaf || content) {
     /* fall through to content renders below */
   } else if (indexLoading || loading) {
-    return <div className="flex items-center justify-center min-h-screen"><SuspenseLoader /></div>
+    return <CatchAllPageSkeleton />
   }
 
 

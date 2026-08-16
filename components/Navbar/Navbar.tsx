@@ -172,6 +172,10 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
                                 <img
                                     src={HEADER_WORDMARK_SRC}
                                     alt="Paradigm Threat"
+                                    width={1146}
+                                    height={163}
+                                    fetchPriority="high"
+                                    decoding="async"
                                     className="h-10 w-auto md:h-14 max-[350px]:h-10 max-[350px]:w-10 max-[350px]:object-contain"
                                 />
                             </picture>

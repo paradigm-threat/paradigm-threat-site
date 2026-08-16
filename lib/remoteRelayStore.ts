@@ -112,7 +112,8 @@ export type RelayNotifyEvent =
       serverLabel: string
     }
 
-const PROBE_TIMEOUT_MS = 8000
+/** Dead mirrors must fail fast so dfw1 is not blocked on a lon1 TCP hang. */
+const PROBE_TIMEOUT_MS = 2000
 const MD_FETCH_TIMEOUT_MS = 12_000
 /** Full catalog QUERY; keep below old 60s so slow mirrors failover sooner. */
 const INDEX_FETCH_TIMEOUT_MS = 20_000
@@ -136,6 +137,14 @@ function extraMsNearBestBand(fastestProbeMs: number): number {
     return NEAR_BEST_MIN_EXTRA_MS
   }
   return Math.max(NEAR_BEST_MIN_EXTRA_MS, fastestProbeMs * NEAR_BEST_RELATIVE_EXTRA)
+}
+
+type ProbeResult = {
+  pair: RelayOriginPair
+  bothOk: boolean
+  scoreMs: number
+  filesOk: boolean
+  timelineOk: boolean
 }
 
 type ScoredProbe = {
@@ -193,7 +202,7 @@ class RemoteRelayStore {
   private bootstrapDone = false
   private bootstrapP: Promise<void> | null = null
   /** Filled during bootstrap probe (one request pair per server; reused by the selector UI). */
-  private probeByIndex: RelayPairProbe[] = []
+  private probeByIndex: Array<RelayPairProbe | undefined> = []
   private listeners = new Set<() => void>()
   private notifyListeners = new Set<(e: RelayNotifyEvent) => void>()
   /** Stable reference for useSyncExternalStore until emit() invalidates. */
@@ -358,13 +367,7 @@ class RemoteRelayStore {
     return this.bootstrapP
   }
 
-  private async probePair(p: RelayOriginPair): Promise<{
-    pair: RelayOriginPair
-    bothOk: boolean
-    scoreMs: number
-    filesOk: boolean
-    timelineOk: boolean
-  }> {
+  private async probePair(p: RelayOriginPair): Promise<ProbeResult> {
     const start = t0()
     let filesOk = false
     let timelineOk = false
@@ -445,15 +448,7 @@ class RemoteRelayStore {
     }
   }
 
-  private pickBestFromProbeResults(
-    results: Array<{
-      pair: RelayOriginPair
-      bothOk: boolean
-      scoreMs: number
-      filesOk: boolean
-      timelineOk: boolean
-    }>,
-  ): RelayOriginPair {
+  private pickBestFromProbeResults(results: ProbeResult[]): RelayOriginPair {
     const dual = results.filter((r) => r.bothOk).sort((a, b) => a.scoreMs - b.scoreMs)
     if (dual.length > 0) return pickRandomAmongNearBest(dual)
 
@@ -466,20 +461,15 @@ class RemoteRelayStore {
     return this.pairs[0]!
   }
 
-  private cacheProbeResults(
-    results: Array<{
-      bothOk: boolean
-      scoreMs: number
-      filesOk: boolean
-      timelineOk: boolean
-    }>,
-  ): void {
-    this.probeByIndex = results.map((r) => ({
+  private writeProbeAt(idx: number, r: ProbeResult): void {
+    const next = this.probeByIndex.slice()
+    next[idx] = {
       latencyMs: Math.round(r.scoreMs),
       live: r.bothOk,
       filesOk: r.filesOk,
       timelineOk: r.timelineOk,
-    }))
+    }
+    this.probeByIndex = next
     this.emit()
   }
 
@@ -489,6 +479,11 @@ class RemoteRelayStore {
     void this.fetchFilesCatalogForOrigin(filesOrigin, AbortSignal.timeout(INDEX_FETCH_TIMEOUT_MS))
   }
 
+  /**
+   * Race pair probes: first healthy same-node pair wins bootstrap so a hung lon1
+   * cannot block dfw1. Remaining probes keep filling the selector. Stale
+   * localStorage preferred pairs are used only when that probe is bothOk.
+   */
   private async runBootstrap(): Promise<void> {
     this.ensurePairs()
     if (this.pairs.length === 0) {
@@ -498,31 +493,51 @@ class RemoteRelayStore {
     }
 
     const preferredEarly = this.readStoredPreferredPair()
-    const warmOrigin = preferredEarly?.files ?? this.pairs[0]?.files
+    const warmOrigin = this.pairs[0]?.files
     if (warmOrigin) this.warmFilesCatalog(warmOrigin)
 
-    const results =
-      this.pairs.length === 1
-        ? [await this.probePair(this.pairs[0]!)]
-        : await Promise.all(this.pairs.map((p) => this.probePair(p)))
-    this.cacheProbeResults(results)
+    await new Promise<void>((resolve) => {
+      let settled = false
+      const results: Array<ProbeResult | undefined> = new Array(this.pairs.length)
 
-    const preferred = preferredEarly
-    if (preferred) {
-      const prefProbe = results.find(
-        (r) => r.pair.files === preferred.files && r.pair.timeline === preferred.timeline,
-      )
-      if (prefProbe?.bothOk) {
-        this.finishBootstrap(preferred)
-        return
+      const finish = (p: RelayOriginPair) => {
+        if (settled) return
+        settled = true
+        if (p.files !== warmOrigin) this.warmFilesCatalog(p.files)
+        this.finishBootstrap(p)
+        resolve()
       }
-    }
 
-    const best = this.pickBestFromProbeResults(results)
-    if (best.files !== warmOrigin) {
-      this.warmFilesCatalog(best.files)
-    }
-    this.finishBootstrap(best)
+      const consider = (r: ProbeResult) => {
+        if (settled) return
+        const isPreferred =
+          !!preferredEarly &&
+          r.pair.files === preferredEarly.files &&
+          r.pair.timeline === preferredEarly.timeline
+        if (isPreferred) {
+          if (r.bothOk) finish(preferredEarly)
+          return
+        }
+        if (r.bothOk) finish(r.pair)
+      }
+
+      void Promise.all(
+        this.pairs.map(async (p, idx) => {
+          const r = await this.probePair(p)
+          results[idx] = r
+          this.writeProbeAt(idx, r)
+          consider(r)
+        }),
+      ).then(() => {
+        if (settled) return
+        const filled = results.filter((r): r is ProbeResult => r != null)
+        const best = this.pickBestFromProbeResults(filled)
+        finish(best)
+      }).catch(() => {
+        if (settled) return
+        finish(this.pairs[0]!)
+      })
+    })
   }
 
   /**
@@ -624,8 +639,11 @@ class RemoteRelayStore {
    * Uses session cache + inflight dedupe shared with search.
    */
   async fetchFilesCatalog (externalAbort: AbortSignal): Promise<unknown | null> {
-    await this.bootstrap()
-    return this.fetchFilesCatalogForOrigin(this.filesOrigin, externalAbort)
+    this.ensurePairs()
+    void this.bootstrap()
+    const origin = this.filesOrigin || this.pairs[0]?.files || ''
+    if (!origin) return null
+    return this.fetchFilesCatalogForOrigin(origin, externalAbort)
   }
 
   private async fetchFilesCatalogForOrigin (
@@ -708,6 +726,7 @@ class RemoteRelayStore {
 
   /**
    * Fetch markdown for a site URL path (tries path.md, path/page.md, etc.); on timeout/error try other pairs.
+   * Does not wait for full-catalog QUERY or probe completion — homepage page.md can paint first.
    */
   async fetchFilesMdResolved (
     logicalPath: string,
@@ -743,6 +762,7 @@ class RemoteRelayStore {
     externalAbort: AbortSignal,
   ): Promise<{ body: string; relPath: string } | null> {
     this.ensurePairs()
+    void this.bootstrap()
     const order = this.pairFailoverOrder()
     const candidates = buildArticleMdCandidatePaths(logicalPath)
     let lastErr: Error | null = null

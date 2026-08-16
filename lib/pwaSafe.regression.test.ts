@@ -24,7 +24,9 @@ describe('PWA / PopImage hardening markers', () => {
 
   it('OptimizedImage has load timeout + Retry exhausted UI', () => {
     const src = readFileSync(join(root, 'components/Image/OptimizedImage.tsx'), 'utf8')
-    assert.match(src, /LOAD_TIMEOUT_MS\s*=\s*12000/)
+    assert.match(src, /LOAD_TIMEOUT_MS\s*=\s*4000/)
+    assert.match(src, /loading=\{priority \? 'eager' : 'lazy'\}/)
+    assert.match(src, /fetchPriority=\{priority \? 'high' : undefined\}/)
     assert.match(src, /setLoadFailed\(true\)/)
     assert.match(src, /\bRetry\b/)
     assert.match(src, /Image failed to load from Relay mirrors/)
@@ -39,5 +41,31 @@ describe('PWA / PopImage hardening markers', () => {
     )
     assert.match(src, /Do NOT null loadingPathRef/)
     assert.match(src, /prevLoadingPath !== null && prevLoadingPath !== requestPath/)
+    assert.match(src, /without waiting on full-catalog QUERY/)
+    assert.match(src, /CatchAllPageSkeleton/)
+    assert.doesNotMatch(src, /min-h-screen/)
+  })
+
+  it('relay probes fail dead mirrors in 2s and race first healthy pair', () => {
+    const src = readFileSync(join(root, 'lib/remoteRelayStore.ts'), 'utf8')
+    assert.match(src, /PROBE_TIMEOUT_MS = 2000/)
+    assert.match(src, /first healthy same-node pair wins bootstrap/)
+    assert.match(src, /void this\.bootstrap\(\)/)
+    assert.doesNotMatch(src, /await this\.bootstrap\(\)/)
+  })
+
+  it('navbar wordmark reserves size and is high priority', () => {
+    const src = readFileSync(join(root, 'components/Navbar/Navbar.tsx'), 'utf8')
+    assert.match(src, /width=\{1146\}/)
+    assert.match(src, /height=\{163\}/)
+    assert.match(src, /fetchPriority="high"/)
+  })
+
+  it('Titillium is self-hosted, not Google Fonts CSS', () => {
+    const src = readFileSync(join(root, 'app/site/globals.scss'), 'utf8')
+    assert.doesNotMatch(src, /fonts\.googleapis\.com/)
+    assert.match(src, /TitilliumWeb-Regular\.woff2/)
+    assert.match(src, /TitilliumWeb-Italic\.woff2/)
+    assert.match(src, /TitilliumWeb-Bold\.woff2/)
   })
 })
