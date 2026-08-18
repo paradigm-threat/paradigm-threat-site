@@ -46,9 +46,9 @@ Opens on [http://localhost:3000](http://localhost:3000).
 |---|---|---|
 | `NEXT_PUBLIC_TIMELINE_BASE_URL` | `https://paradigm-threat-timeline-a77fe2.gitlab.io` | Timeline Relay/Pages origin (QUERY catalogs + static media/export). Multiple mirrors: separate with `\|` or newlines (no comma or semicolon). |
 | `TIMELINE_ORIGINS` | (unset) | Optional pipe- or newline-separated timeline static origins, **tried in order**, for timeline mirror failover. `/export/...` on the site origin **307-redirects** to `NEXT_PUBLIC_TIMELINE_BASE_URL/export/...` (no Vercel binary proxy). |
-| `NEXT_PUBLIC_FILES_BASE_URL` | `https://paradigm-threat-files-69f9dc.gitlab.io` | Static files (GitLab Pages or Relay). Multiple mirrors: whitespace-separated. In the browser, files and timeline lists are **paired by node hostname** (`dfw1` / `lon1` / `hkg1`) so list order cannot zip dfw1 files with lon1 timeline; the first healthy pair is chosen at load. Raster images use **`{mirror}/{path}?w=`** (Relay `server.hooks.get` WebP); no `/api/image` proxy on this app. |
+| `NEXT_PUBLIC_FILES_BASE_URL` | `https://paradigm-threat-files-69f9dc.gitlab.io` | Static files (GitLab Pages or Relay). Multiple mirrors: whitespace-separated. In the browser, files and timeline lists are **paired by node hostname** (`dfw1` / `iad1` / `hkg1`) so list order cannot zip dfw1 files with iad1 timeline; the first healthy pair is chosen at load. Retired `lon1` hosts are rewritten to `iad1`. Raster images use **`{mirror}/{path}?w=`** (Relay `server.hooks.get` WebP); no `/api/image` proxy on this app. |
 | `NEXT_PUBLIC_PIPER_API_URLS` | (see code) | Browser Piper TTS: **space**-separated relay bases (`/tts`, `/voices`). Defaults match `PIPER_API_URLS`. The client calls relay **directly** (no `/api/tts/piper` proxy). Optional `NEXT_PUBLIC_PIPER_API_SECRET` if mirrors require Bearer auth. |
-| `PIPER_API_URLS` | (see code) | Server/build Piper bases (tests). Default: `dfw1`, `lon1`, `hkg1` relay hosts. |
+| `PIPER_API_URLS` | (see code) | Server/build Piper bases (tests). Default: `dfw1`, `iad1`, `hkg1` relay hosts. |
 
 ### Scripts
 

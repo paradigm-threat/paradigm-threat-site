@@ -1,14 +1,14 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { relayPairNodeKey, zipRelayPairs } from './urlListEnv.ts'
+import { parseUrlList, relayPairNodeKey, rewriteRetiredRelayOrigin, zipRelayPairs } from './urlListEnv.ts'
 
 const FILES = [
   'https://paradigm-threat-files.dfw1.relaygateway.net',
-  'https://paradigm-threat-files.lon1.relaygateway.net',
+  'https://paradigm-threat-files.iad1.relaygateway.net',
   'https://paradigm-threat-files.hkg1.relaygateway.net',
 ]
 const TIMELINE_MISORDERED = [
-  'https://paradigm-threat-timeline.lon1.relaygateway.net',
+  'https://paradigm-threat-timeline.iad1.relaygateway.net',
   'https://paradigm-threat-timeline.dfw1.relaygateway.net',
   'https://paradigm-threat-timeline.hkg1.relaygateway.net',
 ]
@@ -22,7 +22,7 @@ describe('zipRelayPairs pairs by node hostname', () => {
     )
   })
 
-  it('does not zip dfw1 files with lon1 timeline when lists are misordered', () => {
+  it('does not zip dfw1 files with iad1 timeline when lists are misordered', () => {
     const pairs = zipRelayPairs(FILES, TIMELINE_MISORDERED)
     assert.equal(pairs.length, 3)
     assert.deepEqual(pairs[0], {
@@ -31,7 +31,7 @@ describe('zipRelayPairs pairs by node hostname', () => {
     })
     assert.deepEqual(pairs[1], {
       files: FILES[1],
-      timeline: 'https://paradigm-threat-timeline.lon1.relaygateway.net',
+      timeline: 'https://paradigm-threat-timeline.iad1.relaygateway.net',
     })
     assert.deepEqual(pairs[2], {
       files: FILES[2],
@@ -42,11 +42,31 @@ describe('zipRelayPairs pairs by node hostname', () => {
   it('keeps files-list order when both lists already match', () => {
     const timeline = [
       'https://paradigm-threat-timeline.dfw1.relaygateway.net',
-      'https://paradigm-threat-timeline.lon1.relaygateway.net',
+      'https://paradigm-threat-timeline.iad1.relaygateway.net',
       'https://paradigm-threat-timeline.hkg1.relaygateway.net',
     ]
     const pairs = zipRelayPairs(FILES, timeline)
     assert.equal(pairs[0]?.files, FILES[0])
     assert.equal(pairs[0]?.timeline, timeline[0])
+  })
+})
+
+describe('retired lon1 rewrite', () => {
+  it('maps lon1.relaygateway.net to iad1', () => {
+    assert.equal(
+      rewriteRetiredRelayOrigin('https://paradigm-threat-files.lon1.relaygateway.net'),
+      'https://paradigm-threat-files.iad1.relaygateway.net',
+    )
+  })
+
+  it('parseUrlList rewrites and dedupes lon1 next to iad1', () => {
+    const list = parseUrlList(
+      'https://paradigm-threat-files.dfw1.relaygateway.net https://paradigm-threat-files.lon1.relaygateway.net https://paradigm-threat-files.iad1.relaygateway.net https://paradigm-threat-files.hkg1.relaygateway.net',
+    )
+    assert.deepEqual(list, [
+      'https://paradigm-threat-files.dfw1.relaygateway.net',
+      'https://paradigm-threat-files.iad1.relaygateway.net',
+      'https://paradigm-threat-files.hkg1.relaygateway.net',
+    ])
   })
 })

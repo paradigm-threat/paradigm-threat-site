@@ -293,7 +293,7 @@ export async function queryRecentFilesContent (
       rememberFilesCatalogFromEnvelope,
     } = await import('@/lib/filesCatalogCache')
 
-    // Prefer the race-selected mirror (not env list order). Primary was lon1 and hung QUERY.
+    // Prefer the race-selected mirror (not env list order). Retired lon1 hung QUERY when listed first.
     if (typeof window !== 'undefined') {
       const { remoteRelay } = await import('@/lib/remoteRelayStore')
       await remoteRelay.bootstrap()

@@ -6,8 +6,33 @@
 const DEFAULT_FILES_ORIGIN = 'https://paradigm-threat-files-69f9dc.gitlab.io'
 const DEFAULT_TIMELINE_ORIGIN = 'https://paradigm-threat-timeline-a77fe2.gitlab.io'
 
+/** Recycled Spot nodes — rewrite so stale env / localStorage cannot probe a dead host. */
+const RETIRED_RELAY_HOST_REWRITES: Array<[RegExp, string]> = [
+  [/lon1\.relaygateway\.net/gi, 'iad1.relaygateway.net'],
+]
+
+export function rewriteRetiredRelayOrigin (origin: string): string {
+  let next = origin
+  for (const [re, to] of RETIRED_RELAY_HOST_REWRITES) {
+    next = next.replace(re, to)
+  }
+  return next
+}
+
 function normalizeOrigin(s: string): string {
-  return s.trim().replace(/\/+$/, '')
+  return rewriteRetiredRelayOrigin(s.trim()).replace(/\/+$/, '')
+}
+
+function dedupeOrigins (list: string[]): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const raw of list) {
+    const n = normalizeOrigin(raw)
+    if (!n || seen.has(n)) continue
+    seen.add(n)
+    out.push(n)
+  }
+  return out
 }
 
 /** Split on whitespace (space, tab, newline), trim, drop empties, strip trailing slashes. */
@@ -20,7 +45,7 @@ export function parseUrlList(raw: string | undefined, fallback?: string): string
     .split(/\s+/)
     .map((s) => normalizeOrigin(s))
     .filter(Boolean)
-  return parts.length > 0 ? parts : fallback ? [normalizeOrigin(fallback)] : []
+  return parts.length > 0 ? dedupeOrigins(parts) : fallback ? [normalizeOrigin(fallback)] : []
 }
 
 export interface RelayOriginPair {
@@ -30,7 +55,7 @@ export interface RelayOriginPair {
 
 /**
  * Shared node host for pairing files + timeline (e.g. dfw1.relaygateway.net).
- * Strips the leading repo label so list order cannot zip dfw1 files with lon1 timeline.
+ * Strips the leading repo label so list order cannot zip dfw1 files with iad1 timeline.
  */
 export function relayPairNodeKey(origin: string): string {
   try {
@@ -45,7 +70,7 @@ export function relayPairNodeKey(origin: string): string {
 
 /**
  * Pair files and timeline origins by node hostname when both lists share a node
- * (`dfw1` / `lon1` / `hkg1`). Unmatched leftovers zip by remaining order; a shorter
+ * (`dfw1` / `iad1` / `hkg1`). Unmatched leftovers zip by remaining order; a shorter
  * leftover list reuses its last entry. Order follows the files list.
  */
 export function zipRelayPairs(files: string[], timeline: string[]): RelayOriginPair[] {

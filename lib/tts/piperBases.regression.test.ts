@@ -29,4 +29,12 @@ describe('piperBases', () => {
       'https://b.example',
     ])
   })
+
+  it('rewrites retired lon1 Piper bases to iad1', () => {
+    process.env.PIPER_API_URLS = 'https://lon1.relaygateway.net https://dfw1.relaygateway.net'
+    assert.deepEqual(getServerPiperApiBaseUrls(), [
+      'https://iad1.relaygateway.net',
+      'https://dfw1.relaygateway.net',
+    ])
+  })
 })

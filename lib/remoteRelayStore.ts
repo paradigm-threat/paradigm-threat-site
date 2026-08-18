@@ -1,6 +1,7 @@
 import {
   getFilesBaseUrlList,
   getTimelineBaseUrlList,
+  rewriteRetiredRelayOrigin,
   zipRelayPairs,
   type RelayOriginPair,
 } from '@/lib/urlListEnv'
@@ -112,7 +113,7 @@ export type RelayNotifyEvent =
       serverLabel: string
     }
 
-/** Dead mirrors must fail fast so dfw1 is not blocked on a lon1 TCP hang. */
+/** Dead mirrors must fail fast so dfw1 is not blocked on a retired-node TCP hang. */
 const PROBE_TIMEOUT_MS = 2000
 const MD_FETCH_TIMEOUT_MS = 12_000
 /** Full catalog QUERY; keep below old 60s so slow mirrors failover sooner. */
@@ -424,12 +425,17 @@ class RemoteRelayStore {
       const raw = window.localStorage.getItem(RELAY_PREFERRED_PAIR_KEY)
       if (!raw) return null
       const parsed = JSON.parse(raw) as { files?: unknown; timeline?: unknown }
-      const files =
-        typeof parsed.files === 'string' ? normalizeStoredOrigin(parsed.files) : ''
-      const timeline =
-        typeof parsed.timeline === 'string' ? normalizeStoredOrigin(parsed.timeline) : ''
+      const files = rewriteRetiredRelayOrigin(
+        typeof parsed.files === 'string' ? normalizeStoredOrigin(parsed.files) : '',
+      )
+      const timeline = rewriteRetiredRelayOrigin(
+        typeof parsed.timeline === 'string' ? normalizeStoredOrigin(parsed.timeline) : '',
+      )
       if (!files || !timeline) return null
       const match = this.pairs.find((pair) => pair.files === files && pair.timeline === timeline)
+      if (match && (match.files !== parsed.files || match.timeline !== parsed.timeline)) {
+        this.persistPreferredPair(match)
+      }
       return match ?? null
     } catch {
       return null
@@ -480,7 +486,7 @@ class RemoteRelayStore {
   }
 
   /**
-   * Race pair probes: first healthy same-node pair wins bootstrap so a hung lon1
+   * Race pair probes: first healthy same-node pair wins bootstrap so a hung retired node
    * cannot block dfw1. Remaining probes keep filling the selector. Stale
    * localStorage preferred pairs are used only when that probe is bothOk.
    */
