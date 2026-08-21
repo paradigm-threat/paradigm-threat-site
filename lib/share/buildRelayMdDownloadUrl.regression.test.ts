@@ -11,10 +11,10 @@ describe('buildRelayMdDownloadUrl', () => {
   it('builds encoded mirror URL', () => {
     assert.equal(
       buildRelayMdDownloadUrl(
-        'https://paradigm-threat-files.dfw1.relaygateway.net',
+        'https://paradigm-threat-files.iad1.relaygateway.net',
         'science/computing/foo.md',
       ),
-      'https://paradigm-threat-files.dfw1.relaygateway.net/science/computing/foo.md',
+      'https://paradigm-threat-files.iad1.relaygateway.net/science/computing/foo.md',
     )
   })
 

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { describe, it, before, after } from 'node:test'
 
-const FILES_BASE = 'https://paradigm-threat-files.dfw1.relaygateway.net'
-const TIMELINE_BASE = 'https://paradigm-threat-timeline.dfw1.relaygateway.net'
+const FILES_BASE = 'https://paradigm-threat-files.iad1.relaygateway.net'
+const TIMELINE_BASE = 'https://paradigm-threat-timeline.iad1.relaygateway.net'
 
 describe('processImageProps (Relay mirrors, never /api/image)', () => {
   const prevFiles = process.env.NEXT_PUBLIC_FILES_BASE_URL
@@ -28,7 +28,7 @@ describe('processImageProps (Relay mirrors, never /api/image)', () => {
     })
     assert.match(
       String(out.optimizedSrc),
-      /^https:\/\/paradigm-threat-files\.dfw1\.relaygateway\.net\/history\/chronology\/napoleon/,
+      /^https:\/\/paradigm-threat-files\.iad1\.relaygateway\.net\/history\/chronology\/napoleon/,
     )
     assert.match(String(out.optimizedSrc), /\?w=800/)
     assert.doesNotMatch(String(out.optimizedSrc), /\/api\/image/)
@@ -46,7 +46,7 @@ describe('processImageProps (Relay mirrors, never /api/image)', () => {
     )
     assert.equal(
       out.optimizedSrc,
-      'https://paradigm-threat-files.dfw1.relaygateway.net/history/chronology/foo.png?w=400',
+      'https://paradigm-threat-files.iad1.relaygateway.net/history/chronology/foo.png?w=400',
     )
     assert.doesNotMatch(String(out.optimizedSrc), /\/api\/image/)
   })
@@ -59,7 +59,7 @@ describe('processImageProps (Relay mirrors, never /api/image)', () => {
     })
     assert.equal(
       out.optimizedSrc,
-      'https://paradigm-threat-files.dfw1.relaygateway.net/influence/conspiracy/embedding.jpg?w=360',
+      'https://paradigm-threat-files.iad1.relaygateway.net/influence/conspiracy/embedding.jpg?w=360',
     )
     assert.doesNotMatch(String(out.optimizedSrc), /\/api\/image/)
   })
@@ -85,7 +85,7 @@ describe('processImageProps (Relay mirrors, never /api/image)', () => {
     })
     assert.equal(
       out.portraitOptimizedSrc,
-      'https://paradigm-threat-files.dfw1.relaygateway.net/governance/war/presidential-alignment-scorecard-au046-portrait.png?w=800',
+      'https://paradigm-threat-files.iad1.relaygateway.net/governance/war/presidential-alignment-scorecard-au046-portrait.png?w=800',
     )
     assert.equal(
       out.portraitRepoRel,

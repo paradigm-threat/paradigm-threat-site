@@ -9,7 +9,12 @@ import {
   rebuildFilesCatalogTree,
 } from '@/lib/queryCatalog'
 import { queryRelayOrigin, type RelayQueryEnvelope } from '@/lib/relayQuery'
-import { getPrimaryFilesBaseUrl, getPrimaryTimelineBaseUrl } from '@/lib/urlListEnv'
+import {
+  getPrimaryFilesBaseUrl,
+  getPrimaryTimelineBaseUrl,
+  getTimelineBaseUrlList,
+  rewriteRetiredRelayOrigin,
+} from '@/lib/urlListEnv'
 import type { TimelineData } from '@/components/TimelineContext'
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
 
@@ -86,31 +91,43 @@ export async function queryTimelineFilesTree (
 
 /** Timeline event graph via QUERY (collection `events`, else `index` if it holds events). */
 export async function queryTimelineEventsData (
-  origin = getPrimaryTimelineBaseUrl(),
+  preferredOrigin = getPrimaryTimelineBaseUrl(),
   signal?: AbortSignal,
 ): Promise<TimelineData | null> {
-  try {
-    let env = await queryRelayOrigin(origin, {
-      collection: 'events',
-      query: '',
-      limit: 10_000,
-      order: 'sort_key',
-      signal,
-    })
-    if (!isEventsCatalog(env)) {
-      env = await queryRelayOrigin(origin, {
-        collection: 'index',
+  const preferred = rewriteRetiredRelayOrigin((preferredOrigin || '').trim()).replace(/\/+$/, '')
+  const configured = getTimelineBaseUrlList()
+  const origins = preferred
+    ? [preferred, ...configured.filter((o) => o !== preferred)]
+    : configured.length > 0
+      ? configured
+      : [getPrimaryTimelineBaseUrl()]
+
+  for (const origin of origins) {
+    try {
+      let env = await queryRelayOrigin(origin, {
+        collection: 'events',
         query: '',
         limit: 10_000,
         order: 'sort_key',
         signal,
       })
+      if (!isEventsCatalog(env)) {
+        env = await queryRelayOrigin(origin, {
+          collection: 'index',
+          query: '',
+          limit: 10_000,
+          order: 'sort_key',
+          signal,
+        })
+      }
+      if (isEventsCatalog(env)) {
+        return eventsRowsToTimelineData(env.results)
+      }
+    } catch {
+      // try next mirror
     }
-    if (!isEventsCatalog(env)) return null
-    return eventsRowsToTimelineData(env.results)
-  } catch {
-    return null
   }
+  return null
 }
 
 export async function queryMergedSearchIndex (

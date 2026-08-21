@@ -5,12 +5,12 @@ describe('joinRepoRelativePath', () => {
   it('does not duplicate repo dir when src is already repo-root-relative under mirror article base', async () => {
     const { joinRepoRelativePath } = await import('./repoRelativePath.ts')
     const base =
-      'https://paradigm-threat-files.dfw1.relaygateway.net/events/false_flag/investigations'
+      'https://paradigm-threat-files.iad1.relaygateway.net/events/false_flag/investigations'
     const src =
       '/events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation.png?w=1200'
     assert.equal(
       joinRepoRelativePath(base, src),
-      'https://paradigm-threat-files.dfw1.relaygateway.net/events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation.png?w=1200',
+      'https://paradigm-threat-files.iad1.relaygateway.net/events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation.png?w=1200',
     )
   })
 

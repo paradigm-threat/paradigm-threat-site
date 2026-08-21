@@ -3,13 +3,17 @@
  */
 
 export const DEFAULT_PIPER_API_BASES = [
-  'https://dfw1.relaygateway.net',
   'https://iad1.relaygateway.net',
   'https://hkg1.relaygateway.net',
+  'https://sjc1.relaygateway.net',
 ] as const
 
 function normalizeBaseUrl (raw: string): string {
-  return raw.trim().replace(/lon1\.relaygateway\.net/gi, 'iad1.relaygateway.net').replace(/\/+$/, '')
+  return raw
+    .trim()
+    .replace(/lon1\.relaygateway\.net/gi, 'iad1.relaygateway.net')
+    .replace(/dfw1\.relaygateway\.net/gi, 'iad1.relaygateway.net')
+    .replace(/\/+$/, '')
 }
 
 function parseBases (raw: string | undefined): string[] {

@@ -7,7 +7,7 @@ describe('markdownToSeoHtml', () => {
 
   before(() => {
     process.env.NEXT_PUBLIC_FILES_BASE_URL =
-      'https://paradigm-threat-files.dfw1.relaygateway.net'
+      'https://paradigm-threat-files.iad1.relaygateway.net'
   })
 
   after(() => {
@@ -25,7 +25,7 @@ describe('markdownToSeoHtml', () => {
     const html = markdownToSeoHtml('![alt](./img.jpg)', { basePath: 'blog' })
     assert.match(
       html,
-      /src="https:\/\/paradigm-threat-files\.dfw1\.relaygateway\.net\/blog\/img\.jpg\?w=800"/,
+      /src="https:\/\/paradigm-threat-files\.iad1\.relaygateway\.net\/blog\/img\.jpg\?w=800"/,
     )
   })
 

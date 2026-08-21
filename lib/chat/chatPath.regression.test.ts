@@ -70,8 +70,8 @@ Bootstrap message`
 
 describe('chatRelayOrigin', () => {
   it('derives site repo host from files mirror', () => {
-    const origin = chatRelayOriginFromFilesOrigin('https://paradigm-threat-files.dfw1.relaygateway.net')
-    assert.equal(origin, 'https://paradigm-threat-site.dfw1.relaygateway.net')
+    const origin = chatRelayOriginFromFilesOrigin('https://paradigm-threat-files.iad1.relaygateway.net')
+    assert.equal(origin, 'https://paradigm-threat-site.iad1.relaygateway.net')
     assert.equal(CHAT_RELAY_BRANCH, 'chat/public')
   })
 })

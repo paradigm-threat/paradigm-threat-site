@@ -9,6 +9,7 @@ const DEFAULT_TIMELINE_ORIGIN = 'https://paradigm-threat-timeline-a77fe2.gitlab.
 /** Recycled Spot nodes — rewrite so stale env / localStorage cannot probe a dead host. */
 const RETIRED_RELAY_HOST_REWRITES: Array<[RegExp, string]> = [
   [/lon1\.relaygateway\.net/gi, 'iad1.relaygateway.net'],
+  [/dfw1\.relaygateway\.net/gi, 'iad1.relaygateway.net'],
 ]
 
 export function rewriteRetiredRelayOrigin (origin: string): string {
@@ -54,8 +55,8 @@ export interface RelayOriginPair {
 }
 
 /**
- * Shared node host for pairing files + timeline (e.g. dfw1.relaygateway.net).
- * Strips the leading repo label so list order cannot zip dfw1 files with iad1 timeline.
+ * Shared node host for pairing files + timeline (e.g. iad1.relaygateway.net).
+ * Strips the leading repo label so list order cannot zip iad1 files with hkg1 timeline.
  */
 export function relayPairNodeKey(origin: string): string {
   try {
@@ -70,7 +71,7 @@ export function relayPairNodeKey(origin: string): string {
 
 /**
  * Pair files and timeline origins by node hostname when both lists share a node
- * (`dfw1` / `iad1` / `hkg1`). Unmatched leftovers zip by remaining order; a shorter
+ * (`iad1` / `hkg1` / `sjc1`). Unmatched leftovers zip by remaining order; a shorter
  * leftover list reuses its last entry. Order follows the files list.
  */
 export function zipRelayPairs(files: string[], timeline: string[]): RelayOriginPair[] {
