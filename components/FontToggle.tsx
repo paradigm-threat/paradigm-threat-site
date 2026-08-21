@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { loadDeferredContentFonts } from '@/lib/deferredContentFonts'
 
 type FontKey = 'garamond' | 'franklin' | 'mono'
 
@@ -17,6 +18,9 @@ const FONT_STYLES: Record<FontKey, string> = {
 }
 
 function applyFont(key: FontKey) {
+    if (key !== 'garamond') {
+        loadDeferredContentFonts()
+    }
     if (key === 'garamond') {
         document.documentElement.removeAttribute('data-font')
     } else {

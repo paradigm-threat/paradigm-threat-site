@@ -1,3 +1,5 @@
+/* Critical path: Titillium (UI/LCP) + EB Garamond roman (latin woff2 ~40KB).
+ * Italic / Franklin / Mono: /fonts/content-fonts-deferred.css after first paint. */
 @font-face {
   font-family: 'Titillium Web';
   src: url('/fonts/TitilliumWeb-Regular.woff2') format('woff2');
@@ -11,7 +13,7 @@
   src: url('/fonts/TitilliumWeb-Italic.woff2') format('woff2');
   font-weight: 400;
   font-style: italic;
-  font-display: swap;
+  font-display: optional;
 }
 
 @font-face {
@@ -24,49 +26,9 @@
 
 @font-face {
   font-family: 'EB Garamond';
-  src: url('/fonts/EBGaramond-Variable.ttf') format('truetype');
+  src: url('/fonts/EBGaramond-latin.woff2') format('woff2');
   font-weight: 100 900;
   font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'EB Garamond';
-  src: url('/fonts/EBGaramond-Italic-Variable.ttf') format('truetype');
-  font-weight: 100 900;
-  font-style: italic;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Libre Franklin';
-  src: url('/fonts/LibreFranklin-Variable.ttf') format('truetype');
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Libre Franklin';
-  src: url('/fonts/LibreFranklin-Italic-Variable.ttf') format('truetype');
-  font-weight: 100 900;
-  font-style: italic;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'JetBrains Mono';
-  src: url('/fonts/JetBrainsMono-Variable.ttf') format('truetype');
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'JetBrains Mono';
-  src: url('/fonts/JetBrainsMono-Italic-Variable.ttf') format('truetype');
-  font-weight: 100 900;
-  font-style: italic;
   font-display: swap;
 }
 
@@ -93,6 +55,14 @@ html[data-font="mono"] {
     user-select: none;
     -webkit-user-select: none;
   }
+}
+
+/*
+ * Stable main-column height while CatchAllPageSkeleton → article swaps (CLS).
+ * Field CLS ~0.45–0.71 was driven by a short skeleton collapsing into tall content.
+ */
+.article-shell-reserve {
+  min-height: min(70vh, 42rem);
 }
 
 /* Enable selection for content only */

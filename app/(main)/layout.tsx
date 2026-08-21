@@ -45,7 +45,7 @@ export default function MainLayout({
                     </FloatingDiv>
                 </aside>
 
-                <main className="mx-auto w-full min-w-0 max-w-4xl flex-grow">
+                <main className="article-shell-reserve mx-auto w-full min-w-0 max-w-4xl flex-grow">
                     <RemoteFileIndexBanner />
                     <Suspense fallback={<SuspenseLoader />}>
                         {children}

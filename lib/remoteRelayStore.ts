@@ -115,12 +115,18 @@ export type RelayNotifyEvent =
 
 /** Dead mirrors must fail fast so dfw1 is not blocked on a retired-node TCP hang. */
 const PROBE_TIMEOUT_MS = 2000
+/** After a healthy peer wins, abort remaining probes so hkg1 cannot burn bandwidth during LCP. */
+const PROBE_LOSER_ABORT_MS = 50
+/** Delay before probing non-primary mirrors so iad1/sticky can win first paint. */
+const PROBE_SECONDARY_DELAY_MS = 280
 const MD_FETCH_TIMEOUT_MS = 12_000
 /** Full catalog QUERY; keep below old 60s so slow mirrors failover sooner. */
 const INDEX_FETCH_TIMEOUT_MS = 20_000
 
 /** Persisted manual relay selection (survives refresh). Failover does not overwrite. */
 const RELAY_PREFERRED_PAIR_KEY = 'paradigm-threat-relay-preferred-pair'
+/** Last automatically healthy pair (MD/bootstrap). Used as sticky origin before probes finish. */
+const RELAY_LAST_GOOD_PAIR_KEY = 'paradigm-threat-relay-last-good-pair'
 
 function normalizeStoredOrigin(s: string): string {
   return s.trim().replace(/\/+$/, '')
@@ -208,6 +214,8 @@ class RemoteRelayStore {
   private notifyListeners = new Set<(e: RelayNotifyEvent) => void>()
   /** Stable reference for useSyncExternalStore until emit() invalidates. */
   private snapshotCache: RemoteRelaySnapshot | null = null
+  /** Aborts in-flight loser probes after the first healthy peer wins bootstrap. */
+  private probeAbort: AbortController | null = null
 
   subscribe(cb: () => void): () => void {
     this.listeners.add(cb)
@@ -239,8 +247,45 @@ class RemoteRelayStore {
     const timeline = getTimelineBaseUrlList()
     this.pairs = zipRelayPairs(files, timeline)
     if (!this.filesOrigin && this.pairs.length > 0) {
-      this.filesOrigin = this.pairs[0]!.files
-      this.timelineOrigin = this.pairs[0]!.timeline
+      // Prefer sticky last-good / manual preferred so page.md hits a fast peer before probes finish.
+      // matchStoredPairKey must not call ensurePairs (would recurse).
+      const sticky =
+        this.matchStoredPairKey(RELAY_PREFERRED_PAIR_KEY) ??
+        this.matchStoredPairKey(RELAY_LAST_GOOD_PAIR_KEY)
+      const initial = sticky ?? this.pairs[0]!
+      this.filesOrigin = initial.files
+      this.timelineOrigin = initial.timeline
+    }
+  }
+
+  /** Resolve a stored origin pair against `this.pairs` (caller must have set pairs). */
+  private matchStoredPairKey(storageKey: string): RelayOriginPair | null {
+    if (typeof window === 'undefined') return null
+    try {
+      const raw = window.localStorage.getItem(storageKey)
+      if (!raw) return null
+      const parsed = JSON.parse(raw) as { files?: unknown; timeline?: unknown }
+      const files = rewriteRetiredRelayOrigin(
+        typeof parsed.files === 'string' ? normalizeStoredOrigin(parsed.files) : '',
+      )
+      const timeline = rewriteRetiredRelayOrigin(
+        typeof parsed.timeline === 'string' ? normalizeStoredOrigin(parsed.timeline) : '',
+      )
+      if (!files || !timeline) return null
+      const match = this.pairs.find((pair) => pair.files === files && pair.timeline === timeline)
+      if (match && (match.files !== parsed.files || match.timeline !== parsed.timeline)) {
+        try {
+          window.localStorage.setItem(
+            storageKey,
+            JSON.stringify({ files: match.files, timeline: match.timeline }),
+          )
+        } catch {
+          /* ignore */
+        }
+      }
+      return match ?? null
+    } catch {
+      return null
     }
   }
 
@@ -282,6 +327,7 @@ class RemoteRelayStore {
     this.filesOrigin = p.files
     this.timelineOrigin = p.timeline
     this.bootstrapDone = true
+    this.persistLastGoodPair(p)
     this.emit()
     this.emitNotify({
       type: 'ready',
@@ -368,12 +414,14 @@ class RemoteRelayStore {
     return this.bootstrapP
   }
 
-  private async probePair(p: RelayOriginPair): Promise<ProbeResult> {
+  private async probePair(p: RelayOriginPair, parentSignal?: AbortSignal): Promise<ProbeResult> {
     const start = t0()
     let filesOk = false
     let timelineOk = false
     try {
-      const signal = AbortSignal.timeout(PROBE_TIMEOUT_MS)
+      const signal = parentSignal
+        ? mergeAbort(parentSignal, PROBE_TIMEOUT_MS)
+        : AbortSignal.timeout(PROBE_TIMEOUT_MS)
       const headers = {
         'content-type': 'application/json',
         accept: 'application/json',
@@ -405,7 +453,7 @@ class RemoteRelayStore {
       }
       timelineOk = rt.ok
     } catch {
-      /* leave flags false */
+      /* leave flags false (timeout / abort / network) */
     }
     const ms = t0() - start
     const bothOk = filesOk && timelineOk
@@ -419,27 +467,8 @@ class RemoteRelayStore {
   }
 
   private readStoredPreferredPair(): RelayOriginPair | null {
-    if (typeof window === 'undefined') return null
     this.ensurePairs()
-    try {
-      const raw = window.localStorage.getItem(RELAY_PREFERRED_PAIR_KEY)
-      if (!raw) return null
-      const parsed = JSON.parse(raw) as { files?: unknown; timeline?: unknown }
-      const files = rewriteRetiredRelayOrigin(
-        typeof parsed.files === 'string' ? normalizeStoredOrigin(parsed.files) : '',
-      )
-      const timeline = rewriteRetiredRelayOrigin(
-        typeof parsed.timeline === 'string' ? normalizeStoredOrigin(parsed.timeline) : '',
-      )
-      if (!files || !timeline) return null
-      const match = this.pairs.find((pair) => pair.files === files && pair.timeline === timeline)
-      if (match && (match.files !== parsed.files || match.timeline !== parsed.timeline)) {
-        this.persistPreferredPair(match)
-      }
-      return match ?? null
-    } catch {
-      return null
-    }
+    return this.matchStoredPairKey(RELAY_PREFERRED_PAIR_KEY)
   }
 
   private persistPreferredPair(p: RelayOriginPair): void {
@@ -447,6 +476,23 @@ class RemoteRelayStore {
     try {
       window.localStorage.setItem(
         RELAY_PREFERRED_PAIR_KEY,
+        JSON.stringify({ files: p.files, timeline: p.timeline }),
+      )
+    } catch {
+      /* quota / private mode */
+    }
+  }
+
+  private readStoredLastGoodPair(): RelayOriginPair | null {
+    this.ensurePairs()
+    return this.matchStoredPairKey(RELAY_LAST_GOOD_PAIR_KEY)
+  }
+
+  private persistLastGoodPair(p: RelayOriginPair): void {
+    if (typeof window === 'undefined') return
+    try {
+      window.localStorage.setItem(
+        RELAY_LAST_GOOD_PAIR_KEY,
         JSON.stringify({ files: p.files, timeline: p.timeline }),
       )
     } catch {
@@ -486,9 +532,10 @@ class RemoteRelayStore {
   }
 
   /**
-   * Race pair probes: first healthy same-node pair wins bootstrap so a hung retired node
-   * cannot block dfw1. Remaining probes keep filling the selector. Stale
-   * localStorage preferred pairs are used only when that probe is bothOk.
+   * Race pair probes with a fast-path bias: sticky last-good / preferred / env-first
+   * (iad1) is provisional immediately and probed first. Secondary mirrors start after a
+   * short delay so a slow hkg1 probe cannot compete with first paint. First healthy
+   * pair wins; remaining probes are aborted. Preferred does not block a faster peer.
    */
   private async runBootstrap(): Promise<void> {
     this.ensurePairs()
@@ -499,8 +546,19 @@ class RemoteRelayStore {
     }
 
     const preferredEarly = this.readStoredPreferredPair()
-    const warmOrigin = this.pairs[0]?.files
-    if (warmOrigin) this.warmFilesCatalog(warmOrigin)
+    const lastGood = this.readStoredLastGoodPair()
+    // Seed origin before probes so page.md can race the first peer immediately.
+    // Do not warm the full catalog here — it races page.md for bandwidth (LCP).
+    const seed = preferredEarly ?? lastGood ?? this.pairs[0]!
+    if (seed.files !== this.filesOrigin || seed.timeline !== this.timelineOrigin) {
+      this.filesOrigin = seed.files
+      this.timelineOrigin = seed.timeline
+      this.emit()
+    }
+
+    this.probeAbort?.abort()
+    this.probeAbort = new AbortController()
+    const probeSignal = this.probeAbort.signal
 
     await new Promise<void>((resolve) => {
       let settled = false
@@ -509,40 +567,56 @@ class RemoteRelayStore {
       const finish = (p: RelayOriginPair) => {
         if (settled) return
         settled = true
-        if (p.files !== warmOrigin) this.warmFilesCatalog(p.files)
+        // Abort loser probes shortly after win so slow mirrors stop competing with page.md.
+        window.setTimeout(() => this.probeAbort?.abort(), PROBE_LOSER_ABORT_MS)
         this.finishBootstrap(p)
         resolve()
       }
 
       const consider = (r: ProbeResult) => {
-        if (settled) return
-        const isPreferred =
-          !!preferredEarly &&
-          r.pair.files === preferredEarly.files &&
-          r.pair.timeline === preferredEarly.timeline
-        if (isPreferred) {
-          if (r.bothOk) finish(preferredEarly)
-          return
-        }
-        if (r.bothOk) finish(r.pair)
+        if (settled || !r.bothOk) return
+        finish(r.pair)
       }
 
-      void Promise.all(
-        this.pairs.map(async (p, idx) => {
-          const r = await this.probePair(p)
-          results[idx] = r
-          this.writeProbeAt(idx, r)
-          consider(r)
-        }),
-      ).then(() => {
+      const primaryIdx = Math.max(
+        0,
+        this.pairs.findIndex((p) => p.files === seed.files && p.timeline === seed.timeline),
+      )
+
+      const runOne = async (idx: number) => {
+        if (settled || probeSignal.aborted) return
+        const p = this.pairs[idx]!
+        const r = await this.probePair(p, probeSignal)
+        results[idx] = r
+        this.writeProbeAt(idx, r)
+        consider(r)
+      }
+
+      void runOne(primaryIdx)
+
+      const secondaryIdxs = this.pairs.map((_, idx) => idx).filter((idx) => idx !== primaryIdx)
+      if (secondaryIdxs.length > 0) {
+        window.setTimeout(() => {
+          if (settled || probeSignal.aborted) return
+          for (const idx of secondaryIdxs) void runOne(idx)
+        }, PROBE_SECONDARY_DELAY_MS)
+      }
+
+      void (async () => {
+        // Wait until every slot has a result or bootstrap settled / aborted.
+        const deadline = Date.now() + PROBE_TIMEOUT_MS + PROBE_SECONDARY_DELAY_MS + 500
+        while (!settled && Date.now() < deadline) {
+          if (results.every((r) => r != null) || probeSignal.aborted) break
+          await new Promise((r) => setTimeout(r, 40))
+        }
         if (settled) return
         const filled = results.filter((r): r is ProbeResult => r != null)
-        const best = this.pickBestFromProbeResults(filled)
-        finish(best)
-      }).catch(() => {
-        if (settled) return
-        finish(this.pairs[0]!)
-      })
+        if (filled.length > 0) {
+          finish(this.pickBestFromProbeResults(filled))
+        } else {
+          finish(seed)
+        }
+      })()
     })
   }
 
@@ -785,6 +859,7 @@ class RemoteRelayStore {
           if (p.files !== this.filesOrigin || p.timeline !== this.timelineOrigin) {
             this.switchToPair(p, 'md_failover')
           }
+          this.persistLastGoodPair(p)
           return { body, relPath }
         } catch (e) {
           lastErr = e instanceof Error ? e : new Error(String(e))

@@ -49,7 +49,10 @@ describe('PWA / PopImage hardening markers', () => {
   it('relay probes fail dead mirrors in 2s and race first healthy pair', () => {
     const src = readFileSync(join(root, 'lib/remoteRelayStore.ts'), 'utf8')
     assert.match(src, /PROBE_TIMEOUT_MS = 2000/)
-    assert.match(src, /first healthy same-node pair wins bootstrap/)
+    assert.match(src, /PROBE_SECONDARY_DELAY_MS/)
+    assert.match(src, /First healthy/)
+    assert.match(src, /RELAY_LAST_GOOD_PAIR_KEY/)
+    assert.match(src, /probeAbort/)
     assert.match(src, /void this\.bootstrap\(\)/)
     assert.doesNotMatch(src, /await this\.bootstrap\(\)/)
   })
@@ -67,5 +70,24 @@ describe('PWA / PopImage hardening markers', () => {
     assert.match(src, /TitilliumWeb-Regular\.woff2/)
     assert.match(src, /TitilliumWeb-Italic\.woff2/)
     assert.match(src, /TitilliumWeb-Bold\.woff2/)
+    assert.match(src, /EBGaramond-latin\.woff2/)
+    assert.doesNotMatch(src, /EBGaramond-Variable\.ttf/)
+  })
+
+  it('CatchAllPageSkeleton reserves article-shell height for CLS', () => {
+    const src = readFileSync(join(root, 'components/content/CatchAllPageSkeleton.tsx'), 'utf8')
+    assert.match(src, /article-shell-reserve/)
+    assert.doesNotMatch(src, /className="[^"]*min-h-screen/)
+    const css = readFileSync(join(root, 'app/site/globals.scss'), 'utf8')
+    assert.match(css, /\.article-shell-reserve/)
+  })
+
+  it('root layout is a Server Component with font preloads', () => {
+    const src = readFileSync(join(root, 'app/layout.tsx'), 'utf8')
+    assert.doesNotMatch(src, /^['"]use client['"]/m)
+    assert.match(src, /RootProviders/)
+    assert.match(src, /TitilliumWeb-Regular\.woff2/)
+    assert.match(src, /EBGaramond-latin\.woff2/)
+    assert.doesNotMatch(src, /NEXT_PUBLIC_SERVER_RELAY_FETCH\s*=/)
   })
 })
