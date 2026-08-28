@@ -27,16 +27,16 @@ describe('filesCatalogCache', () => {
 
   it('remembers tree and indexed entries by origin', () => {
     const tree = rememberFilesCatalogFromEnvelope(
-      'https://dfw1.example/paradigm-threat-files',
+      'https://iad1.example/paradigm-threat-files',
       env([{ path: 'a/b.md', title: 'B', _keywords: '#x' }]),
     )
     assert.ok(tree)
     assert.deepEqual(
-      getCachedFilesCatalogTree('https://dfw1.example/paradigm-threat-files/'),
+      getCachedFilesCatalogTree('https://iad1.example/paradigm-threat-files/'),
       tree,
     )
     assert.equal(getCachedFilesCatalogTree('https://lon1.example/paradigm-threat-files'), null)
-    const entries = getCachedFilesIndexedEntries('https://dfw1.example/paradigm-threat-files')
+    const entries = getCachedFilesIndexedEntries('https://iad1.example/paradigm-threat-files')
     assert.ok(entries?.some((e) => e.path === 'a/b.md'))
   })
 
@@ -47,7 +47,7 @@ describe('filesCatalogCache', () => {
       await new Promise((r) => setTimeout(r, 20))
       return env([{ path: 'only.md', title: 'Only' }])
     }
-    const origin = 'https://dfw1.example/paradigm-threat-files'
+    const origin = 'https://iad1.example/paradigm-threat-files'
     const [a, b] = await Promise.all([
       loadFilesCatalogCached(origin, loader),
       loadFilesCatalogCached(origin, loader),

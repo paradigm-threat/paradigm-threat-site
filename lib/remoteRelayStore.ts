@@ -19,7 +19,7 @@ export function relayHostLabel(origin: string): string {
   }
 }
 
-/** Short node id from mirror origin (e.g. dfw1 from paradigm-threat-files.dfw1.relaygateway.net). */
+/** Short node id from mirror origin (e.g. iad1 from paradigm-threat-files.iad1.relaygateway.net). */
 export function relayNodeId(filesOrigin: string): string {
   if (!filesOrigin) return ''
   try {
@@ -39,7 +39,7 @@ function hostDotLabels(host: string): string[] {
 }
 
 /**
- * Shared server hostname for a mirror pair (e.g. dfw1.relaygateway.net).
+ * Shared server hostname for a mirror pair (e.g. iad1.relaygateway.net).
  * Works for any domain: compares files + timeline hosts from the right;
  * falls back to files host without the leading repo label.
  */
@@ -78,7 +78,7 @@ export type RelayPairProbe = {
 
 export type RelayPairOption = {
   idx: number
-  /** Full server host (e.g. dfw1.relaygateway.net), not repo subdomains. */
+  /** Full server host (e.g. iad1.relaygateway.net), not repo subdomains. */
   serverHost: string
   latencyMs: number | null
   live: boolean
@@ -113,7 +113,7 @@ export type RelayNotifyEvent =
       serverLabel: string
     }
 
-/** Dead mirrors must fail fast so dfw1 is not blocked on a retired-node TCP hang. */
+/** Dead mirrors must fail fast so primary is not blocked on a retired-node TCP hang. */
 const PROBE_TIMEOUT_MS = 2000
 /** After a healthy peer wins, abort remaining probes so hkg1 cannot burn bandwidth during LCP. */
 const PROBE_LOSER_ABORT_MS = 50

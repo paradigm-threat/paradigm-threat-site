@@ -257,10 +257,12 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
                         />
 
                         <div className="border-t border-slate-200 dark:border-slate-800 pt-4">
-                            <div className="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                                Directory
-                            </div>
-                            <DynamicNav directory={fileList} className="flex flex-col" />
+                            <nav aria-label="Site directory" className="contents">
+                                <div className="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                                    Directory
+                                </div>
+                                <DynamicNav directory={fileList} className="flex flex-col" />
+                            </nav>
                             <div className="px-4 mt-3 space-y-3">
                                 <ResumeInvestigationPanel />
                                 <FeelingLuckyButton />

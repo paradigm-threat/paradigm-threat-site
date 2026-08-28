@@ -5,7 +5,7 @@
  * Usage:
  *   npm run smoke:prod
  *   SMOKE_BASE_URL=https://staging.example npm run smoke:prod
- *   SMOKE_FILES_MIRROR=https://paradigm-threat-files.dfw1.relaygateway.net npm run smoke:prod
+ *   SMOKE_FILES_MIRROR=https://paradigm-threat-files.iad1.relaygateway.net npm run smoke:prod
  *
  * Exit 0 on success, 1 on any failure.
  */
@@ -20,11 +20,11 @@ function firstOrigin (raw, fallback) {
 
 const FILES_MIRROR = firstOrigin(
   process.env.SMOKE_FILES_MIRROR || process.env.NEXT_PUBLIC_FILES_BASE_URL,
-  'https://paradigm-threat-files.dfw1.relaygateway.net',
+  'https://paradigm-threat-files.iad1.relaygateway.net',
 )
 const TIMELINE_MIRROR = firstOrigin(
   process.env.SMOKE_TIMELINE_MIRROR || process.env.NEXT_PUBLIC_TIMELINE_BASE_URL,
-  'https://paradigm-threat-timeline.dfw1.relaygateway.net',
+  'https://paradigm-threat-timeline.iad1.relaygateway.net',
 )
 const CHAT_MIRROR = firstOrigin(
   process.env.SMOKE_CHAT_MIRROR ||
@@ -32,14 +32,14 @@ const CHAT_MIRROR = firstOrigin(
     (FILES_MIRROR.includes('paradigm-threat-files.')
       ? FILES_MIRROR.replace('paradigm-threat-files.', 'paradigm-threat-site.')
       : ''),
-  'https://paradigm-threat-site.dfw1.relaygateway.net',
+  'https://paradigm-threat-site.iad1.relaygateway.net',
 )
 
 function piperBases () {
   const raw =
     process.env.PIPER_API_URLS ||
     process.env.NEXT_PUBLIC_PIPER_API_URLS ||
-    'https://dfw1.relaygateway.net https://iad1.relaygateway.net https://hkg1.relaygateway.net'
+    'https://iad1.relaygateway.net https://sjc1.relaygateway.net https://hkg1.relaygateway.net'
   return raw
     .trim()
     .split(/\s+/)

@@ -6,7 +6,7 @@ import { resolveSeoArticleInternalNavHref } from '@/lib/resolveSeoArticleInterna
 
 export function SeoArticleBody ({ html }: { html: string }) {
   const router = useRouter()
-  const articleRef = useRef<HTMLElement>(null)
+  const articleRef = useRef<HTMLDivElement>(null)
 
   const onClickCapture = useCallback(
     (e: React.MouseEvent<HTMLElement>) => {
@@ -37,7 +37,7 @@ export function SeoArticleBody ({ html }: { html: string }) {
   )
 
   return (
-    <article
+    <div
       ref={articleRef}
       className="seo-article mdx-content"
       data-seo-fallback="true"

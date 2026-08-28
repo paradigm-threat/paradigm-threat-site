@@ -7,7 +7,7 @@ function filesBaseUrl (): string {
   return (
     process.env.PLAYWRIGHT_FILES_BASE_URL ||
     process.env.NEXT_PUBLIC_FILES_BASE_URL ||
-    'https://dfw1.relaygateway.net/paradigm-threat-files'
+    'https://iad1.relaygateway.net/paradigm-threat-files'
   ).replace(/\/+$/, '')
 }
 

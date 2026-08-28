@@ -50,7 +50,7 @@ describe('Dynamic Site Specification', () => {
     });
 
     it('dynamically visits sample pages from QUERY catalog and detects critical errors', () => {
-        const baseUrl = (Cypress.env('NEXT_PUBLIC_FILES_BASE_URL') || 'https://dfw1.relaygateway.net/paradigm-threat-files').replace(/\/+$/, '');
+        const baseUrl = (Cypress.env('NEXT_PUBLIC_FILES_BASE_URL') || 'https://iad1.relaygateway.net/paradigm-threat-files').replace(/\/+$/, '');
 
         cy.request({
             method: 'QUERY',

@@ -1,15 +1,21 @@
 'use client'
 
 import React, { useEffect, useRef, useState, useCallback } from 'react'
-interface FloatingDivProps {
+interface FloatingDivProps extends React.HTMLAttributes<HTMLElement> {
     children: React.ReactNode
-    containerTag?: string
+    containerTag?: React.ElementType
     className?: string
     /** When true, hide the floating Back to top button (e.g. when page has its own combined playback/scroll control) */
     hideFloatingButtons?: boolean
 }
 
-export default function FloatingDiv({ children, containerTag, className, hideFloatingButtons }: FloatingDivProps) {
+export default function FloatingDiv({
+    children,
+    containerTag,
+    className,
+    hideFloatingButtons,
+    ...containerProps
+}: FloatingDivProps) {
     const [isScrolling, setIsScrolling] = useState(false)
     const [activeSection, setActiveSection] = useState<string>('')
     const [headings, setHeadings] = useState<{ id: string, text: string, top: number }[]>([])
@@ -106,10 +112,11 @@ export default function FloatingDiv({ children, containerTag, className, hideFlo
         }
     }, [onScroll, updateHeadings])
 
-    const Container = (containerTag as any) || 'div'
+    const Container = containerTag || 'div'
 
     return (
         <Container
+            {...containerProps}
             className={`${className}`}
             style={{ height: containerHeight }}
             ref={refContainer}
