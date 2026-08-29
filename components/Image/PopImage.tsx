@@ -83,28 +83,36 @@ const PopImage = memo(function PopImage({ ...props }: PopImageProps) {
     const hasClear = userClasses.includes('clear-')
     const hasMargin = userClasses.includes('m-') || userClasses.includes('mx-') || userClasses.includes('my-')
 
-    const finalClassName = `${userClasses} ${!hasFloat && !hasClear ? 'clear-both' : ''} ${!hasMargin ? 'm-auto' : ''} w-fit cursor-pointer group shadow-lg hover:shadow-xl dark:shadow-blue-900/10 transition-shadow duration-300 rounded-xl overflow-hidden ring-1 ring-slate-200 dark:ring-slate-800 not-prose`
-
     const { className: _className, children: _children, basePath: _basePath, highResSrc: _highResSrc, ...optimizedImageProps } = srcProps;
 
+    // Outer <aside> keeps PopImage out of Reading Mode; click target stays on the inner control.
+    const figureLabel =
+        typeof alt === 'string' && alt.trim().length > 0 ? alt.trim() : 'Figure'
+
     return (
-        <div
-            id={safeImgId(src)}
-            className={finalClassName}
-            {...onToggle(toggleFullscreen)}
+        <aside
+            className={`${userClasses} ${!hasFloat && !hasClear ? 'clear-both' : ''} ${!hasMargin ? 'm-auto' : ''} w-fit not-prose`}
+            data-pt-popimage="true"
+            aria-label={figureLabel}
             style={{ maxWidth: srcProps.width ? `${srcProps.width}px` : '100%' }}
         >
-            <div className="relative group">
-                <OptimizedImage
-                    {...optimizedImageProps}
-                >
-                    {children}
-                </OptimizedImage>
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                    <Maximize2 className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" size={48} />
+            <div
+                id={safeImgId(src)}
+                className="cursor-pointer group shadow-lg hover:shadow-xl dark:shadow-blue-900/10 transition-shadow duration-300 rounded-xl overflow-hidden ring-1 ring-slate-200 dark:ring-slate-800"
+                {...onToggle(toggleFullscreen)}
+            >
+                <div className="relative group">
+                    <OptimizedImage
+                        {...optimizedImageProps}
+                    >
+                        {children}
+                    </OptimizedImage>
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center" aria-hidden="true">
+                        <Maximize2 className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" size={48} />
+                    </div>
                 </div>
             </div>
-        </div>
+        </aside>
     )
 })
 

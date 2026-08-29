@@ -1,7 +1,5 @@
 /**
- * paradigm-threat-files convention: `![### Heading` without `](url)` is a mis-prefixed heading.
- * pulldown-cmark treats it as a broken image and swallows following paragraphs.
+ * Transforms standalone markdown images into PopImage components.
+ * Re-exports the shared normalizer so client md2ast and SEO stay in sync.
  */
-export function normalizeParadigmMarkdown (source: string): string {
-  return source.replace(/^!\[(#{1,6}\s[^\n]+)$/gm, '$1')
-}
+export { normalizeParadigmMarkdown } from '@/lib/normalizeParadigmMarkdown'

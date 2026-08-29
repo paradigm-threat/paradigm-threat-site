@@ -90,4 +90,16 @@ describe('PWA / PopImage hardening markers', () => {
     assert.match(src, /EBGaramond-latin\.woff2/)
     assert.doesNotMatch(src, /NEXT_PUBLIC_SERVER_RELAY_FETCH\s*=/)
   })
+
+  it('PopImage wraps chrome in aside for Reading Mode exclusion', () => {
+    const src = readFileSync(join(root, 'components/Image/PopImage.tsx'), 'utf8')
+    assert.match(src, /<aside[\s\S]*data-pt-popimage="true"/)
+    assert.match(src, /normalizeParadigmMarkdown|Reading Mode/)
+  })
+
+  it('normalizeParadigmMarkdown strips HTML comments before md2ast', () => {
+    const src = readFileSync(join(root, 'lib/normalizeParadigmMarkdown.ts'), 'utf8')
+    assert.match(src, /<!--\[\\s\\S\]\*\?-->/)
+    assert.match(src, /popimage-portrait-sibling/)
+  })
 })
