@@ -52,15 +52,28 @@ describe('buildOptimizedAssetUrl', () => {
     assert.match(url, /\?w=800$/)
   })
 
-  it('listOptimizedAssetUrls preserves absolute https URLs (no mirror path mangling)', async () => {
+  it('listOptimizedAssetUrls rewrites canonical-site https URLs onto Relay mirrors (not a single http leftover)', async () => {
     const { buildOptimizedAssetUrl, listOptimizedAssetUrls } = await import('./relayOptimizedAssetUrl.ts')
     const abs =
       'https://paradigmthreat.net/influence/controlled_opposition/investigations/cave-story-header.png'
     const expected = buildOptimizedAssetUrl(abs, 800)
     const mirrors = listOptimizedAssetUrls(abs, 800)
-    assert.deepEqual(mirrors, [expected])
-    assert.match(expected, /\.relaygateway\.net\//)
-    assert.match(expected, /\?w=800$/)
-    assert.doesNotMatch(expected, /paradigmthreat\.net/)
+    assert.ok(mirrors.length >= 1)
+    assert.ok(mirrors.includes(expected))
+    for (const u of mirrors) {
+      assert.match(u, /\.relaygateway\.net\//)
+      assert.match(u, /\?w=800$/)
+      assert.doesNotMatch(u, /paradigmthreat\.net/)
+    }
+  })
+
+  it('normalizes canonical https before the absolute-URL early return so all files mirrors participate', async () => {
+    const { readFileSync } = await import('node:fs')
+    const src = readFileSync(new URL('./relayOptimizedAssetUrl.ts', import.meta.url), 'utf8')
+    const fn = src.slice(src.indexOf('export function listOptimizedAssetUrls'))
+    const normalizeAt = fn.indexOf('normalizePathForMirror(pathForAPI)')
+    const httpGate = fn.indexOf("pathForAPI.startsWith('http')")
+    assert.ok(normalizeAt >= 0, 'listOptimizedAssetUrls should normalize first')
+    assert.ok(httpGate > normalizeAt, 'http early-return must run after canonical→relative normalize')
   })
 })

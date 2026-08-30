@@ -7,6 +7,14 @@ import {
 } from '@/components/helpers/imageHelper'
 import { useFiles } from '@/components/FilesContext'
 import { catalogLeafAtPath } from '@/lib/catalogLeafAtPath'
+import {
+    LOAD_TIMEOUT_MS,
+    isPlaceholderSrc,
+    loadTimerAction,
+    nextLoadAttempt,
+    rasterLoadSucceeded,
+    retryLoadState,
+} from '@/components/Image/imageLoadFailover'
 import React, { useState, useEffect, useRef } from 'react'
 
 interface OptimizedImageProps {
@@ -32,17 +40,10 @@ const IMG_ATTRS = new Set([
     'fetchPriority',
 ])
 
-/** 1x1 transparent GIF — use instead of empty string to avoid browser "download whole page" warning */
-const EMPTY_SRC_PLACEHOLDER =
-    'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
-
-/** Hung Relay mirrors never fire onError — advance after this. */
-const LOAD_TIMEOUT_MS = 4000
-
 export default function OptimizedImage({ children, className, ...props }: OptimizedImageProps) {
     const srcProps: OptimizedImageProps = processImageProps({ ...props, className }, props.basePath)
     const { fileList } = useFiles()
-    const [isVisible, setIsVisible] = useState(false)
+    const [isVisible, setIsVisible] = useState(() => Boolean(props.priority))
     const [mirrorIndex, setMirrorIndex] = useState(0)
     /** Full-size decode finished — hide Relay LQIP underlay */
     const [lqipDismissed, setLqipDismissed] = useState(false)
@@ -78,24 +79,28 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
 
     useEffect(() => {
         if (priority) {
-            queueMicrotask(() => setIsVisible(true))
+            setIsVisible(true)
             return
         }
 
         const el = containerRef.current
         if (!el) return
 
-        const syncVisible = () => {
+        const scrollRoot = document.getElementById('site-main-scroll')
+
+        const inView = () => {
             const rect = el.getBoundingClientRect()
+            const rootRect = scrollRoot
+                ? scrollRoot.getBoundingClientRect()
+                : { top: 0, bottom: window.innerHeight }
             const margin = 200
-            if (rect.bottom >= -margin && rect.top <= window.innerHeight + margin) {
-                setIsVisible(true)
-                return true
-            }
-            return false
+            return rect.bottom >= rootRect.top - margin && rect.top <= rootRect.bottom + margin
         }
 
-        if (syncVisible()) return
+        if (inView()) {
+            setIsVisible(true)
+            return
+        }
 
         const observer = new IntersectionObserver(
             ([entry]) => {
@@ -104,14 +109,20 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
                     observer.disconnect()
                 }
             },
-            { rootMargin: '200px' },
+            { root: scrollRoot, rootMargin: '200px' },
         )
 
         observer.observe(el)
-        requestAnimationFrame(() => {
-            if (syncVisible()) observer.disconnect()
+        const raf = requestAnimationFrame(() => {
+            if (inView()) {
+                setIsVisible(true)
+                observer.disconnect()
+            }
         })
-        return () => observer.disconnect()
+        return () => {
+            observer.disconnect()
+            cancelAnimationFrame(raf)
+        }
     }, [priority])
 
     const portraitRel =
@@ -161,34 +172,67 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
         }
     }
 
-    const advanceMirror = () => {
+    const applyAttempt = (next: ReturnType<typeof nextLoadAttempt>) => {
         setLqipDismissed(false)
-        if (portraitConfirmed) setPortraitDisabled(true)
-        setMirrorIndex((i) => {
-            if (i + 1 < mirrorCount) return i + 1
-            queueMicrotask(() => setLoadFailed(true))
-            return i
-        })
+        if (next.disablePortrait) setPortraitDisabled(true)
+        setMirrorIndex(next.mirrorIndex)
+        if (next.bumpAttempt) setAttempt((a) => a + 1)
+        if (next.loadFailed) setLoadFailed(true)
+    }
+
+    const advanceMirror = () => {
+        applyAttempt(
+            nextLoadAttempt({
+                mirrorIndex,
+                mirrorCount,
+                portraitActive: portraitConfirmed,
+            }),
+        )
     }
 
     // Timeout-driven failover — hung gateway requests never fire onError.
+    // Empty src fails immediately (do not skip the timer and pulse forever).
     useEffect(() => {
         clearLoadTimer()
-        if (!isVisible || loadFailed || !activeSrc) return
+        const action = loadTimerAction({ isVisible, loadFailed, activeSrc })
+        if (action === 'idle') return
+        if (action === 'fail-empty') {
+            setLoadFailed(true)
+            return
+        }
         loadTimerRef.current = setTimeout(() => {
             advanceMirror()
         }, LOAD_TIMEOUT_MS)
         return clearLoadTimer
         // eslint-disable-next-line react-hooks/exhaustive-deps -- advance on visible src / mirror / attempt only
-    }, [isVisible, activeSrc, mirrorIndex, attempt, loadFailed, mirrorCount])
+    }, [isVisible, activeSrc, mirrorIndex, attempt, loadFailed, mirrorCount, portraitConfirmed])
+
+    // If IntersectionObserver missed a remount, recover in-view images instead of pulsing forever.
+    useEffect(() => {
+        if (isVisible || loadFailed) return
+        const el = containerRef.current
+        if (!el) return
+        const t = setTimeout(() => {
+            const scrollRoot = document.getElementById('site-main-scroll')
+            const rect = el.getBoundingClientRect()
+            const rootRect = scrollRoot
+                ? scrollRoot.getBoundingClientRect()
+                : { top: 0, bottom: window.innerHeight }
+            if (rect.bottom >= rootRect.top - 200 && rect.top <= rootRect.bottom + 200) {
+                setIsVisible(true)
+            }
+        }, LOAD_TIMEOUT_MS)
+        return () => clearTimeout(t)
+    }, [isVisible, loadFailed, attempt, mirrorIndex])
 
     const handleRetry = () => {
         clearLoadTimer()
-        setLoadFailed(false)
-        setPortraitDisabled(false)
+        const next = retryLoadState()
+        setLoadFailed(next.loadFailed)
+        setPortraitDisabled(next.disablePortrait)
         setLqipDismissed(false)
-        setMirrorIndex(0)
-        setAttempt((a) => a + 1)
+        setMirrorIndex(next.mirrorIndex)
+        if (next.bumpAttempt) setAttempt((a) => a + 1)
     }
 
     // Wide book diagrams often have index/API dimensions that do not match the decoded bitmap;
@@ -227,13 +271,27 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
         }
     }
 
+    const showPulse = !loadFailed && !lqipDismissed && !(useRelayLqipUnderlay && isVisible)
     const imgClassName = `relative z-[1] block w-full max-w-full h-auto transition-opacity duration-700 ease-in-out ${isVisible && !loadFailed ? 'opacity-100' : 'opacity-0'}`
-    const displaySrc =
-        isVisible && !loadFailed && finalProps.src ? (finalProps.src as string) : EMPTY_SRC_PLACEHOLDER
     const mediaQuery =
         typeof portraitMedia === 'string' && portraitMedia.length > 0
             ? portraitMedia
             : PORTRAIT_MEDIA_QUERY
+
+    const handleImgLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
+        const img = event.currentTarget
+        if (!rasterLoadSucceeded(img)) return
+        clearLoadTimer()
+        setLqipDismissed(true)
+        setLoadFailed(false)
+    }
+
+    const handleImgError = (event: React.SyntheticEvent<HTMLImageElement>) => {
+        const img = event.currentTarget
+        if (isPlaceholderSrc(img.currentSrc || img.src)) return
+        clearLoadTimer()
+        advanceMirror()
+    }
 
     const rasterImg = (
         /* eslint-disable-next-line @next/next/no-img-element */
@@ -241,18 +299,11 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
             alt={alt}
             className={imgClassName}
             {...finalProps}
-            loading={priority ? 'eager' : 'lazy'}
+            loading={priority || isVisible ? 'eager' : 'lazy'}
             fetchPriority={priority ? 'high' : undefined}
-            src={displaySrc}
-            onLoad={() => {
-                clearLoadTimer()
-                setLqipDismissed(true)
-                setLoadFailed(false)
-            }}
-            onError={() => {
-                clearLoadTimer()
-                advanceMirror()
-            }}
+            src={activeSrc}
+            onLoad={handleImgLoad}
+            onError={handleImgError}
         />
     )
 
@@ -263,8 +314,7 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
         >
             <div
                 ref={containerRef}
-                key={imageIntrinsicKey}
-                className={`relative w-full bg-slate-100 dark:bg-slate-900 overflow-hidden ${!isVisible && !loadFailed ? 'animate-pulse' : ''} ${isBookIllustration && !isVisible ? 'min-h-12' : ''}`}
+                className={`relative w-full bg-slate-100 dark:bg-slate-900 overflow-hidden ${showPulse ? 'animate-pulse' : ''} ${isBookIllustration && !isVisible ? 'min-h-12' : ''}`}
                 style={containerStyle}
             >
                 {useRelayLqipUnderlay && isVisible ? (
@@ -284,13 +334,13 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
                     />
                 ) : null}
                 {/* Art direction only when tip catalog / QUERY confirms -portrait sibling */}
-                {!loadFailed && hasPortraitSibling ? (
-                    <picture>
+                {isVisible && !loadFailed && hasPortraitSibling ? (
+                    <picture key={imageIntrinsicKey}>
                         <source media={mediaQuery} srcSet={activePortraitSrc as string} />
                         {rasterImg}
                     </picture>
-                ) : !loadFailed ? (
-                    rasterImg
+                ) : isVisible && !loadFailed && activeSrc ? (
+                    <React.Fragment key={imageIntrinsicKey}>{rasterImg}</React.Fragment>
                 ) : null}
                 {loadFailed ? (
                     <div
