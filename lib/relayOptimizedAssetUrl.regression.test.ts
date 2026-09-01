@@ -76,4 +76,16 @@ describe('buildOptimizedAssetUrl', () => {
     assert.ok(normalizeAt >= 0, 'listOptimizedAssetUrls should normalize first')
     assert.ok(httpGate > normalizeAt, 'http early-return must run after canonical→relative normalize')
   })
+
+  it('listOptimizedAssetUrls returns stable order across calls (no per-render shuffle)', async () => {
+    process.env.NEXT_PUBLIC_FILES_BASE_URL =
+      'https://paradigm-threat-files.iad1.relaygateway.net https://paradigm-threat-files.hkg1.relaygateway.net'
+    const { listOptimizedAssetUrls } = await import('./relayOptimizedAssetUrl.ts')
+    const path =
+      '/governance/constitution/investigations/assets/phoenix-protest-timeline/2020-06-24-scottsdale-unmask-us-chansley-mccarthy-sign.png'
+    const a = listOptimizedAssetUrls(path, 800)
+    const b = listOptimizedAssetUrls(path, 800)
+    assert.deepEqual(a, b)
+    assert.equal(a.length, 2)
+  })
 })

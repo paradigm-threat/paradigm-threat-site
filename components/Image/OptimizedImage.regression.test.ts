@@ -53,18 +53,20 @@ describe('imageLoadFailover', () => {
       loadTimerAction({
         isVisible: true,
         loadFailed: false,
+        loaded: false,
         activeSrc: 'https://example.relaygateway.net/a.png?w=800',
       }),
       'arm',
     )
     assert.equal(
-      loadTimerAction({ isVisible: true, loadFailed: false, activeSrc: undefined }),
+      loadTimerAction({ isVisible: true, loadFailed: false, loaded: false, activeSrc: undefined }),
       'fail-empty',
     )
     assert.equal(
       loadTimerAction({
         isVisible: false,
         loadFailed: false,
+        loaded: false,
         activeSrc: 'https://example.relaygateway.net/a.png?w=800',
       }),
       'idle',
@@ -73,6 +75,16 @@ describe('imageLoadFailover', () => {
       loadTimerAction({
         isVisible: true,
         loadFailed: true,
+        loaded: false,
+        activeSrc: 'https://example.relaygateway.net/a.png?w=800',
+      }),
+      'idle',
+    )
+    assert.equal(
+      loadTimerAction({
+        isVisible: true,
+        loadFailed: false,
+        loaded: true,
         activeSrc: 'https://example.relaygateway.net/a.png?w=800',
       }),
       'idle',

@@ -33,9 +33,11 @@ export type LoadTimerAction = 'arm' | 'fail-empty' | 'idle'
 export function loadTimerAction (opts: {
     isVisible: boolean
     loadFailed: boolean
+    loaded: boolean
     activeSrc: string | undefined
 }): LoadTimerAction {
     if (opts.loadFailed) return 'idle'
+    if (opts.loaded) return 'idle'
     if (!opts.isVisible) return 'idle'
     if (!opts.activeSrc) return 'fail-empty'
     return 'arm'

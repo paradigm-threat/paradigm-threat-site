@@ -125,7 +125,7 @@ export function buildLqipOptimizedAssetUrl (
   return buildOptimizedAssetUrl(pathForAPI, lqipW)
 }
 
-/** All mirror origins for a repo-relative asset (shuffled per call). */
+/** All mirror origins for a repo-relative asset (stable hostname order — no shuffle per call). */
 export function listOptimizedAssetUrls (pathForAPI: string, width?: number): string[] {
   pathForAPI = normalizePathForMirror(pathForAPI)
   if (pathForAPI.startsWith('http')) {
@@ -136,14 +136,10 @@ export function listOptimizedAssetUrls (pathForAPI: string, width?: number): str
   const norm = clean.replace(/^\/+/, '')
   const repo = inferAssetRepoFromRelPath(norm)
   const bases = repo === 'timeline' ? getTimelineOrigins() : getFilesBaseUrlList()
-  const shuffled = [...bases]
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!]
-  }
+  const ordered = [...bases].sort((a, b) => a.localeCompare(b))
   const isSvg = pathIsSvg(pathForAPI)
   const w = width === undefined ? 800 : clampWidth(width)
-  return shuffled.map((base) => {
+  return ordered.map((base) => {
     const encodedPath = encodePathSegments(norm)
     const absolute = `${base.replace(/\/+$/, '')}/${encodedPath}`
     if (isSvg) return absolute

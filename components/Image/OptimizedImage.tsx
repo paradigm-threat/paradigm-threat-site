@@ -194,7 +194,7 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
     // Empty src fails immediately (do not skip the timer and pulse forever).
     useEffect(() => {
         clearLoadTimer()
-        const action = loadTimerAction({ isVisible, loadFailed, activeSrc })
+        const action = loadTimerAction({ isVisible, loadFailed, loaded: lqipDismissed, activeSrc })
         if (action === 'idle') return
         if (action === 'fail-empty') {
             setLoadFailed(true)
@@ -205,7 +205,7 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
         }, LOAD_TIMEOUT_MS)
         return clearLoadTimer
         // eslint-disable-next-line react-hooks/exhaustive-deps -- advance on visible src / mirror / attempt only
-    }, [isVisible, activeSrc, mirrorIndex, attempt, loadFailed, mirrorCount, portraitConfirmed])
+    }, [isVisible, activeSrc, mirrorIndex, attempt, loadFailed, lqipDismissed, mirrorCount, portraitConfirmed])
 
     // If IntersectionObserver missed a remount, recover in-view images instead of pulsing forever.
     useEffect(() => {
@@ -239,7 +239,7 @@ export default function OptimizedImage({ children, className, ...props }: Optimi
     // a forced aspect-ratio box then leaves a large empty band above the caption (especially on mobile).
     const isBookIllustration = /\bbook-illustration\b/.test(processedClassName || '')
     const hasPortraitSibling = typeof activePortraitSrc === 'string' && activePortraitSrc.length > 0
-    const imageIntrinsicKey = `${String(optimizedSrc ?? '')}:${String(lqipOptimizedSrc ?? '')}:${String(activePortraitSrc ?? '')}:${attempt}:${mirrorIndex}`
+    const imageIntrinsicKey = `${String(activeSrc ?? '')}:${String(activePortraitSrc ?? '')}:${attempt}:${mirrorIndex}:${portraitDisabled ? 1 : 0}`
     const useRelayLqipUnderlay =
         typeof lqipOptimizedSrc === 'string' &&
         lqipOptimizedSrc.length > 0 &&
