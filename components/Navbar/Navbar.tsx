@@ -157,6 +157,12 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
         { href: 'https://www.patreon.com/c/ahsctimeline', label: 'Donate', icon: Heart, external: true },
     ]
 
+    const linkActive = (href: string) => {
+        if (href === '/') return pathname === '/'
+        if (href === '/timeline') return pathname === '/timeline' || pathname.startsWith('/timeline/')
+        return pathname === href
+    }
+
     return (
         <header data-site-navbar className="sticky top-0 z-[100] w-full border-b border-slate-200 bg-slate-100/95 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95">
             <div className="max-w-7xl mx-auto px-4">
@@ -188,7 +194,7 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
                                     key={link.href}
                                     href={link.href}
                                     target={link.external ? '_blank' : undefined}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${pathname === link.href
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${linkActive(link.href)
                                         ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white'
                                         : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white'
                                         }`}
@@ -240,7 +246,7 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
                                     key={link.href}
                                     href={link.href}
                                     target={link.external ? '_blank' : undefined}
-                                    className={`px-4 py-3 rounded-xl text-base font-medium flex items-center gap-3 transition-colors ${pathname === link.href
+                                    className={`px-4 py-3 rounded-xl text-base font-medium flex items-center gap-3 transition-colors ${linkActive(link.href)
                                         ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white'
                                         : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
                                         }`}

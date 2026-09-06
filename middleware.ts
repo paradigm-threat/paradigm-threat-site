@@ -52,22 +52,57 @@ function isLocalStaticAsset (pathname: string): boolean {
   return false
 }
 
+const TIMELINE_SUBDOMAIN = 'timeline.paradigmthreat.net'
+const CHAT_SUBDOMAIN = 'chat.paradigmthreat.net'
+
+/** Referers that mean “came from the main/park Home surface”. */
+function refererIsParadigmHome (referer: string | null): boolean {
+  if (!referer) return false
+  try {
+    const u = new URL(referer)
+    const host = u.hostname.toLowerCase()
+    if (
+      host !== 'paradigmthreat.net' &&
+      host !== 'www.paradigmthreat.net' &&
+      host !== 'relay.paradigmthreat.net'
+    ) {
+      return false
+    }
+    const path = u.pathname.replace(/\/+$/, '') || '/'
+    return path === '/' || path === '/page.md' || path === '/index.md'
+  } catch {
+    return false
+  }
+}
+
+/** App-surface subdomain: `/` stays Home; redirect to the feature path only from park/apex Home. */
+function appSubdomainHomeRedirect (
+  request: NextRequest,
+  host: string,
+  pathname: string,
+): NextResponse | null {
+  if (!(request.method === 'GET' || request.method === 'HEAD')) return null
+  if (!(pathname === '/' || pathname === '')) return null
+  if (!refererIsParadigmHome(request.headers.get('referer'))) return null
+
+  let destPath: string | null = null
+  if (host === TIMELINE_SUBDOMAIN) destPath = '/timeline'
+  else if (host === CHAT_SUBDOMAIN) destPath = '/chat'
+  if (!destPath) return null
+
+  const url = request.nextUrl.clone()
+  url.pathname = destPath
+  return NextResponse.redirect(url, 307)
+}
+
 export function middleware (request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const host = (request.headers.get('x-forwarded-host') || request.headers.get('host') || '')
     .split(':')[0]
     .toLowerCase()
 
-  // timeline.paradigmthreat.net → Timeline app as the default surface
-  if (
-    host === 'timeline.paradigmthreat.net' &&
-    (request.method === 'GET' || request.method === 'HEAD') &&
-    (pathname === '/' || pathname === '')
-  ) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/timeline'
-    return NextResponse.rewrite(url)
-  }
+  const appRedirect = appSubdomainHomeRedirect(request, host, pathname)
+  if (appRedirect) return appRedirect
 
   if (isLocalStaticAsset(pathname)) {
     return NextResponse.next()
