@@ -54,6 +54,20 @@ function isLocalStaticAsset (pathname: string): boolean {
 
 export function middleware (request: NextRequest) {
   const pathname = request.nextUrl.pathname
+  const host = (request.headers.get('x-forwarded-host') || request.headers.get('host') || '')
+    .split(':')[0]
+    .toLowerCase()
+
+  // timeline.paradigmthreat.net → Timeline app as the default surface
+  if (
+    host === 'timeline.paradigmthreat.net' &&
+    (request.method === 'GET' || request.method === 'HEAD') &&
+    (pathname === '/' || pathname === '')
+  ) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/timeline'
+    return NextResponse.rewrite(url)
+  }
 
   if (isLocalStaticAsset(pathname)) {
     return NextResponse.next()
