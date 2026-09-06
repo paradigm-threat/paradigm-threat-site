@@ -225,6 +225,21 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
                 </div>
             </div>
 
+            <a
+                href="https://relay.paradigmthreat.net/"
+                data-relay-migration-banner
+                className="block w-full border-t border-amber-700/25 bg-amber-100 px-4 py-2 text-center text-sm font-medium text-amber-950 transition-colors hover:bg-amber-200 dark:border-amber-400/20 dark:bg-amber-950/80 dark:text-amber-50 dark:hover:bg-amber-900/90"
+            >
+                <span className="inline-flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5">
+                    <span>
+                        Imminent migration to the new pure-Relay host — preview the corpus there now
+                    </span>
+                    <span className="underline underline-offset-2" aria-hidden="true">
+                        relay.paradigmthreat.net →
+                    </span>
+                </span>
+            </a>
+
             {/* Mobile Navigation Dropdown */}
             {isOpen && (
                 <div className="absolute left-0 right-0 top-full z-10 max-h-[80vh] overflow-y-auto border-b border-slate-200 bg-slate-100 shadow-xl animate-in slide-in-from-top-4 duration-200 dark:border-slate-800 dark:bg-slate-900 lg:hidden">
