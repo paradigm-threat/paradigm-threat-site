@@ -9,6 +9,12 @@ export function isSearchIndexCached(): boolean {
   return cached !== undefined
 }
 
+/** Drop the session search-index cache (operator cache-bust / tip refresh). */
+export function clearMergedSearchIndexCache(): void {
+  cached = undefined
+  inflight = null
+}
+
 /**
  * Browser-session cache for the merged search index (files + timeline).
  * In the browser, prefers Relay mirror pairs via fetchMergedSearchIndexClient.

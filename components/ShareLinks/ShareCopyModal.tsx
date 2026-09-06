@@ -183,13 +183,30 @@ export function ShareCopyModal ({
           <h2 id="share-copy-modal-title" className="text-lg font-semibold text-slate-900 dark:text-slate-100">
             Copy &amp; Share
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg px-2 py-1 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-          >
-            Close
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            {/* Operator: invisible until hover — busts catalog / SW article caches then reloads. */}
+            <a
+              href="#bust-relay-cache"
+              onClick={(e) => {
+                e.preventDefault()
+                void import('@/lib/bustRelayClientCaches').then((m) =>
+                  m.bustRelayClientCachesAndReload(),
+                )
+              }}
+              className="rounded px-1.5 py-1 text-xs text-transparent hover:text-slate-500 dark:hover:text-slate-400 focus-visible:text-slate-500 dark:focus-visible:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-400"
+              title="Bust Relay catalog cache and reload"
+              aria-label="Bust Relay catalog cache and reload"
+            >
+              ↻
+            </a>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg px-2 py-1 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              Close
+            </button>
+          </div>
         </div>
 
         <div className="overflow-y-auto px-4 py-3 space-y-3">
