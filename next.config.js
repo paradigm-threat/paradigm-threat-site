@@ -189,8 +189,24 @@ const nextConfig = {
         permanent: false,
       },
     ]
+    // Legacy .org apex → pure-Relay park (SSR corpus).
+    const orgToPureRelay = [
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'www.paradigmthreat.org' }],
+        destination: 'https://relay.paradigmthreat.net/:path*',
+        permanent: true,
+      },
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'paradigmthreat.org' }],
+        destination: 'https://relay.paradigmthreat.net/:path*',
+        permanent: true,
+      },
+    ]
     return [
       ...thirdStoryRootToTimeline,
+      ...orgToPureRelay,
       {
         source: '/cosmos/mars/investigations/death-on-mars',
         destination: '/cosmos/mars/death-on-mars-analysis',
