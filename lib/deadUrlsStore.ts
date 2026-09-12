@@ -12,7 +12,7 @@ let inflight: Promise<void> | null = null
 const listeners = new Set<() => void>()
 
 function emit (): void {
-  for (const cb of listeners) cb()
+  listeners.forEach((cb) => cb())
 }
 
 export function subscribeDeadUrls (cb: () => void): () => void {
