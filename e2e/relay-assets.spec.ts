@@ -63,7 +63,7 @@ test.describe('legacy proxy 404 (local build)', () => {
 test.describe('relay assets (production)', () => {
   test.skip(
     ({ baseURL }) => !baseURL?.includes('paradigmthreat.net'),
-    'Set PLAYWRIGHT_BASE_URL=https://paradigmthreat.net',
+    'Set PLAYWRIGHT_BASE_URL=https://old.paradigmthreat.net',
   )
 
   test('investigation article stays on site origin', async ({ request }) => {

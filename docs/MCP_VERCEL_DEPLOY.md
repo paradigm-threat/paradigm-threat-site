@@ -23,7 +23,7 @@ No `NEXT_PUBLIC_SERVER_RELAY_FETCH` required — MCP fetches Relay directly.
 | `POST /api/mcp` | MCP Streamable HTTP (JSON-RPC) |
 | `DELETE /api/mcp` | Session teardown (stateless noop) |
 
-Production: `https://paradigmthreat.net/api/mcp`
+Production: `https://old.paradigmthreat.net/api/mcp`
 
 ## Cursor / Claude Desktop (HTTP)
 
@@ -31,7 +31,7 @@ Production: `https://paradigmthreat.net/api/mcp`
 {
   "mcpServers": {
     "paradigm-threat": {
-      "url": "https://paradigmthreat.net/api/mcp"
+      "url": "https://old.paradigmthreat.net/api/mcp"
     }
   }
 }
@@ -41,7 +41,7 @@ Use preview URL when testing a PR deployment.
 
 ## ChatGPT Apps
 
-Register custom MCP server URL: `https://paradigmthreat.net/api/mcp`
+Register custom MCP server URL: `https://old.paradigmthreat.net/api/mcp`
 
 Shipped tools include ChatGPT aliases: **`search`**, **`fetch`**.
 
@@ -59,7 +59,7 @@ npm run validate:mcp
 ## Validate production
 
 ```bash
-node scripts/validate-mcp.mjs https://paradigmthreat.net
+node scripts/validate-mcp.mjs https://old.paradigmthreat.net
 ```
 
 Requires `MCP_SERVER_ENABLED=1` on that deployment.

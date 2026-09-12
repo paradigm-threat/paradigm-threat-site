@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://paradigmthreat.net/mcp' },
 }
 
-const MCP_ENDPOINT = 'https://paradigmthreat.net/api/mcp'
+const MCP_ENDPOINT = 'https://old.paradigmthreat.net/api/mcp'
 
 export default function McpPage () {
   const enabled = isMcpServerEnabled()

@@ -5,7 +5,7 @@
  * Usage:
  *   MCP_SERVER_ENABLED=1 npm run dev   # separate terminal
  *   node scripts/validate-mcp.mjs
- *   node scripts/validate-mcp.mjs https://paradigmthreat.net
+ *   node scripts/validate-mcp.mjs https://old.paradigmthreat.net
  */
 
 const base = (process.argv[2] || process.env.MCP_BASE_URL || 'http://localhost:3000').replace(/\/$/, '')

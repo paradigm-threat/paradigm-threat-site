@@ -943,7 +943,7 @@ Hook `build-chronology-index.py` into timeline pre-commit alongside `build-event
 - [x] Set `MCP_SERVER_ENABLED=1` on Vercel production (live `/api/mcp` initialize succeeds)
 - [x] Run `validate:mcp` against production after deploy
 
-**Exit criteria:** `node scripts/validate-mcp.mjs https://paradigmthreat.net` passes.
+**Exit criteria:** `node scripts/validate-mcp.mjs https://old.paradigmthreat.net` passes.
 
 ### Phase 0 — Contract extraction (1 week, site repo)
 

@@ -10,7 +10,7 @@
  * Exit 0 on success, 1 on any failure.
  */
 
-const BASE = (process.env.SMOKE_BASE_URL || 'https://paradigmthreat.net').replace(/\/$/, '')
+const BASE = (process.env.SMOKE_BASE_URL || 'https://old.paradigmthreat.net').replace(/\/$/, '')
 
 function firstOrigin (raw, fallback) {
   const trimmed = (raw || '').trim()

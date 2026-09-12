@@ -291,7 +291,7 @@ export async function mcpSubmitInvestigationIdea (
       id: submission.id,
       topic: submission.topic,
       created_at: submission.created_at,
-      message: 'Submission saved. It will appear on https://paradigmthreat.net/submit.',
+      message: 'Submission saved. It will appear on https://old.paradigmthreat.net/submit.',
     }
   } catch {
     return { error: 'Could not save submission.' }

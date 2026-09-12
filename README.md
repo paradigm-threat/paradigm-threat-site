@@ -1,6 +1,8 @@
 # Paradigm Threat
 
-**[paradigmthreat.net](https://paradigmthreat.net)**
+**Production corpus:** [paradigmthreat.net](https://paradigmthreat.net) (Relay)
+
+**Legacy Next.js archive:** [old.paradigmthreat.net](https://old.paradigmthreat.net)
 
 An investigation into alternate Earth history, correlating mainstream (Scaligerian) chronology with Fomenko's New Chronology, Saturnian Cosmology, and other timeline systems. The site presents research articles, media, and an interactive timeline spanning from before creation through the modern era.
 
