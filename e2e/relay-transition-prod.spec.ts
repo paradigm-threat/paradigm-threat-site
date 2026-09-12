@@ -24,6 +24,15 @@ test.describe('Relay transition (production)', () => {
     await expect(banner).toContainText(/legacy Next\.js archive/i)
   })
 
+  test('article banner keeps the corpus path on Relay', async ({ page }) => {
+    await page.goto(`${BASE}${INVESTIGATION_ARTICLE}`, { waitUntil: 'domcontentloaded' })
+    const banner = page.locator('[data-relay-migration-banner]')
+    await expect(banner).toHaveAttribute(
+      'href',
+      `https://paradigmthreat.net${INVESTIGATION_ARTICLE}`,
+    )
+  })
+
   test('search UI enabled (client-side index, no pause banner)', async ({ page }) => {
     await page.goto(`${BASE}/search`, { waitUntil: 'domcontentloaded' })
     await expect(page.getByText(/Search paused during Relay transition/i)).toHaveCount(0)

@@ -40,6 +40,7 @@ describe('siteChromeNav', () => {
     const footer = readFileSync(join(root, 'components/FooterSiteNav.tsx'), 'utf8')
     assert.match(navbar, /SITE_CHROME_NAV/)
     assert.match(footer, /SITE_CHROME_NAV/)
+    assert.match(navbar, /productionBannerHref/)
     assert.match(navbar, /productionSiteHref|SITE_CHROME_NAV\.home/)
     assert.doesNotMatch(navbar, /href:\s*'\/'\s*,\s*label:\s*'Home'/)
     assert.doesNotMatch(navbar, /href:\s*'\/timeline'/)

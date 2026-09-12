@@ -12,6 +12,7 @@ import {
     RELAY_REPO_NAMES_LABEL,
     type RelayPairOption,
 } from '@/lib/remoteRelayStore'
+import { productionBannerHref } from '@/lib/crossClientBannerHref'
 import {
     SITE_CHROME_NAV,
     isSiteChromeNavActive,
@@ -235,7 +236,7 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
             </div>
 
             <a
-                href={productionSiteHref('/')}
+                href={productionBannerHref(pathname || '/')}
                 data-relay-migration-banner
                 className="block w-full border-t border-amber-700/25 bg-amber-100 px-4 py-2 text-center text-sm font-medium text-amber-950 transition-colors hover:bg-amber-200 dark:border-amber-400/20 dark:bg-amber-950/80 dark:text-amber-50 dark:hover:bg-amber-900/90"
             >
