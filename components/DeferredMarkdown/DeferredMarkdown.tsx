@@ -1,8 +1,14 @@
 'use client'
 
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { RelayMarkdown } from '@/components/RelayMarkdown'
+import dynamic from 'next/dynamic'
 import { remoteRelay } from '@/lib/remoteRelayStore'
+
+/** Lazy to avoid circular import with filesMarkdownOverrides → RelayMarkdown. */
+const RelayMarkdown = dynamic(
+  () => import('@/components/RelayMarkdown').then((m) => m.RelayMarkdown),
+  { ssr: false },
+)
 
 export type DeferredMarkdownProps = {
   src?: string
