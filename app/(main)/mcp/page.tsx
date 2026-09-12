@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: 'Research MCP',
   description:
     'Model Context Protocol server for Paradigm Threat — search, chronology dates, and corpus-grounded research for AI agents.',
-  alternates: { canonical: 'https://paradigmthreat.net/mcp' },
+  alternates: { canonical: 'https://old.paradigmthreat.net/mcp' },
 }
 
 const MCP_ENDPOINT = 'https://old.paradigmthreat.net/api/mcp'
