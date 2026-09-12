@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-const BASE = process.env.PLAYWRIGHT_BASE_URL ?? 'https://paradigmthreat.net'
+const BASE = process.env.PLAYWRIGHT_BASE_URL ?? 'https://old.paradigmthreat.net'
 
 const INVESTIGATION_ARTICLE =
   '/events/false_flag/investigations/richard-gage-ae911truth-controlled-demolition-investigation'
@@ -11,17 +11,17 @@ const INVESTIGATION_PNG =
 test.describe('Relay transition (production)', () => {
   test.skip(
     () => !BASE.includes('paradigmthreat.net'),
-    'Set PLAYWRIGHT_BASE_URL=https://paradigmthreat.net',
+    'Set PLAYWRIGHT_BASE_URL=https://old.paradigmthreat.net',
   )
 
-  test('home has migration banner to pure-Relay host', async ({ page }) => {
+  test('home has banner to production Relay apex', async ({ page }) => {
     await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' })
     await expect(page.getByText(/client-side pages/i)).toHaveCount(0)
     await expect(page.getByText(/Server-side rendering is off/i)).toHaveCount(0)
     const banner = page.locator('[data-relay-migration-banner]')
     await expect(banner).toBeVisible()
-    await expect(banner).toHaveAttribute('href', 'https://relay.paradigmthreat.net/')
-    await expect(banner).toContainText(/Imminent migration/i)
+    await expect(banner).toHaveAttribute('href', 'https://paradigmthreat.net/')
+    await expect(banner).toContainText(/legacy Next\.js archive/i)
   })
 
   test('search UI enabled (client-side index, no pause banner)', async ({ page }) => {

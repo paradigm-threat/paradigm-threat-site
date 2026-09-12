@@ -227,16 +227,16 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
             </div>
 
             <a
-                href="https://relay.paradigmthreat.net/"
+                href="https://paradigmthreat.net/"
                 data-relay-migration-banner
                 className="block w-full border-t border-amber-700/25 bg-amber-100 px-4 py-2 text-center text-sm font-medium text-amber-950 transition-colors hover:bg-amber-200 dark:border-amber-400/20 dark:bg-amber-950/80 dark:text-amber-50 dark:hover:bg-amber-900/90"
             >
                 <span className="inline-flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5">
                     <span>
-                        Imminent migration to the new pure-Relay host — preview the corpus there now
+                        You&apos;re on the legacy Next.js archive — production corpus is on Relay
                     </span>
                     <span className="underline underline-offset-2" aria-hidden="true">
-                        relay.paradigmthreat.net →
+                        paradigmthreat.net →
                     </span>
                 </span>
             </a>

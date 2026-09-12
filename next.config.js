@@ -194,13 +194,13 @@ const nextConfig = {
       {
         source: '/:path*',
         has: [{ type: 'host', value: 'www.paradigmthreat.org' }],
-        destination: 'https://relay.paradigmthreat.net/:path*',
+        destination: 'https://paradigmthreat.net/:path*',
         permanent: true,
       },
       {
         source: '/:path*',
         has: [{ type: 'host', value: 'paradigmthreat.org' }],
-        destination: 'https://relay.paradigmthreat.net/:path*',
+        destination: 'https://paradigmthreat.net/:path*',
         permanent: true,
       },
     ]
