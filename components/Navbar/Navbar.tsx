@@ -160,6 +160,7 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
     const linkActive = (href: string) => {
         if (href === '/') return pathname === '/'
         if (href === '/timeline') return pathname === '/timeline' || pathname.startsWith('/timeline/')
+        if (href === '/chat') return pathname === '/chat' || pathname.startsWith('/chat/')
         return pathname === href
     }
 

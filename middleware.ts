@@ -55,27 +55,7 @@ function isLocalStaticAsset (pathname: string): boolean {
 const TIMELINE_SUBDOMAIN = 'timeline.paradigmthreat.net'
 const CHAT_SUBDOMAIN = 'chat.paradigmthreat.net'
 
-/** Referers that mean “came from the main/park Home surface”. */
-function refererIsParadigmHome (referer: string | null): boolean {
-  if (!referer) return false
-  try {
-    const u = new URL(referer)
-    const host = u.hostname.toLowerCase()
-    if (
-      host !== 'paradigmthreat.net' &&
-      host !== 'www.paradigmthreat.net' &&
-      host !== 'relay.paradigmthreat.net'
-    ) {
-      return false
-    }
-    const path = u.pathname.replace(/\/+$/, '') || '/'
-    return path === '/' || path === '/page.md' || path === '/index.md'
-  } catch {
-    return false
-  }
-}
-
-/** App-surface subdomain: `/` stays Home; redirect to the feature path only from park/apex Home. */
+/** App-surface subdomain: `/` always opens the feature path (Timeline/Chat). */
 function appSubdomainHomeRedirect (
   request: NextRequest,
   host: string,
@@ -83,7 +63,6 @@ function appSubdomainHomeRedirect (
 ): NextResponse | null {
   if (!(request.method === 'GET' || request.method === 'HEAD')) return null
   if (!(pathname === '/' || pathname === '')) return null
-  if (!refererIsParadigmHome(request.headers.get('referer'))) return null
 
   let destPath: string | null = null
   if (host === TIMELINE_SUBDOMAIN) destPath = '/timeline'

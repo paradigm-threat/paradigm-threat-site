@@ -30,6 +30,7 @@ const customTags = [
   'OptimizedImage',
   'ChatRoom',
   'ChangeLog',
+  'DeferredMarkdown',
   'DynamicIndex',
   'DynamicNav',
   'EmbedFile',

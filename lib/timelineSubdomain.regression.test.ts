@@ -7,15 +7,15 @@ import { fileURLToPath } from 'node:url'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 describe('app subdomains (timeline + chat)', () => {
-  it('redirects / to feature path only from park/apex Home; no permanent rewrite', () => {
+  it('always redirects subdomain / to feature path; no permanent rewrite', () => {
     const src = readFileSync(join(root, 'middleware.ts'), 'utf8')
     assert.match(src, /timeline\.paradigmthreat\.net/)
     assert.match(src, /chat\.paradigmthreat\.net/)
-    assert.match(src, /refererIsParadigmHome/)
     assert.match(src, /appSubdomainHomeRedirect/)
     assert.match(src, /'\/timeline'/)
     assert.match(src, /'\/chat'/)
     assert.match(src, /NextResponse\.redirect/)
+    assert.doesNotMatch(src, /refererIsParadigmHome/)
     assert.doesNotMatch(src, /NextResponse\.rewrite\(url\)/)
   })
 })
