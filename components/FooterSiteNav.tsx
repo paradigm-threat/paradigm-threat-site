@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useReplyAssistantAvailable } from '@/lib/replyAssistant/useReplyAssistantAvailable'
+import { SITE_CHROME_NAV, archiveSiteHref } from '@/lib/siteChromeNav'
 
 const linkClass =
   'shrink-0 hover:text-slate-900 dark:hover:text-white transition-colors'
@@ -10,7 +11,7 @@ function ReplyNavLink () {
   const available = useReplyAssistantAvailable()
   if (!available) return null
   return (
-    <Link href="/reply" className={linkClass}>
+    <Link href={archiveSiteHref('/reply')} className={linkClass}>
       Reply
     </Link>
   )
@@ -22,24 +23,24 @@ export function FooterSiteNav () {
       aria-label="Site"
       className="flex max-w-full flex-wrap justify-center gap-x-4 gap-y-2 px-1 text-sm text-slate-600 dark:text-slate-400 sm:gap-x-6 sm:text-base"
     >
-      <Link href="/search" className={linkClass}>
+      <Link href={SITE_CHROME_NAV.search} className={linkClass}>
         Search
       </Link>
-      <Link href="/submit" className={linkClass}>
+      <Link href={SITE_CHROME_NAV.submit} className={linkClass}>
         Submit
       </Link>
       <ReplyNavLink />
-      <Link href="/" className={linkClass}>
+      <Link href={SITE_CHROME_NAV.home} className={linkClass}>
         Home
       </Link>
-      <Link href="/timeline" className={linkClass}>
+      <Link href={SITE_CHROME_NAV.timeline} className={linkClass}>
         Timeline
       </Link>
-      <Link href="/chat" className={linkClass}>
+      <Link href={SITE_CHROME_NAV.chat} className={linkClass}>
         Chat
       </Link>
       <Link
-        href="https://paradigmthreat2.substack.com/"
+        href={SITE_CHROME_NAV.substack}
         target="_blank"
         rel="noopener noreferrer"
         className={linkClass}
@@ -47,7 +48,7 @@ export function FooterSiteNav () {
         Substack
       </Link>
       <Link
-        href="https://www.bitchute.com/channel/paradigmthreat"
+        href={SITE_CHROME_NAV.videos}
         target="_blank"
         rel="noopener noreferrer"
         className={linkClass}

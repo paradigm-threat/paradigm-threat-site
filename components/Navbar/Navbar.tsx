@@ -12,6 +12,11 @@ import {
     RELAY_REPO_NAMES_LABEL,
     type RelayPairOption,
 } from '@/lib/remoteRelayStore'
+import {
+    SITE_CHROME_NAV,
+    isSiteChromeNavActive,
+    productionSiteHref,
+} from '@/lib/siteChromeNav'
 
 interface NavbarProps {
     fileList: any
@@ -141,28 +146,30 @@ function RelayServerSelector() {
 const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
     const [isOpen, setIsOpen] = useState(false)
     const pathname = usePathname()
+    const hostname = useSyncExternalStore(
+        () => () => {},
+        () => (typeof window !== 'undefined' ? window.location.hostname : ''),
+        () => '',
+    )
 
     // Close menu when path changes
     useEffect(() => {
         queueMicrotask(() => setIsOpen(false))
     }, [pathname])
 
+    // Absolute origins: timeline/chat subdomains redirect `/` → feature path, so relative
+    // Home would loop. Match Relay park Nav (apex Home/Search; subdomain Timeline/Chat).
     const navLinks = [
-        { href: '/search', label: 'Search', icon: Search },
-        { href: '/', label: 'Home', icon: Home },
-        { href: '/timeline', label: 'Timeline', icon: Clock },
-        { href: '/chat', label: 'Chat', icon: MessageSquare },
-        { href: 'https://paradigmthreat2.substack.com/', label: 'Substack', icon: Rss, external: true },
-        { href: 'https://www.bitchute.com/channel/paradigmthreat', label: 'Videos', icon: Video, external: true },
-        { href: 'https://www.patreon.com/c/ahsctimeline', label: 'Donate', icon: Heart, external: true },
+        { href: SITE_CHROME_NAV.search, label: 'Search', icon: Search },
+        { href: SITE_CHROME_NAV.home, label: 'Home', icon: Home },
+        { href: SITE_CHROME_NAV.timeline, label: 'Timeline', icon: Clock },
+        { href: SITE_CHROME_NAV.chat, label: 'Chat', icon: MessageSquare },
+        { href: SITE_CHROME_NAV.substack, label: 'Substack', icon: Rss, external: true },
+        { href: SITE_CHROME_NAV.videos, label: 'Videos', icon: Video, external: true },
+        { href: SITE_CHROME_NAV.donate, label: 'Donate', icon: Heart, external: true },
     ]
 
-    const linkActive = (href: string) => {
-        if (href === '/') return pathname === '/'
-        if (href === '/timeline') return pathname === '/timeline' || pathname.startsWith('/timeline/')
-        if (href === '/chat') return pathname === '/chat' || pathname.startsWith('/chat/')
-        return pathname === href
-    }
+    const linkActive = (href: string) => isSiteChromeNavActive(href, pathname, hostname)
 
     return (
         <header data-site-navbar className="sticky top-0 z-[100] w-full border-b border-slate-200 bg-slate-100/95 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95">
@@ -170,7 +177,7 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
                 <div className="flex min-w-0 justify-between items-center gap-3 h-16 md:h-20">
                     <div className="flex min-w-0 flex-1 items-center gap-8 lg:flex-initial">
                         <Link
-                            href="/"
+                            href={productionSiteHref('/')}
                             className="hover:opacity-80 transition-opacity flex-shrink-0 min-w-0"
                         >
                             {/* Single <img> via <picture> — avoids preloading both wordmark and mark on every page. */}
@@ -195,6 +202,7 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
                                     key={link.href}
                                     href={link.href}
                                     target={link.external ? '_blank' : undefined}
+                                    rel={link.external ? 'noopener noreferrer' : undefined}
                                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${linkActive(link.href)
                                         ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white'
                                         : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white'
@@ -227,7 +235,7 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
             </div>
 
             <a
-                href="https://paradigmthreat.net/"
+                href={productionSiteHref('/')}
                 data-relay-migration-banner
                 className="block w-full border-t border-amber-700/25 bg-amber-100 px-4 py-2 text-center text-sm font-medium text-amber-950 transition-colors hover:bg-amber-200 dark:border-amber-400/20 dark:bg-amber-950/80 dark:text-amber-50 dark:hover:bg-amber-900/90"
             >
@@ -262,6 +270,7 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
                                     key={link.href}
                                     href={link.href}
                                     target={link.external ? '_blank' : undefined}
+                                    rel={link.external ? 'noopener noreferrer' : undefined}
                                     className={`px-4 py-3 rounded-xl text-base font-medium flex items-center gap-3 transition-colors ${linkActive(link.href)
                                         ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white'
                                         : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
