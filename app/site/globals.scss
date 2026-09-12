@@ -272,6 +272,11 @@ html:not([data-font]) .txt-para {
   text-decoration: underline;
 }
 
+.pt-dead-link {
+  text-decoration: line-through;
+  opacity: 0.75;
+}
+
 /* Timeline ?fullscreen=1 — portal covers viewport; hide site chrome underneath */
 body.timeline-fullscreen [data-site-navbar],
 body.timeline-fullscreen [data-site-footer],

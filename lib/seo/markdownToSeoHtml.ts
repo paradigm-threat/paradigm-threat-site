@@ -5,6 +5,7 @@ import { canonicalSiteAssetToMirrorUrl } from '@/lib/canonicalSiteAssetUrl'
 import { buildOptimizedAssetUrl } from '@/lib/relayOptimizedAssetUrl'
 import { resolveSeoAssetUrl } from '@/lib/seo/resolveSeoAssetUrl'
 import { stripYamlFrontmatter } from '@/lib/stripYamlFrontmatter'
+import { lookupHttpHref, type DeadUrlMap } from '@/lib/normalizeHttpHref'
 
 const CHANGELOG_PLACEHOLDER = '\u0000SEO_CHANGELOG\u0000'
 
@@ -21,6 +22,8 @@ export interface MarkdownToSeoHtmlOptions {
   basePath: string
   /** Pre-rendered HTML for `<ChangeLog />` replacement. */
   changelogHtml?: string
+  /** Confirmed-dead href map (files + timeline). Missing/empty → unmarked links. */
+  deadUrls?: DeadUrlMap | null
 }
 
 function preprocessCustomComponents (source: string): string {
@@ -86,7 +89,7 @@ function seoRasterUrl (src: string, basePath: string): string {
   return buildOptimizedAssetUrl(pathForApi, w)
 }
 
-function processInline (text: string, basePath: string): string {
+function processInline (text: string, basePath: string, deadUrls?: DeadUrlMap | null): string {
   let out = text
   out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_m, alt: string, src: string) => {
     const url = seoRasterUrl(src, basePath)
@@ -94,6 +97,11 @@ function processInline (text: string, basePath: string): string {
   })
   out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, label: string, href: string) => {
     const url = resolveSeoAssetUrl(href, basePath)
+    const dead = lookupHttpHref(deadUrls, href) || lookupHttpHref(deadUrls, url)
+    if (dead) {
+      const reason = typeof dead.reason === 'string' && dead.reason.length > 0 ? dead.reason : 'dead'
+      return `<a href="${escapeHtml(url)}" class="pt-dead-link" title="${escapeHtml(reason)}">${escapeHtml(label)} <span>(dead)</span></a>`
+    }
     return `<a href="${escapeHtml(url)}">${escapeHtml(label)}</a>`
   })
   out = out.replace(/\*\*([^*]+)\*\*/g, (_m, s: string) => `<strong>${escapeHtml(s)}</strong>`)
@@ -104,16 +112,16 @@ function processInline (text: string, basePath: string): string {
   )).join('')
 }
 
-function renderParagraph (text: string, basePath: string): string {
+function renderParagraph (text: string, basePath: string, deadUrls?: DeadUrlMap | null): string {
   const trimmed = text.trim()
   if (!trimmed) return ''
   if (isHtmlBlockStart(trimmed) && tagAllowed(trimmed)) {
     return sanitizeHtmlBlock(trimmed)
   }
-  return `<p>${processInline(trimmed, basePath)}</p>`
+  return `<p>${processInline(trimmed, basePath, deadUrls)}</p>`
 }
 
-function renderBlocks (source: string, basePath: string): string[] {
+function renderBlocks (source: string, basePath: string, deadUrls?: DeadUrlMap | null): string[] {
   const lines = source.split('\n')
   const blocks: string[] = []
   let i = 0
@@ -127,7 +135,7 @@ function renderBlocks (source: string, basePath: string): string[] {
     const heading = line.match(/^(#{1,6})\s+(.+)$/)
     if (heading) {
       const level = heading[1].length
-      blocks.push(`<h${level}>${processInline(heading[2], basePath)}</h${level}>`)
+      blocks.push(`<h${level}>${processInline(heading[2], basePath, deadUrls)}</h${level}>`)
       i++
       continue
     }
@@ -138,7 +146,7 @@ function renderBlocks (source: string, basePath: string): string[] {
         quoteLines.push(lines[i].replace(/^>\s?/, ''))
         i++
       }
-      const inner = quoteLines.map((l) => renderParagraph(l, basePath)).join('\n')
+      const inner = quoteLines.map((l) => renderParagraph(l, basePath, deadUrls)).join('\n')
       blocks.push(`<blockquote>${inner}</blockquote>`)
       continue
     }
@@ -149,7 +157,7 @@ function renderBlocks (source: string, basePath: string): string[] {
       const items: string[] = []
       while (i < lines.length && /^(-|\*|\d+\.)\s+/.test(lines[i])) {
         const item = lines[i].replace(/^(-|\*|\d+\.)\s+/, '')
-        items.push(`<li>${processInline(item, basePath)}</li>`)
+        items.push(`<li>${processInline(item, basePath, deadUrls)}</li>`)
         i++
       }
       blocks.push(`<${tag}>${items.join('')}</${tag}>`)
@@ -168,7 +176,7 @@ function renderBlocks (source: string, basePath: string): string[] {
       paraLines.push(lines[i])
       i++
     }
-    blocks.push(renderParagraph(paraLines.join(' '), basePath))
+    blocks.push(renderParagraph(paraLines.join(' '), basePath, deadUrls))
   }
 
   return blocks.filter(Boolean)
@@ -179,6 +187,6 @@ function renderBlocks (source: string, basePath: string): string[] {
  */
 export function markdownToSeoHtml (markdown: string, opts: MarkdownToSeoHtmlOptions): string {
   const prepped = preprocessCustomComponents(normalizeParadigmMarkdown(stripYamlFrontmatter(markdown)))
-  const body = renderBlocks(prepped, opts.basePath).join('\n')
+  const body = renderBlocks(prepped, opts.basePath, opts.deadUrls).join('\n')
   return restoreChangelog(body, opts.changelogHtml)
 }

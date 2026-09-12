@@ -69,4 +69,19 @@ but now I believe that the book's text was not redacted.
     assert.doesNotMatch(html, /!\[#/)
     assert.match(html, /<iframe/)
   })
+
+  it('marks confirmed-dead hrefs', () => {
+    const html = markdownToSeoHtml(
+      'See [gone](https://Example.COM/gone#x) and [live](https://example.com/live).',
+      {
+        basePath: '',
+        deadUrls: { 'https://example.com/gone': { reason: 'http_404', status: 404 } },
+      },
+    )
+    assert.match(html, /class="pt-dead-link"/)
+    assert.match(html, /title="http_404"/)
+    assert.match(html, /\(dead\)/)
+    assert.match(html, /href="https:\/\/example.com\/live"/)
+    assert.doesNotMatch(html, /live<\/a> <span>\(dead\)/)
+  })
 })

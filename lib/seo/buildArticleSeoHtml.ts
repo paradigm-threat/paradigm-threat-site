@@ -1,8 +1,10 @@
 import { cache } from 'react'
 import { markdownToSeoHtml } from '@/lib/seo/markdownToSeoHtml'
 import { fetchChangelogSeoEntries, renderChangelogSeoHtml } from '@/lib/seo/fetchChangelogSeo'
-import { fetchFilesHtmlFromMirrors } from '@/lib/serverFilesMirror'
+import { fetchFilesHtmlFromMirrors, fetchFilesTextFromMirrors } from '@/lib/serverFilesMirror'
+import { fetchFromAssetMirrors } from '@/lib/remoteAssetMirrors'
 import { rewriteSeoHtmlRasterImages } from '@/lib/seo/rewriteSeoHtmlRasterImages'
+import { parseDeadUrlMap, type DeadUrlMap } from '@/lib/normalizeHttpHref'
 
 export interface BuildArticleSeoHtmlInput {
   markdownBody: string
@@ -33,6 +35,26 @@ function injectRelayChangelog (html: string, changelogHtml: string | undefined):
   )
 }
 
+const loadSeoDeadUrls = cache(async function loadSeoDeadUrls (): Promise<DeadUrlMap> {
+  let filesMap: DeadUrlMap = {}
+  let timelineMap: DeadUrlMap = {}
+  try {
+    const filesText = await fetchFilesTextFromMirrors('hooks/dead-urls.json', '')
+    filesMap = parseDeadUrlMap(filesText)
+  } catch {
+    filesMap = {}
+  }
+  try {
+    const res = await fetchFromAssetMirrors('timeline', '/hooks/dead-urls.json', { search: '' })
+    if (res) {
+      timelineMap = parseDeadUrlMap(await res.text())
+    }
+  } catch {
+    timelineMap = {}
+  }
+  return { ...filesMap, ...timelineMap }
+})
+
 export const buildArticleSeoHtml = cache(async function buildArticleSeoHtml ({
   markdownBody,
   basePath,
@@ -55,5 +77,6 @@ export const buildArticleSeoHtml = cache(async function buildArticleSeoHtml ({
     }
   }
 
-  return markdownToSeoHtml(markdownBody, { basePath, changelogHtml })
+  const deadUrls = await loadSeoDeadUrls()
+  return markdownToSeoHtml(markdownBody, { basePath, changelogHtml, deadUrls })
 })

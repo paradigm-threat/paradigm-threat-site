@@ -10,6 +10,7 @@ import React, {
   useSyncExternalStore,
 } from 'react'
 import { remoteRelay } from '@/lib/remoteRelayStore'
+import { prefetchDeadUrls } from '@/lib/deadUrlsStore'
 
 export interface TimelineDate {
   start: number
@@ -93,6 +94,7 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
     const fetchData = async () => {
       await remoteRelay.bootstrap()
       if (!isMounted) return
+      void prefetchDeadUrls()
       setLoading(true)
       setError(null)
       try {

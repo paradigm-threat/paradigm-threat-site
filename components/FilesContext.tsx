@@ -15,6 +15,7 @@ import { remoteRelay } from '@/lib/remoteRelayStore'
 import { sendClientTelemetry } from '@/lib/clientTelemetrySend'
 import { getFilesBaseUrlList } from '@/lib/urlListEnv'
 import { prefetchSiteClaims } from '@/lib/siteAi/siteClaimsStore'
+import { prefetchDeadUrls } from '@/lib/deadUrlsStore'
 
 interface FilesContextType {
   fileList: any
@@ -54,6 +55,7 @@ export function FilesProvider({ children }: { children: ReactNode }) {
         const data = await remoteRelay.fetchFilesCatalog(abortController.signal)
         if (!isMounted) return
         void prefetchSiteClaims(abortController.signal)
+        void prefetchDeadUrls(abortController.signal)
         if (data == null) {
           setFileList(null)
           loadedOriginRef.current = null
