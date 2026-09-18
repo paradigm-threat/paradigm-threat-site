@@ -159,7 +159,7 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
     }, [pathname])
 
     // Absolute origins: timeline/chat subdomains redirect `/` → feature path, so relative
-    // Home would loop. Match Relay park Nav (apex Home/Search; subdomain Timeline/Chat).
+    // Home would loop. Search stays on the Vercel archive; Home → apex; Timeline/Chat → subdomains.
     const navLinks = [
         { href: SITE_CHROME_NAV.search, label: 'Search', icon: Search },
         { href: SITE_CHROME_NAV.home, label: 'Home', icon: Home },

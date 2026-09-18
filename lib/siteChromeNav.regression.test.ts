@@ -12,9 +12,9 @@ import {
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 describe('siteChromeNav', () => {
-  it('points Home/Search at production apex and Timeline/Chat at app subdomains', () => {
+  it('points Home at production apex, Search at archive, Timeline/Chat at app subdomains', () => {
     assert.equal(SITE_CHROME_NAV.home, 'https://paradigmthreat.net/')
-    assert.equal(SITE_CHROME_NAV.search, 'https://paradigmthreat.net/search')
+    assert.equal(SITE_CHROME_NAV.search, 'https://old.paradigmthreat.net/search')
     assert.equal(SITE_CHROME_NAV.timeline, 'https://timeline.paradigmthreat.net/')
     assert.equal(SITE_CHROME_NAV.chat, 'https://chat.paradigmthreat.net/')
     assert.equal(productionSiteHref('/'), 'https://paradigmthreat.net/')

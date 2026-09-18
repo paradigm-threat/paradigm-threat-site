@@ -2,8 +2,8 @@
  * Header/footer chrome destinations after apex → Relay cutover.
  *
  * App subdomains (`timeline.` / `chat.`) rewrite `/` → feature path, so relative
- * Home `/` loops. Mirror park Nav: Home/Search → production apex; Timeline/Chat →
- * their subdomains.
+ * Home `/` loops. Home → production apex; Search stays on the Vercel archive;
+ * Timeline/Chat → their subdomains.
  */
 
 import { CANONICAL_SITE_ORIGIN } from '@/lib/canonicalPublicSite'
@@ -37,7 +37,7 @@ export function archiveSiteHref (path = '/'): string {
 
 /** Primary header destinations (icons attached in Navbar). */
 export const SITE_CHROME_NAV = {
-  search: productionSiteHref('/search'),
+  search: archiveSiteHref('/search'),
   home: productionSiteHref('/'),
   timeline: timelineSiteHref('/'),
   chat: chatSiteHref('/'),
@@ -66,7 +66,11 @@ export function isSiteChromeNavActive (
     )
   }
   if (href === SITE_CHROME_NAV.search || href.endsWith('/search')) {
-    return path === '/search' || path.startsWith('/search/')
+    const onSearchPath = path === '/search' || path.startsWith('/search/')
+    if (!onSearchPath) return false
+    // Highlight on archive (and local/preview hosts); never treat apex Relay search as this link.
+    if (host === 'paradigmthreat.net' || host === 'www.paradigmthreat.net') return false
+    return true
   }
   if (href === SITE_CHROME_NAV.timeline || href.includes('://timeline.paradigmthreat.')) {
     return (
