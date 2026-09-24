@@ -136,10 +136,9 @@ export function listOptimizedAssetUrls (pathForAPI: string, width?: number): str
   const norm = clean.replace(/^\/+/, '')
   const repo = inferAssetRepoFromRelPath(norm)
   const bases = repo === 'timeline' ? getTimelineOrigins() : getFilesBaseUrlList()
-  const ordered = [...bases].sort((a, b) => a.localeCompare(b))
   const isSvg = pathIsSvg(pathForAPI)
   const w = width === undefined ? 800 : clampWidth(width)
-  return ordered.map((base) => {
+  return bases.map((base) => {
     const encodedPath = encodePathSegments(norm)
     const absolute = `${base.replace(/\/+$/, '')}/${encodedPath}`
     if (isSvg) return absolute

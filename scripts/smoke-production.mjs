@@ -39,7 +39,7 @@ function piperBases () {
   const raw =
     process.env.PIPER_API_URLS ||
     process.env.NEXT_PUBLIC_PIPER_API_URLS ||
-    'https://iad1.relaygateway.net https://sjc1.relaygateway.net https://hkg1.relaygateway.net'
+    'https://iad1.relaygateway.net https://hkg1.relaygateway.net'
   return raw
     .trim()
     .split(/\s+/)
