@@ -1,16 +1,27 @@
-'use client'
+import { redirect } from 'next/navigation'
 
-import React from 'react'
-import { useParams } from 'next/navigation'
-import { ChatRoom } from '@client'
+function meshChannel (raw: string): string {
+  const s = String(raw || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^#/, '')
+    .replace(/\//g, '-')
+    .replace(/[^a-z0-9_\-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 48)
+  if (!s || s === 'general') return 'pt-general'
+  if (s.startsWith('pt-')) return s
+  return `pt-${s}`
+}
 
-export default function ChatChannelPage() {
-    const params = useParams()
-    const channel = params?.channel as string | undefined
-
-    if (!channel) {
-        return null
-    }
-
-    return <ChatRoom mode="full" channel={channel} />
+/** Legacy /chat/:channel → park ChatApp with ?c=pt-<topic> */
+export default async function ChatChannelPage ({
+  params,
+}: {
+  params: Promise<{ channel?: string }> | { channel?: string }
+}) {
+  const p = await Promise.resolve(params)
+  const channel = meshChannel(p?.channel || 'general')
+  redirect(`https://paradigmthreat.net/chat?c=${encodeURIComponent(channel)}`)
 }

@@ -122,9 +122,10 @@ describe('mcp serverHandlers', () => {
     assert.match(String((result as { error: string }).error), /description|Invalid|at least/i)
   })
 
-  it('submit_chat_comment rejects missing channel', async () => {
-    const result = await mcpSubmitChatComment({ content: 'hello world' })
+  it('submit_chat_comment retired in favor of park mesh chat', async () => {
+    const result = await mcpSubmitChatComment({ channel: 'general', content: 'hello world' })
     assert.ok('error' in result && result.error)
+    assert.match(String((result as { error: string }).error), /retired|mesh chat|paradigmthreat\.net\/chat/i)
   })
 })
 

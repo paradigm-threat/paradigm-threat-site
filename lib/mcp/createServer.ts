@@ -12,7 +12,6 @@ import {
   mcpResearchStatus,
   mcpSearchSite,
   mcpSubmitInvestigationIdea,
-  mcpSubmitChatComment,
 } from '@/lib/mcp/serverHandlers'
 
 export type McpServerContext = {
@@ -205,19 +204,6 @@ export function createParadigmThreatMcpServer (context: McpServerContext = {}): 
       search_query: z.string().max(500).optional().describe('Optional search context that led to this request'),
     },
   }, (args) => mcpSubmitInvestigationIdea(args, submitClientKey))
-
-  registerJsonTool(server, 'submit_chat_comment', {
-    description:
-      'Post a comment to a Paradigm Threat chat channel (Relay git on chat/public branch). Confirm with the user before calling.',
-    inputSchema: {
-      channel: z.string().min(1).max(200),
-      content: z.string().min(1).max(1024),
-      author: z.string().min(1).max(18).optional(),
-      username: z.string().min(1).max(18).optional(),
-      is_anonymous: z.boolean().optional(),
-      anonymous: z.boolean().optional(),
-    },
-  }, (args) => mcpSubmitChatComment(args, submitClientKey))
 
   return server
 }

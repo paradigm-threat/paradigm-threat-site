@@ -41,9 +41,6 @@ import { toolErrorResult, toolJsonResult } from '@/lib/webmcp/toolResult'
 import { postInvestigationSubmission } from '@/lib/investigationSubmission/clientSubmit'
 import { parseInvestigationSubmissionBody } from '@/lib/investigationSubmission/validateSubmission'
 import { isInvestigationSubmitEnabled, isWebMcpActuationEnabled } from '@/lib/siteOpsFeature'
-import { putComment } from '@/lib/chat/relayChatClient'
-import { parseChatSubmissionBody } from '@/lib/chatSubmission/validateSubmission'
-import { checkChatSubmitRateLimit } from '@/lib/chatSubmission/rateLimit'
 
 async function loadIndex (): Promise<IndexedPathEntry[] | null> {
   const entries = await getWebMcpSearchIndex()
@@ -435,43 +432,13 @@ export async function executeSubmitInvestigationIdea (
   }
 }
 
+/** @deprecated chat/public PUT removed — use paradigmthreat.net/chat mesh IRC */
 export async function executeSubmitChatComment (
-  args: Record<string, unknown>,
+  _args: Record<string, unknown>,
 ): Promise<CallToolResult> {
-  if (typeof window === 'undefined') {
-    return toolErrorResult('submit_chat_comment must run in the browser')
-  }
-  if (!checkChatSubmitRateLimit('webmcp')) {
-    return toolErrorResult('Too many chat posts. Please wait a moment.')
-  }
-
-  const parsed = parseChatSubmissionBody({
-    channel: args.channel,
-    content: args.content,
-    author: args.author ?? args.username,
-    is_anonymous: args.is_anonymous,
-    anonymous: args.anonymous,
-    source: 'webmcp',
-  })
-  if (!parsed.ok) return toolErrorResult(parsed.error)
-
-  try {
-    const post = await putComment({
-      channel: parsed.data.channel,
-      content: parsed.data.content,
-      author: parsed.data.author,
-      anonymous: parsed.data.anonymous,
-      source: 'webmcp',
-    })
-    return toolJsonResult({
-      ok: true,
-      id: post.id,
-      channel: post.channel,
-      message: 'Comment saved to Relay chat.',
-    })
-  } catch (e) {
-    return toolErrorResult(e instanceof Error ? e.message : 'Chat submit failed')
-  }
+  return toolErrorResult(
+    'submit_chat_comment retired. Use https://paradigmthreat.net/chat (#pt / #pt-<topic>).',
+  )
 }
 
 export function hrefForSearchQueryExport (query: string): string {

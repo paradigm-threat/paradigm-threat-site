@@ -34,9 +34,6 @@ import {
 } from '@/lib/investigationSubmission/rateLimit'
 import { isInvestigationSubmitEnabled } from '@/lib/siteOpsFeature'
 import { insertInvestigationSubmission } from '@/server/investigationSubmissionsDB'
-import { putComment } from '@/lib/chat/relayChatClient'
-import { parseChatSubmissionBody } from '@/lib/chatSubmission/validateSubmission'
-import { checkChatSubmitRateLimit } from '@/lib/chatSubmission/rateLimit'
 
 const INVESTIGATION_LIST_CACHE_TAG = 'investigation-submissions-list'
 
@@ -298,40 +295,13 @@ export async function mcpSubmitInvestigationIdea (
   }
 }
 
+/** @deprecated chat/public PUT removed — use paradigmthreat.net/chat mesh IRC */
 export async function mcpSubmitChatComment (
-  args: Record<string, unknown>,
-  clientKey = 'mcp',
+  _args: Record<string, unknown>,
+  _clientKey = 'mcp',
 ) {
-  if (!checkChatSubmitRateLimit(clientKey)) {
-    return { error: 'Too many chat posts. Please try again later.' }
-  }
-
-  const parsed = parseChatSubmissionBody({
-    channel: args.channel,
-    content: args.content,
-    author: args.author ?? args.username,
-    is_anonymous: args.is_anonymous,
-    anonymous: args.anonymous,
-    source: 'mcp',
-  })
-  if (!parsed.ok) return { error: parsed.error }
-
-  try {
-    const post = await putComment({
-      channel: parsed.data.channel,
-      content: parsed.data.content,
-      author: parsed.data.author,
-      anonymous: parsed.data.anonymous,
-      source: 'mcp',
-    })
-    return {
-      ok: true,
-      id: post.id,
-      channel: post.channel,
-      created: post.created,
-      message: 'Comment saved to Relay chat/public branch.',
-    }
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Could not save chat comment.' }
+  return {
+    error:
+      'submit_chat_comment retired. Post in the park mesh chat at https://paradigmthreat.net/chat (channels #pt / #pt-<topic>).',
   }
 }

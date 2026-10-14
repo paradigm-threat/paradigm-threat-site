@@ -21,7 +21,6 @@ import {
   executeSuggestSearchFromPath,
   executePrepareIllustrationPrompt,
   executeSubmitInvestigationIdea,
-  executeSubmitChatComment,
 } from '@/lib/webmcp/toolHandlers'
 import { isInvestigationSubmitEnabled, isWebMcpActuationEnabled } from '@/lib/siteOpsFeature'
 
@@ -237,18 +236,6 @@ const SUBMISSION_TOOLS: AnyTool[] = [
     required: ['topic', 'description'],
   }, executeSubmitInvestigationIdea, false),
 
-  wrap('submit_chat_comment', 'Post a comment to a Paradigm Threat chat channel via Relay (chat/public branch). Requires explicit user confirmation before calling.', {
-    type: 'object',
-    properties: {
-      channel: { type: 'string', minLength: 1, maxLength: 200 },
-      content: { type: 'string', minLength: 1, maxLength: 1024 },
-      author: { type: 'string', minLength: 1, maxLength: 18 },
-      username: { type: 'string', minLength: 1, maxLength: 18 },
-      is_anonymous: { type: 'boolean', default: true },
-      anonymous: { type: 'boolean' },
-    },
-    required: ['channel', 'content'],
-  }, executeSubmitChatComment, false),
 ]
 
 const ACTUATION_TOOLS: AnyTool[] = [

@@ -1,5 +1,6 @@
-import { ChatRoom } from '@client'
+import { redirect } from 'next/navigation'
 
+/** Community chat moved to park mesh IRC — see paradigmthreat.net/chat */
 export default function ChatPage () {
-  return <ChatRoom mode='full' />
+  redirect('https://paradigmthreat.net/chat')
 }

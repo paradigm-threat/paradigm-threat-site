@@ -10,7 +10,8 @@ import { CANONICAL_SITE_ORIGIN } from '@/lib/canonicalPublicSite'
 
 export const PRODUCTION_SITE_ORIGIN = CANONICAL_SITE_ORIGIN
 export const TIMELINE_SITE_ORIGIN = 'https://timeline.paradigmthreat.net'
-export const CHAT_SITE_ORIGIN = 'https://chat.paradigmthreat.net'
+/** Park mesh chat (was chat.paradigmthreat.net Next ChatRoom). */
+export const CHAT_SITE_ORIGIN = 'https://paradigmthreat.net'
 export const ARCHIVE_SITE_ORIGIN = 'https://old.paradigmthreat.net'
 
 function originHref (origin: string, path = '/'): string {
@@ -28,7 +29,13 @@ export function timelineSiteHref (path = '/'): string {
 }
 
 export function chatSiteHref (path = '/'): string {
-  return originHref(CHAT_SITE_ORIGIN, path)
+  // Lobby lives at /chat; channel deep-links use ?c=
+  if (!path || path === '/') return originHref(CHAT_SITE_ORIGIN, '/chat')
+  if (path === '/chat' || path.startsWith('/chat/') || path.startsWith('/chat?')) {
+    return originHref(CHAT_SITE_ORIGIN, path)
+  }
+  const ch = path.replace(/^\//, '')
+  return `${originHref(CHAT_SITE_ORIGIN, '/chat')}?c=${encodeURIComponent(ch.startsWith('pt-') ? ch : `pt-${ch}`)}`
 }
 
 export function archiveSiteHref (path = '/'): string {
@@ -79,12 +86,13 @@ export function isSiteChromeNavActive (
       path.startsWith('/timeline/')
     )
   }
-  if (href === SITE_CHROME_NAV.chat || href.includes('://chat.paradigmthreat.')) {
-    return (
-      host === 'chat.paradigmthreat.net' ||
-      path === '/chat' ||
-      path.startsWith('/chat/')
-    )
+  if (
+    href === SITE_CHROME_NAV.chat ||
+    href.includes('://chat.paradigmthreat.') ||
+    href.includes('paradigmthreat.net/chat')
+  ) {
+    if (host === 'chat.paradigmthreat.net') return true
+    return path === '/chat' || path.startsWith('/chat/')
   }
   try {
     const u = new URL(href, PRODUCTION_SITE_ORIGIN)
