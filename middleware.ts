@@ -54,8 +54,42 @@ function isLocalStaticAsset (pathname: string): boolean {
 
 const TIMELINE_SUBDOMAIN = 'timeline.paradigmthreat.net'
 const CHAT_SUBDOMAIN = 'chat.paradigmthreat.net'
+const PARK_CHAT = 'https://paradigmthreat.net/chat'
 
-/** App-surface subdomain: `/` always opens the feature path (Timeline/Chat). */
+/** Chat subdomain → park mesh ChatApp (legacy Vercel chat UI retired). */
+function chatSubdomainRedirect (
+  request: NextRequest,
+  host: string,
+  pathname: string,
+): NextResponse | null {
+  if (host !== CHAT_SUBDOMAIN) return null
+  if (!(request.method === 'GET' || request.method === 'HEAD')) return null
+
+  const rest = pathname.replace(/^\/chat\/?/, '/').replace(/^\//, '')
+  const segment = rest.split('/').filter(Boolean)[0] || ''
+  if (!segment || segment === 'general') {
+    return NextResponse.redirect(PARK_CHAT, 301)
+  }
+  const slug = segment
+    .toLowerCase()
+    .replace(/^#/, '')
+    .replace(/\//g, '-')
+    .replace(/[^a-z0-9_\-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 48)
+  const channel = !slug || slug === 'general'
+    ? 'pt-general'
+    : slug.startsWith('pt-')
+      ? slug
+      : `pt-${slug}`
+  return NextResponse.redirect(
+    `${PARK_CHAT}?c=${encodeURIComponent(channel)}`,
+    301,
+  )
+}
+
+/** App-surface subdomain: `/` always opens the feature path (Timeline). */
 function appSubdomainHomeRedirect (
   request: NextRequest,
   host: string,
@@ -64,13 +98,10 @@ function appSubdomainHomeRedirect (
   if (!(request.method === 'GET' || request.method === 'HEAD')) return null
   if (!(pathname === '/' || pathname === '')) return null
 
-  let destPath: string | null = null
-  if (host === TIMELINE_SUBDOMAIN) destPath = '/timeline'
-  else if (host === CHAT_SUBDOMAIN) destPath = '/chat'
-  if (!destPath) return null
+  if (host !== TIMELINE_SUBDOMAIN) return null
 
   const url = request.nextUrl.clone()
-  url.pathname = destPath
+  url.pathname = '/timeline'
   return NextResponse.redirect(url, 307)
 }
 
@@ -79,6 +110,9 @@ export function middleware (request: NextRequest) {
   const host = (request.headers.get('x-forwarded-host') || request.headers.get('host') || '')
     .split(':')[0]
     .toLowerCase()
+
+  const chatRedirect = chatSubdomainRedirect(request, host, pathname)
+  if (chatRedirect) return chatRedirect
 
   const appRedirect = appSubdomainHomeRedirect(request, host, pathname)
   if (appRedirect) return appRedirect

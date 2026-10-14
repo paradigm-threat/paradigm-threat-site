@@ -19,9 +19,9 @@ function meshChannel (raw: string): string {
 export default async function ChatChannelPage ({
   params,
 }: {
-  params: Promise<{ channel?: string }> | { channel?: string }
+  params: Promise<{ channel?: string }>
 }) {
-  const p = await Promise.resolve(params)
+  const p = await params
   const channel = meshChannel(p?.channel || 'general')
   redirect(`https://paradigmthreat.net/chat?c=${encodeURIComponent(channel)}`)
 }
