@@ -17,6 +17,7 @@ describe('siteChromeNav', () => {
     assert.equal(SITE_CHROME_NAV.search, 'https://old.paradigmthreat.net/search')
     assert.equal(SITE_CHROME_NAV.timeline, 'https://timeline.paradigmthreat.net/')
     assert.equal(SITE_CHROME_NAV.chat, 'https://paradigmthreat.net/chat')
+    assert.equal(SITE_CHROME_NAV.movies, 'https://flashbackrepository.org/')
     assert.equal(productionSiteHref('/'), 'https://paradigmthreat.net/')
   })
 

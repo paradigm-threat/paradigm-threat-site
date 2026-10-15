@@ -3,7 +3,7 @@
 import React, { useState, useEffect, memo, useRef, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Menu, X, Search, Home, MessageSquare, Video, Clock, Heart, Rss, Server } from 'lucide-react'
+import { Menu, X, Search, Home, MessageSquare, Video, Film, Clock, Heart, Rss, Server } from 'lucide-react'
 import { ThemeToggle, FontToggle, DynamicNav, DynamicIndex } from '@/components'
 import { FeelingLuckyButton } from '@/components/FeelingLucky/FeelingLuckyButton'
 import { ResumeInvestigationPanel } from '@/components/ResumeInvestigationPanel'
@@ -166,6 +166,7 @@ const Navbar = memo(function Navbar({ fileList }: NavbarProps) {
         { href: SITE_CHROME_NAV.timeline, label: 'Timeline', icon: Clock },
         { href: SITE_CHROME_NAV.chat, label: 'Chat', icon: MessageSquare },
         { href: SITE_CHROME_NAV.substack, label: 'Substack', icon: Rss, external: true },
+        { href: SITE_CHROME_NAV.movies, label: 'Movies', icon: Film, external: true },
         { href: SITE_CHROME_NAV.videos, label: 'Videos', icon: Video, external: true },
         { href: SITE_CHROME_NAV.donate, label: 'Donate', icon: Heart, external: true },
     ]

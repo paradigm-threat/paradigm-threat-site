@@ -49,6 +49,7 @@ export const SITE_CHROME_NAV = {
   timeline: timelineSiteHref('/'),
   chat: chatSiteHref('/'),
   substack: 'https://paradigmthreat2.substack.com/',
+  movies: 'https://flashbackrepository.org/',
   videos: 'https://www.bitchute.com/channel/paradigmthreat',
   donate: 'https://www.patreon.com/c/ahsctimeline',
   submit: archiveSiteHref('/submit'),

@@ -2,7 +2,7 @@
  * Markdown component overrides for md2ast-react.
  *
  * Tags used in paradigm-threat-files corpus (grep audit):
- *   ChangeLog, DeferredMarkdown, OptimizedImage, AutoIndex, ChatRoom
+ *   ChangeLog, FlashbackNowShowing, DeferredMarkdown, OptimizedImage, AutoIndex, ChatRoom
  *
  * Registered overrides for site components and HTML tags.
  */
@@ -21,6 +21,7 @@ const {
   OptimizedImage,
   ChatRoom,
   ChangeLog,
+  FlashbackNowShowing,
   DynamicIndex,
   DynamicNav,
   EmbedFile,
@@ -56,6 +57,7 @@ export function filesMarkdownOverrides (basePath: string): MdOverrides {
     OptimizedImage: (props: Record<string, unknown>) => <OptimizedImage {...props} basePath={basePath} />,
     ChatRoom: ChatRoom as MdOverrides[string],
     ChangeLog: ChangeLog as MdOverrides[string],
+    FlashbackNowShowing: FlashbackNowShowing as MdOverrides[string],
     DeferredMarkdown: (props: Record<string, unknown>) => (
       <DeferredMarkdown {...props} />
     ),

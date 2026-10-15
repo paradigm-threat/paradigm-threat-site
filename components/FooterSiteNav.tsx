@@ -48,6 +48,14 @@ export function FooterSiteNav () {
         Substack
       </Link>
       <Link
+        href={SITE_CHROME_NAV.movies}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={linkClass}
+      >
+        Movies
+      </Link>
+      <Link
         href={SITE_CHROME_NAV.videos}
         target="_blank"
         rel="noopener noreferrer"
