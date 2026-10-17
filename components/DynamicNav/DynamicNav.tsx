@@ -189,21 +189,21 @@ const DynamicNav = memo(function DynamicNav({ directory: inputDirectory, childre
             <div
                 key={href}
                 className={`
-                    flex items-center gap-0.5 rounded-lg text-xs transition-colors min-w-0
+                    flex items-start gap-0.5 rounded-lg text-xs transition-colors min-w-0
                     ${isActive
                         ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-semibold'
                         : 'text-slate-500 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-300'}
                 `}
                 style={{ paddingLeft: leftPad }}
             >
-                <span className="w-[22px] shrink-0 flex items-center justify-center" aria-hidden>
+                <span className="w-[22px] shrink-0 flex items-center justify-center pt-1" aria-hidden>
                     <FileText size={12} className="opacity-70" />
                 </span>
                 <Link
                     prefetch={false}
                     href={href}
-                    className="flex-1 min-w-0 py-1 pr-2 pl-0.5 truncate"
-                    title={file.name}
+                    className="flex-1 min-w-0 py-1 pr-2 pl-0.5 whitespace-normal break-words [overflow-wrap:anywhere]"
+                    title={file.title}
                 >
                     {file.title}
                 </Link>
@@ -232,7 +232,7 @@ const DynamicNav = memo(function DynamicNav({ directory: inputDirectory, childre
             <div key={fullPath} className="flex flex-col">
                 <div
                     className={`
-                        flex items-center gap-0.5 rounded-lg text-sm transition-colors min-w-0
+                        flex items-start gap-0.5 rounded-lg text-sm transition-colors min-w-0
                         ${isActive
                             ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold'
                             : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}
@@ -243,7 +243,7 @@ const DynamicNav = memo(function DynamicNav({ directory: inputDirectory, childre
                         <button
                             type="button"
                             onClick={(e) => { e.preventDefault(); toggle(fullPath) }}
-                            className="p-0.5 -m-0.5 rounded hover:bg-slate-200/50 dark:hover:bg-slate-700/50 shrink-0 w-[22px] flex items-center justify-center"
+                            className="p-0.5 -m-0.5 mt-1 rounded hover:bg-slate-200/50 dark:hover:bg-slate-700/50 shrink-0 w-[22px] flex items-center justify-center"
                             aria-expanded={isExpanded}
                         >
                             {isExpanded
@@ -256,10 +256,10 @@ const DynamicNav = memo(function DynamicNav({ directory: inputDirectory, childre
                     <Link
                         prefetch={false}
                         href={fullPath}
-                        className="flex-1 min-w-0 flex items-center justify-between gap-2 py-1.5 pr-2 pl-0.5"
+                        className="flex-1 min-w-0 flex items-start justify-between gap-2 py-1.5 pr-2 pl-0.5"
                     >
-                        <span className="truncate">{title}</span>
-                        {count > 0 && <span className="text-[10px] opacity-50 font-normal shrink-0">({count})</span>}
+                        <span className="whitespace-normal break-words [overflow-wrap:anywhere]">{title}</span>
+                        {count > 0 && <span className="text-[10px] opacity-50 font-normal shrink-0 pt-0.5">({count})</span>}
                     </Link>
                 </div>
                 {hasChildren && isExpanded && (
