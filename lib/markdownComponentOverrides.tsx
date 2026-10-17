@@ -4,6 +4,7 @@
  * Tags used in paradigm-threat-files corpus (grep audit):
  *   ChangeLog, FlashbackNowShowing, DeferredMarkdown, OptimizedImage, AutoIndex, ChatRoom
  *
+ * ChatRoom embeds park mesh LiveChat (same <ChatRoom channel="…" /> as Relay tip).
  * Registered overrides for site components and HTML tags.
  */
 'use client'

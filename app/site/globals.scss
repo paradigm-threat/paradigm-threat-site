@@ -277,6 +277,31 @@ html:not([data-font]) .txt-para {
   opacity: 0.75;
 }
 
+/* Markdown <ChatRoom /> → park LiveChat host (loaded from paradigmthreat.net) */
+.pt-chatroom-live {
+  margin: 1.25rem 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.pt-chatroom-live .fb-live-chat-host {
+  display: block;
+  width: 100%;
+  min-height: 12rem;
+  box-sizing: border-box;
+}
+
+.pt-chatroom-live .chat-room-fallback,
+.pt-chatroom-live .chat-room-moved {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  opacity: 0.85;
+}
+
+.pt-chatroom-live .chat-room-fallback-meta {
+  opacity: 0.7;
+}
+
 /* Timeline ?fullscreen=1 — portal covers viewport; hide site chrome underneath */
 body.timeline-fullscreen [data-site-navbar],
 body.timeline-fullscreen [data-site-footer],
