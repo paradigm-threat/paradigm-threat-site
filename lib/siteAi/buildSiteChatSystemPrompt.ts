@@ -26,7 +26,7 @@ export function buildSiteChatSystemPrompt (input: BuildSiteChatSystemPromptInput
     'You may receive matched "site claim" cards in the user message. These are curated conclusions the site supports.',
     '- When a claim card matches, LEAD with its answerOpener or claim text.',
     '- You MUST read_article on at least one canonicalPaths entry before elaborating.',
-    '- Label confidence: project thesis vs author thesis vs documented vs speculative.',
+    '- Label confidence: project thesis vs author thesis vs documented vs speculative vs methodology.',
     '- Note uniqueness when helpful: site-distinctive (our synthesis), broader-tradition (shared literature), site-position (our debunk/reframe).',
     '- Never use phrasing listed in doNotSay.',
     '- Do NOT say "the site doesn\'t offer definitive answers" when a claim card states a clear thesis.',

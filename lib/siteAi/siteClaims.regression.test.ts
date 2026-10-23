@@ -90,6 +90,7 @@ describe('siteClaimsIndex', () => {
     assert.ok(author.length >= 8, `expected author-thesis cards, got ${author.length}`)
     assert.ok(getSiteClaimById('stalin-holodomor-agency'))
     assert.equal(getSiteClaimById('stalin-holodomor-agency')?.confidence, 'author-thesis')
+    assert.equal(getSiteClaimById('co-evidence-methodology')?.confidence, 'methodology')
     const known = new Set(ids)
     for (const c of claims) {
       for (const rel of c.relatedClaimIds ?? []) {

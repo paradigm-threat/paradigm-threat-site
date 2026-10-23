@@ -9,6 +9,7 @@ const CONFIDENCE: SiteClaimConfidence[] = [
   'documented',
   'speculative',
   'author-thesis',
+  'methodology',
 ]
 const UNIQUENESS: SiteClaimUniqueness[] = [
   'site-distinctive',

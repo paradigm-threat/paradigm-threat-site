@@ -80,7 +80,7 @@ export function buildSearchChatIntent (input: SearchChatIntentInput): SearchChat
         systemPromptOverlay: [
           '## Search session: investigation deep-dive',
           'Workflow: get_site_claims → list_index_entries under events/ and investigations/ → read_article (2+ sources) → open_timeline_event when relevant.',
-          'Label confidence (project thesis vs author thesis vs documented vs speculative).',
+          'Label confidence (project thesis vs author thesis vs documented vs speculative vs methodology).',
           'End with 2–3 concrete article recommendations.',
         ].join('\n'),
         maxTurns: 12,

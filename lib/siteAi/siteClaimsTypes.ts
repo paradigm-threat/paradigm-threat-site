@@ -10,6 +10,7 @@ export type SiteClaimConfidence =
   | 'documented'
   | 'speculative'
   | 'author-thesis'
+  | 'methodology'
 
 /** Curated thesis the agent may lead with (vs documented/speculative). */
 export function isSiteThesisConfidence (confidence: SiteClaimConfidence): boolean {

@@ -1,10 +1,10 @@
 import type { IndexedPathEntry } from '@/components/helpers/indexHelper'
-import { expandSearchKeywords } from '@/lib/replyAssistant/expandKeywords'
 import { getProjectPerspective } from '@/lib/replyAssistant/projectPerspective'
 import { searchContentFiltersFromInput } from '@/lib/replyAssistant/searchContentFilters'
 import { matchSiteClaims } from '@/lib/siteAi/matchSiteClaims'
 import { isSiteThesisConfidence, type SiteClaimEntry } from '@/lib/siteAi/siteClaimsTypes'
 import { searchEntryTitle } from '@/lib/searchEntryDisplay'
+import { queryTermsForAndFilter, type SearchContentFilters } from '@/lib/searchIndexFilter'
 import { filterAndRankSearchEntries } from '@/lib/search/searchSiteQuery'
 import { scoreSearchEntry } from '@/lib/search/searchRankScore'
 
@@ -52,6 +52,67 @@ export type ResearchEnvelope = {
 const SEARCH_COVERED_THRESHOLD = 8
 const SEARCH_TANGENTIAL_THRESHOLD = 4
 const CLAIM_COVERED_THRESHOLD = 8
+const SHORTER_STEM_QUERY_CAP = 24
+
+/** Contiguous keyword windows, longest first, always including every two-word slice. */
+export function shorterStemQueries (question: string, maxQueries = SHORTER_STEM_QUERY_CAP): string[] {
+  const terms = queryTermsForAndFilter(question)
+    .map((t) => t.replace(/^[^a-z0-9]+|[^a-z0-9]+$/gi, ''))
+    .filter((t) => t.length >= 2)
+  if (terms.length < 3) return []
+
+  const bigrams: string[] = []
+  for (let i = 0; i + 2 <= terms.length; i++) {
+    bigrams.push(terms.slice(i, i + 2).join(' '))
+  }
+
+  const out: string[] = []
+  const seen = new Set<string>()
+  const push = (q: string) => {
+    if (seen.has(q) || out.length >= maxQueries) return
+    seen.add(q)
+    out.push(q)
+  }
+
+  const longerBudget = Math.max(maxQueries - bigrams.length, 0)
+  for (let len = terms.length - 1; len >= 3 && out.length < longerBudget; len--) {
+    for (let i = 0; i + len <= terms.length && out.length < longerBudget; i++) {
+      push(terms.slice(i, i + len).join(' '))
+    }
+  }
+  for (const bigram of bigrams) push(bigram)
+  return out
+}
+
+function adoptBestStemAtLongestLength (
+  question: string,
+  index: IndexedPathEntry[],
+  filters: SearchContentFilters | undefined,
+  topScore: number,
+): { query: string; hits: IndexedPathEntry[]; score: number } | null {
+  const stems = shorterStemQueries(question)
+  const byLen = new Map<number, string[]>()
+  for (const q of stems) {
+    const n = q.split(/\s+/).length
+    const bucket = byLen.get(n) ?? []
+    bucket.push(q)
+    byLen.set(n, bucket)
+  }
+  const lengths = Array.from(byLen.keys()).sort((a, b) => b - a)
+  for (const len of lengths) {
+    let best: { query: string; hits: IndexedPathEntry[]; score: number } | null = null
+    for (const q of byLen.get(len) ?? []) {
+      const hits = filterAndRankSearchEntries(index, q, filters, 5)
+      if (!hits.length) continue
+      const score = scoreSearchEntry(hits[0]!, q)
+      if (score > topScore && (!best || score > best.score)) {
+        best = { query: q, hits, score }
+      }
+    }
+    if (best) return best
+  }
+  return null
+}
 
 export type ResearchStatusInput = {
   question: string
@@ -93,20 +154,20 @@ export function buildResearchStatus (input: ResearchStatusInput): ResearchEnvelo
 
   let searchHits = filterAndRankSearchEntries(input.index, question, filters, 10)
   let topSearch = searchHits[0]
-  let topScore = topSearch ? scoreSearchEntry(topSearch, question) : 0
+  let scoreQuery = question
+  let topScore = topSearch ? scoreSearchEntry(topSearch, scoreQuery) : 0
+  let usedShorterStem = false
 
   if (topScore < SEARCH_TANGENTIAL_THRESHOLD && input.expandKeywords !== false) {
-    const expanded = expandSearchKeywords(input.index, question, filters)
-    toolsCalled.push('expand_search_keywords')
-    for (const term of expanded.related.slice(0, 3)) {
-      const q = `${question} ${term}`.trim()
-      if (!queries.includes(q)) queries.push(q)
-      const hits = filterAndRankSearchEntries(input.index, q, filters, 5)
-      if (hits.length > 0 && scoreSearchEntry(hits[0]!, q) > topScore) {
-        searchHits = hits
-        topSearch = hits[0]
-        topScore = scoreSearchEntry(topSearch, question)
-      }
+    const stem = adoptBestStemAtLongestLength(question, input.index, filters, topScore)
+    if (stem) {
+      toolsCalled.push('shorter_stem_search')
+      if (!queries.includes(stem.query)) queries.push(stem.query)
+      searchHits = stem.hits
+      topSearch = stem.hits[0]
+      scoreQuery = stem.query
+      topScore = stem.score
+      usedShorterStem = true
     }
   }
 
@@ -122,7 +183,7 @@ export function buildResearchStatus (input: ResearchStatusInput): ResearchEnvelo
     ...searchHits.slice(0, 5).map((e) => ({
       path: e.path,
       title: searchEntryTitle(e),
-      score: scoreSearchEntry(e, question),
+      score: scoreSearchEntry(e, scoreQuery),
       kind: (e.path.startsWith('timeline/')
         ? 'timeline'
         : /\.(md|mdx)$/i.test(e.path) ? 'article' : 'other') as 'timeline' | 'article' | 'other',
@@ -132,13 +193,13 @@ export function buildResearchStatus (input: ResearchStatusInput): ResearchEnvelo
   const nearMisses = searchHits
     .slice(0, 3)
     .filter((e) => {
-      const s = scoreSearchEntry(e, question)
+      const s = scoreSearchEntry(e, scoreQuery)
       return s > 0 && s < SEARCH_TANGENTIAL_THRESHOLD
     })
     .map((e) => ({
       path: e.path,
       title: searchEntryTitle(e),
-      score: scoreSearchEntry(e, question),
+      score: scoreSearchEntry(e, scoreQuery),
       whyNotUsed: 'below relevance threshold',
     }))
 
@@ -158,7 +219,7 @@ export function buildResearchStatus (input: ResearchStatusInput): ResearchEnvelo
   } else if (claimCovered || topScore >= SEARCH_COVERED_THRESHOLD) {
     coverage = 'partial'
     confidence = 'medium'
-  } else if (topScore >= SEARCH_TANGENTIAL_THRESHOLD || matchedClaims.length > 0) {
+  } else if (topScore >= SEARCH_TANGENTIAL_THRESHOLD || matchedClaims.length > 0 || usedShorterStem) {
     coverage = 'tangential'
     confidence = 'medium'
   } else if (topSearch?.path.startsWith('timeline/')) {
@@ -178,11 +239,16 @@ export function buildResearchStatus (input: ResearchStatusInput): ResearchEnvelo
   const suggestedNextSteps: SuggestedStep[] = []
   if (coverage === 'not_in_corpus' || coverage === 'tangential') {
     suggestedNextSteps.push({ action: 'rephrase_query', detail: 'Try narrower keywords or event names' })
+    if (usedShorterStem && topSearch) {
+      suggestedNextSteps.push({ action: 'read_article', path: topSearch.path })
+    }
     if (nearMisses[0]) {
       suggestedNextSteps.push({ action: 'read_near_miss', path: nearMisses[0].path, detail: nearMisses[0].title })
     }
     suggestedNextSteps.push({ action: 'external_search', detail: 'MCP does not search the open web for primaries' })
-    suggestedNextSteps.push({ action: 'submit_investigation_idea', detail: 'Request coverage if topic should be in corpus' })
+    if (!usedShorterStem) {
+      suggestedNextSteps.push({ action: 'submit_investigation_idea', detail: 'Request coverage if topic should be in corpus' })
+    }
   } else if (topSearch) {
     suggestedNextSteps.push({ action: 'read_article', path: topSearch.path })
   }

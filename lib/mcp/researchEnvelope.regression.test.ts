@@ -37,6 +37,29 @@ describe('buildResearchStatus', () => {
     assert.equal(env.citableSources.length, 0)
   })
 
+  it('uses a shorter stem when the full question AND misses', () => {
+    const env = buildResearchStatus({
+      question: 'two camps theory NSA CIA Hollywood',
+      index: [
+        {
+          path: 'influence/hollywood/investigations/hollywood-two-camp-war-investigation.md',
+          searchText: 'influence/hollywood/investigations/hollywood-two-camp-war-investigation.md Hollywood two-camp war NSA CIA',
+        },
+        {
+          path: 'history/chronology/atlantis/theory.md',
+          searchText: 'history/chronology/atlantis/theory.md atlantis theory',
+        },
+      ],
+      claims: [],
+    })
+    assert.notEqual(env.coverage, 'not_in_corpus')
+    assert.notEqual(env.confidence, 'high')
+    assert.ok(env.searched.toolsCalled.includes('shorter_stem_search'))
+    assert.ok(env.corpusHits.some((h) => h.path.includes('hollywood-two-camp-war-investigation')))
+    assert.ok(env.suggestedNextSteps.some((s) => s.action === 'read_article'))
+    assert.equal(env.suggestedNextSteps.some((s) => s.action === 'submit_investigation_idea'), false)
+  })
+
   it('returns not_in_corpus for unrelated topic', () => {
     const env = buildResearchStatus({
       question: 'quantum computing bitcoin mining 2024',
