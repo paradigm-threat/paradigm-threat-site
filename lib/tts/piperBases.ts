@@ -12,7 +12,6 @@ function normalizeBaseUrl (raw: string): string {
     .trim()
     .replace(/lon1\.relaygateway\.net/gi, 'iad1.relaygateway.net')
     .replace(/dfw1\.relaygateway\.net/gi, 'iad1.relaygateway.net')
-    .replace(/sjc1\.relaygateway\.net/gi, 'iad1.relaygateway.net')
     .replace(/\/+$/, '')
 }
 

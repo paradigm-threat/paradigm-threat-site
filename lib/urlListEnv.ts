@@ -10,7 +10,6 @@ const DEFAULT_TIMELINE_ORIGIN = 'https://paradigm-threat-timeline-a77fe2.gitlab.
 const RETIRED_RELAY_HOST_REWRITES: Array<[RegExp, string]> = [
   [/lon1\.relaygateway\.net/gi, 'iad1.relaygateway.net'],
   [/dfw1\.relaygateway\.net/gi, 'iad1.relaygateway.net'],
-  [/sjc1\.relaygateway\.net/gi, 'iad1.relaygateway.net'],
 ]
 
 export function rewriteRetiredRelayOrigin (origin: string): string {

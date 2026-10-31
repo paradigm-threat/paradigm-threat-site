@@ -44,7 +44,7 @@ describe('zipRelayPairs pairs by node hostname', () => {
   })
 })
 
-describe('retired lon1/dfw1/sjc1 rewrite', () => {
+describe('retired lon1/dfw1 rewrite', () => {
   it('maps lon1.relaygateway.net to iad1', () => {
     assert.equal(
       rewriteRetiredRelayOrigin('https://paradigm-threat-files.lon1.relaygateway.net'),
@@ -59,16 +59,9 @@ describe('retired lon1/dfw1/sjc1 rewrite', () => {
     )
   })
 
-  it('maps sjc1.relaygateway.net to iad1', () => {
-    assert.equal(
-      rewriteRetiredRelayOrigin('https://paradigm-threat-files.sjc1.relaygateway.net'),
-      'https://paradigm-threat-files.iad1.relaygateway.net',
-    )
-  })
-
   it('parseUrlList rewrites and dedupes retired hosts next to iad1', () => {
     const list = parseUrlList(
-      'https://paradigm-threat-files.dfw1.relaygateway.net https://paradigm-threat-files.lon1.relaygateway.net https://paradigm-threat-files.sjc1.relaygateway.net https://paradigm-threat-files.iad1.relaygateway.net https://paradigm-threat-files.hkg1.relaygateway.net',
+      'https://paradigm-threat-files.dfw1.relaygateway.net https://paradigm-threat-files.lon1.relaygateway.net https://paradigm-threat-files.iad1.relaygateway.net https://paradigm-threat-files.hkg1.relaygateway.net',
     )
     assert.deepEqual(list, [
       'https://paradigm-threat-files.iad1.relaygateway.net',
